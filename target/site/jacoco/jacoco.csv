@@ -1,0 +1,9 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+uyirgene,com.uyirgene,UyirgeneApplication,8,0,0,0,3,0,2,0,2,0
+uyirgene,com.uyirgene.course,CourseController,16,4,0,0,4,1,2,1,2,1
+uyirgene,com.uyirgene.security,SecurityConfig,40,0,0,0,8,0,5,0,5,0
+uyirgene,com.uyirgene.blog,Blog,13,0,0,0,6,0,2,0,2,0
+uyirgene,com.uyirgene.blog,BlogController,61,4,0,0,13,1,5,1,5,1
+uyirgene,com.uyirgene.user,Role,0,34,0,0,0,2,0,1,0,1
+uyirgene,com.uyirgene.user,UserService,0,22,0,0,0,7,0,1,0,1
+uyirgene,com.uyirgene.auth,AuthController,18,0,0,0,3,0,2,0,2,0
