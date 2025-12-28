@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VideoProgressService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">uyirgene</a> &gt; <a href="index.source.html" class="el_package">com.uyirgene.course</a> &gt; <span class="el_source">VideoProgressService.java</span></div><h1>VideoProgressService.java</h1><pre class="source lang-java linenums">package com.uyirgene.course;
+
+import com.uyirgene.user.CurrentUserService;
+import com.uyirgene.user.User;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class VideoProgressService {
+    private final VideoProgressRepository progressRepo;
+    private final VideoRepository videoRepo;
+    private final EnrollmentRepository enrollmentRepo;
+    private final EnrollmentService enrollmentService;
+    private final CertificateService certificateService;
+    private final CurrentUserService currentUserService;
+
+    @Transactional
+    public VideoProgress updateProgress(Long videoId, Long lastPositionSeconds) {
+<span class="fc" id="L24">        User user = currentUserService.getCurrentUser();</span>
+<span class="pc" id="L25">        Video v = videoRepo.findById(videoId).orElseThrow(() -&gt; new IllegalArgumentException(&quot;Video not found&quot;));</span>
+
+        // check enrollment
+<span class="pc" id="L28">        Enrollment e = enrollmentRepo.findByUserAndCourse(user, v.getCourse()).orElseThrow(() -&gt; new SecurityException(&quot;User not enrolled&quot;));</span>
+
+<span class="pc" id="L30">        VideoProgress p = progressRepo.findByUserAndVideo(user, v).orElseGet(() -&gt; VideoProgress.builder().user(user).video(v).build());</span>
+<span class="fc" id="L31">        p.setLastPositionSeconds(lastPositionSeconds);</span>
+<span class="fc" id="L32">        p.setLastSeenAt(LocalDateTime.now());</span>
+<span class="pc bpc" id="L33" title="2 of 4 branches missed.">        if (v.getDurationSeconds() != null &amp;&amp; lastPositionSeconds &gt;= v.getDurationSeconds()) {</span>
+<span class="fc" id="L34">            p.setCompleted(true);</span>
+        }
+<span class="fc" id="L36">        p = progressRepo.save(p);</span>
+
+        // check course completion
+<span class="fc" id="L39">        List&lt;Video&gt; videos = videoRepo.findByCourseOrderByOrderIndex(v.getCourse());</span>
+<span class="fc" id="L40">        boolean allCompleted = videos.stream().allMatch(video -&gt; {</span>
+<span class="fc" id="L41">            return progressRepo.findByUserAndVideo(user, video).map(VideoProgress::getCompleted).orElse(false);</span>
+        });
+<span class="pc bpc" id="L43" title="1 of 2 branches missed.">        if (allCompleted) {</span>
+<span class="fc" id="L44">            enrollmentService.markCompleted(e);</span>
+<span class="fc" id="L45">            certificateService.generateCertificate(user, v.getCourse());</span>
+        }
+<span class="fc" id="L47">        return p;</span>
+    }
+
+    public VideoProgress getProgress(Long videoId) {
+<span class="nc" id="L51">        User user = currentUserService.getCurrentUser();</span>
+<span class="nc" id="L52">        Video v = videoRepo.findById(videoId).orElseThrow(() -&gt; new IllegalArgumentException(&quot;Video not found&quot;));</span>
+<span class="nc" id="L53">        return progressRepo.findByUserAndVideo(user, v).orElse(null);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

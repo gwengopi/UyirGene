@@ -9,6 +9,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
@@ -21,15 +24,22 @@ public class AuthController {
     private final UserRepository userRepository;
 
     @PostMapping(&quot;/register&quot;)
-    public ResponseEntity&lt;?&gt; register(@RequestBody RegisterRequest req) {
-<span class="nc" id="L25">        User u = userService.register(req.getName(), req.getEmail(), req.getPassword(), req.getRole());</span>
-<span class="nc" id="L26">        return ResponseEntity.ok(u);</span>
+    @Operation(summary = &quot;Register a new user&quot;)
+    @ApiResponses({
+            @ApiResponse(responseCode = &quot;201&quot;, description = &quot;User registered&quot;),
+            @ApiResponse(responseCode = &quot;400&quot;, description = &quot;Invalid input&quot;)
+    })
+    public ResponseEntity&lt;User&gt; register(@RequestBody RegisterRequest req) {
+<span class="nc" id="L33">        User u = userService.register(req.getName(), req.getEmail(), req.getPassword(), req.getRole());</span>
+<span class="nc" id="L34">        return ResponseEntity.status(201).body(u);</span>
     }
 
     @GetMapping(&quot;/me&quot;)
     @PreAuthorize(&quot;hasAnyRole('ADMIN','INSTRUCTOR','STUDENT')&quot;)
+    @Operation(summary = &quot;Get current authenticated user&quot;)
+    @ApiResponse(responseCode = &quot;200&quot;, description = &quot;Current user info&quot;)
     public ResponseEntity&lt;?&gt; me() {
-<span class="nc" id="L32">        return ResponseEntity.ok(&quot;Authenticated user details placeholder&quot;);</span>
+<span class="nc" id="L42">        return ResponseEntity.ok(&quot;Authenticated user details placeholder&quot;);</span>
     }
 
     @Data
