@@ -11,7 +11,8 @@ public class CourseControllerTest {
     @Test
     void list_returns_all_courses() {
         CourseRepository repo = Mockito.mock(CourseRepository.class);
-        CourseController controller = new CourseController(repo);
+        VideoRepository videoRepo = Mockito.mock(VideoRepository.class);
+        CourseController controller = new CourseController(repo, videoRepo);
         assertThat(controller.all()).isNotNull();
     }
 }

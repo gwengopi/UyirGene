@@ -17,6 +17,7 @@ import java.util.List;
 public class CourseController {
 
     private final CourseRepository repo;
+    private final VideoRepository videoRepo;
 
     @GetMapping
     @Operation(summary = "List all courses")
@@ -46,4 +47,20 @@ public class CourseController {
         repo.deleteById(id);
         return ResponseEntity.noContent().build();
     }
-} 
+
+    @PostMapping("/{id}/videos")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @Operation(summary = "Add a video to a course")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Video created"),
+            @ApiResponse(responseCode = "404", description = "Course not found")
+    })
+    public ResponseEntity<Video> addVideo(@PathVariable Long id, @RequestBody Video v) {
+        Course course = repo.findById(id).orElseThrow(() -> new IllegalArgumentException("Course not found"));
+        v.setId(null);
+        v.setCourse(course);
+        Video saved = videoRepo.save(v);
+        return ResponseEntity.created(URI.create("/api/courses/" + id + "/videos/" + saved.getId())).body(saved);
+    }
+}
+ 
