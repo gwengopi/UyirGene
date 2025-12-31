@@ -1,0 +1,11 @@
+# Ignore all node_modules everywhere
+**/node_modules/
+
+# Optional – ignore build artifacts
+dist/
+build/
+
+# IDE files (optional but recommended)
+.idea/
+.vscode/
+*.iml

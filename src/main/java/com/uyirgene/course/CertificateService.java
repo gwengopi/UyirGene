@@ -26,7 +26,10 @@ public class CertificateService {
     @Value("${app.certificate.folder:uploads/certificates}")
     private String certFolder;
 
-    public Certificate generateCertificate(User user, Course course) {
+    public Certificate generateCertificate(User user, Course course)
+    {
+        return null;
+    }/*{
         Certificate existing = certRepo.findByUserAndCourse(user, course).orElse(null);
         if (existing != null) return existing;
 
@@ -37,7 +40,7 @@ public class CertificateService {
         c.setCertificateId(UUID.randomUUID().toString());
 
         try {
-            Path dir = Path.of(certFolder);
+            Path dir = Path.of("");
             Files.createDirectories(dir);
             String fileName = c.getCertificateId() + ".pdf";
             Path filePath = dir.resolve(fileName);
@@ -48,7 +51,8 @@ public class CertificateService {
         } catch (IOException ex) {
             throw new RuntimeException("Failed to generate certificate", ex);
         }
-    }
+    }*/
+
 
     private void createPdfCertificate(String userName, String courseTitle, File file) throws IOException {
         try (PDDocument doc = new PDDocument()) {
