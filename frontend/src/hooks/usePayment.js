@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
-import { useToast } from './useToast';
+import { useToast } from './useToast.jsx';
 
 export function usePayment(auth) {
   const [processing, setProcessing] = useState(false);

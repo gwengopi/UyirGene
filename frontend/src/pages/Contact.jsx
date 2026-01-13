@@ -3,6 +3,7 @@ import { Container, Typography, Box, Grid, Paper, TextField, Alert } from '@mui/
 import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import LanguageIcon from '@mui/icons-material/Language';
 import { Breadcrumb, Button } from '../components/common';
 import { useToast } from '../store';
 
@@ -38,19 +39,25 @@ function Contact() {
     {
       icon: EmailIcon,
       title: 'Email',
-      content: 'support@uyirgene.com',
-      link: 'mailto:support@uyirgene.com',
+      content: 'admin@uyirgene.com',
+      link: 'mailto:admin@uyirgene.com',
     },
     {
-      icon: PhoneIcon,
-      title: 'Phone',
-      content: '+91 98765 43210',
-      link: 'tel:+919876543210',
+      icon: EmailIcon,
+      title: 'Alternate Email',
+      content: 'uyirgene@gmail.com',
+      link: 'mailto:uyirgene@gmail.com',
+    },
+    {
+      icon: LanguageIcon,
+      title: 'Website',
+      content: 'www.uyirgene.com',
+      link: 'https://www.uyirgene.com',
     },
     {
       icon: LocationOnIcon,
       title: 'Address',
-      content: 'Chennai, Tamil Nadu, India',
+      content: 'Uyir-Tech International Testing Laboratory, Research and Training Institute, Bharathi Nagar, NGO Colony, Sattur, Tamil Nadu, India',
       link: null,
     },
   ];
@@ -171,6 +178,8 @@ function Contact() {
                     <Typography
                       component="a"
                       href={info.link}
+                      target={info.link.startsWith('http') ? '_blank' : undefined}
+                      rel={info.link.startsWith('http') ? 'noopener noreferrer' : undefined}
                       variant="body2"
                       color="text.secondary"
                       sx={{ textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
@@ -186,18 +195,12 @@ function Contact() {
               </Box>
             ))}
 
-            <Box sx={{ mt: 4 }}>
+            <Box sx={{ mt: 4, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
               <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                Business Hours
+                Uyirgene International
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Monday - Friday: 9:00 AM - 6:00 PM IST
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Saturday: 10:00 AM - 4:00 PM IST
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Sunday: Closed
+                Professional Training Institute | ISO 9001 Certified | Training Partner of Skill India Digital Hub (Govt of India)
               </Typography>
             </Box>
           </Paper>

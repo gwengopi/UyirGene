@@ -1,6 +1,7 @@
 package com.uyirgene.course.payment;
 
 import com.uyirgene.course.payment.dto.PaymentOrder;
+import com.uyirgene.exception.PaymentException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
@@ -54,7 +55,7 @@ public class RazorpayPaymentService implements PaymentProvider {
 
             if (resp.getStatusCode() != HttpStatus.OK && resp.getStatusCode() != HttpStatus.CREATED) {
                 log.error("Failed to create Razorpay order. Status code: {}", resp.getStatusCode());
-                throw new RuntimeException("Failed to create Razorpay order");
+                throw new PaymentException("Failed to create Razorpay order");
             }
 
             Map data = resp.getBody();
@@ -66,9 +67,11 @@ public class RazorpayPaymentService implements PaymentProvider {
 
             return new PaymentOrder(orderId, amt, currency, keyId);
 
+        } catch (PaymentException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error creating Razorpay order", e);
-            throw new RuntimeException("Failed to create payment order", e);
+            throw new PaymentException("Failed to create payment order", e);
         }
     }
 
@@ -81,7 +84,7 @@ public class RazorpayPaymentService implements PaymentProvider {
             javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
             mac.init(new javax.crypto.spec.SecretKeySpec(keySecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             byte[] hmac = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
-            String expected = javax.xml.bind.DatatypeConverter.printHexBinary(hmac).toLowerCase();
+            String expected = java.util.HexFormat.of().formatHex(hmac).toLowerCase();
 
             boolean isValid = expected.equals(signature);
 

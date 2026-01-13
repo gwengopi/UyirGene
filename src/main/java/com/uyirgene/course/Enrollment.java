@@ -24,6 +24,6 @@ public class Enrollment {
     private Status status;
 
     public enum Status {
-        ENROLLED, COMPLETED
+        PENDING, ENROLLED, COMPLETED
     }
 }

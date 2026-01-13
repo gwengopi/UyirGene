@@ -6,3 +6,7 @@ dist/
 
 # Local env
 .env
+frontend/node_modules/
+target/
+
+

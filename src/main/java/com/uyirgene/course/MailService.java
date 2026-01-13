@@ -2,6 +2,8 @@ package com.uyirgene.course;
 
 import com.uyirgene.course.Course;
 import com.uyirgene.user.User;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -9,10 +11,11 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import jakarta.mail.internet.MimeMessage;
-import lombok.RequiredArgsConstructor;
+import java.io.InputStream;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MailService {
     private final JavaMailSender mailSender;
 
@@ -21,6 +24,7 @@ public class MailService {
 
     public void sendEnrollmentSuccess(User user, Course course) {
         try {
+            log.info("Sending enrollment success email to {} for course: {}", user.getEmail(), course.getTitle());
             MimeMessage msg = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
             helper.setTo(user.getEmail());
@@ -31,24 +35,27 @@ public class MailService {
             helper.setText(html, true);
 
             mailSender.send(msg);
+            log.info("Enrollment success email sent successfully to {}", user.getEmail());
         } catch (Exception e) {
-            // Log - but don't fail the request
-            e.printStackTrace();
+            // Log error but don't fail the enrollment request
+            log.error("Failed to send enrollment success email to {}: {}", user.getEmail(), e.getMessage(), e);
         }
     }
 
     private String buildHtml(User user, Course course) {
-        String tpl = "<html><body>" +
-                "<h2>Enrollment successful</h2>" +
-                "<p>Hi %s,</p>" +
-                "<p>You're successfully enrolled in <strong>%s</strong>.</p>" +
-                "<p>Course details:</p>" +
-                "<ul>" +
-                "<li>Title: %s</li>" +
-                "<li>Description: %s</li>" +
-                "</ul>" +
-                "<p>Happy learning!</p>" +
-                "</body></html>";
-        return String.format(tpl, user.getName(), course.getTitle(), course.getTitle(), course.getDescription() == null ? "" : course.getDescription());
+        try {
+            var res = new ClassPathResource("templates/enrollment-success.html");
+            String tpl;
+            try (InputStream is = res.getInputStream()) {
+                tpl = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            }
+            tpl = tpl.replace("{{name}}", user.getName() == null ? user.getEmail() : user.getName());
+            tpl = tpl.replace("{{courseTitle}}", course.getTitle() == null ? "" : course.getTitle());
+            tpl = tpl.replace("{{courseDescription}}", course.getDescription() == null ? "" : course.getDescription());
+            return tpl;
+        } catch (Exception e) {
+            log.warn("Failed to load email template, using fallback: {}", e.getMessage());
+            return "Hi " + (user.getName() == null ? user.getEmail() : user.getName()) + ", you are enrolled in " + course.getTitle();
+        }
     }
 }

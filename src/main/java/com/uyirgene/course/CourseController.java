@@ -39,6 +39,12 @@ public class CourseController {
         return ResponseEntity.created(URI.create("/api/courses/" + saved.getId())).body(saved);
     }
 
+    @GetMapping("/{id}")
+    @Operation(summary = "Get single course")
+    public ResponseEntity<Course> get(@PathVariable Long id) {
+        return repo.findById(id).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Delete a course")

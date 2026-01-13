@@ -56,7 +56,7 @@ public class PaymentService {
             javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
             mac.init(new javax.crypto.spec.SecretKeySpec(keySecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             byte[] hmac = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
-            String expected = javax.xml.bind.DatatypeConverter.printHexBinary(hmac).toLowerCase();
+            String expected = java.util.HexFormat.of().formatHex(hmac).toLowerCase();
             return expected.equals(signature);
         } catch (Exception e) {
             return false;
