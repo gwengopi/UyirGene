@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/UyirGene
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+  mail:
+    host: ${MAIL_HOST:smtp.mailtrap.io}
+    port: ${MAIL_PORT:2525}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+
+cors:
+  allowed-origins: http://localhost:5173,http://localhost:3000
+
+payment:
+  provider: mock
+  mock:
+    delay-ms: 2000
+
+logging:
+  level:
+    com.uyirgene: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
