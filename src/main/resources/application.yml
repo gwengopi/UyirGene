@@ -43,3 +43,9 @@ logging:
   level:
     com.uyirgene: INFO
     org.springframework.web: INFO
+
+app:
+  base-url: http://localhost:8080
+  certificate:
+    folder: uploads/certificates
+    logo-path: static/images/logo.png

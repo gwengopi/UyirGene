@@ -17,6 +17,8 @@ public class EnrollmentServiceTest {
         EnrollmentRepository enrollmentRepo = Mockito.mock(EnrollmentRepository.class);
         CourseRepository courseRepo = Mockito.mock(CourseRepository.class);
         CurrentUserService currentUserService = Mockito.mock(CurrentUserService.class);
+        com.uyirgene.course.payment.PaymentProvider paymentProvider = Mockito.mock(com.uyirgene.course.payment.PaymentProvider.class);
+        com.uyirgene.course.MailService mailService = Mockito.mock(com.uyirgene.course.MailService.class);
 
         User u = User.builder().id(1L).email("a@b").name("A").build();
         Course c = Course.builder().id(2L).title("C").build();
@@ -26,7 +28,7 @@ public class EnrollmentServiceTest {
         Mockito.when(enrollmentRepo.findByUserAndCourse(u, c)).thenReturn(Optional.empty());
         Mockito.when(enrollmentRepo.save(Mockito.any())).thenAnswer(i -> i.getArgument(0));
 
-        EnrollmentService s = new EnrollmentService(enrollmentRepo, courseRepo, currentUserService);
+        EnrollmentService s = new EnrollmentService(enrollmentRepo, courseRepo, currentUserService, paymentProvider, mailService);
         Enrollment e = s.enroll(2L);
 
         assertThat(e.getUser()).isEqualTo(u);

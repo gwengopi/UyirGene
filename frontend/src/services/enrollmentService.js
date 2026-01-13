@@ -4,6 +4,8 @@ const ENROLLMENT_ENDPOINTS = {
   ENROLL: (courseId) => `/api/courses/${courseId}/enroll`,
   CONFIRM: (courseId) => `/api/courses/${courseId}/enroll/confirm`,
   ENROLLED: '/api/courses/enrolled',
+  UNENROLL: (courseId) => `/api/courses/${courseId}/enroll`,
+  COMPLETE: (courseId) => `/api/courses/${courseId}/complete`,
 };
 
 /**
@@ -38,6 +40,14 @@ export async function confirmPayment(courseId, paymentData) {
 export async function getEnrolledCourses() {
   const response = await api.get(ENROLLMENT_ENDPOINTS.ENROLLED);
   return response.data;
+}
+
+export async function unenroll(courseId) {
+  await api.delete(ENROLLMENT_ENDPOINTS.UNENROLL(courseId));
+}
+
+export async function markComplete(courseId) {
+  await api.post(ENROLLMENT_ENDPOINTS.COMPLETE(courseId));
 }
 
 /**
@@ -128,4 +138,6 @@ export default {
   isEnrolledInCourse,
   loadRazorpayScript,
   processRazorpayPayment,
+  unenroll,
+  markComplete,
 };

@@ -82,11 +82,13 @@ export const ROUTES = {
     COURSES: '/admin/courses',
     USERS: '/admin/users',
     ANALYTICS: '/admin/analytics',
+    SETTINGS: '/admin/settings',
   },
   INSTRUCTOR: {
     COURSES: '/instructor/courses',
   },
   UNAUTHORIZED: '/unauthorized',
+  PAYMENT: '/payment',
   NOT_FOUND: '/404',
 };
 
@@ -135,4 +137,40 @@ export const CURRENCY = {
   CODE: 'INR',
   SYMBOL: '₹',
   LOCALE: 'en-IN',
+};
+
+// Images from Uyirgene website
+export const IMAGES = {
+  // Logo
+  LOGO: 'https://img1.wsimg.com/isteam/ip/1026513f-a4fe-4205-ac72-b744196cbd6f/UI_color-removebg-preview%202.png/:/rs=h:80,cg:true,m/qt=q:100/ll',
+  LOGO_SMALL: 'https://img1.wsimg.com/isteam/ip/1026513f-a4fe-4205-ac72-b744196cbd6f/UI_color-removebg-preview%202.png/:/rs=h:40,cg:true,m/qt=q:100/ll',
+
+  // Hero images
+  HERO_MAIN: 'https://img1.wsimg.com/isteam/ip/1026513f-a4fe-4205-ac72-b744196cbd6f/blob-91a7f99.png/:/rs=w:1920,h:1080,cg:true,m/qt=q:95',
+  HERO_STUDENTS: 'https://img1.wsimg.com/isteam/getty/1392049389/:/rs=w:1280,h:720,cg:true,m/qt=q:90',
+  HERO_LEARNING: 'https://img1.wsimg.com/isteam/getty/2246976642/:/rs=w:1280,h:720,cg:true,m/qt=q:90',
+  HERO_TECHNOLOGY: 'https://img1.wsimg.com/isteam/getty/2217587857/:/rs=w:1280,h:720,cg:true,m/qt=q:90',
+
+  // Course feature images
+  COURSE_REGULATORY: 'https://img1.wsimg.com/isteam/getty/2165387046/:/rs=w:600,h:400,cg:true,m/qt=q:90',
+  COURSE_TRAINERS: 'https://img1.wsimg.com/isteam/getty/2156390491/:/rs=w:600,h:400,cg:true,m/qt=q:90',
+  COURSE_PRACTICAL: 'https://img1.wsimg.com/isteam/getty/1938554573/:/rs=w:600,h:400,cg:true,m/qt=q:90',
+  COURSE_CERTIFICATION: 'https://img1.wsimg.com/isteam/getty/1341288264/:/rs=w:600,h:400,cg:true,m/qt=q:90',
+
+  // About section images
+  ABOUT_TEAM: 'https://img1.wsimg.com/isteam/getty/1754192862/:/rs=w:800,h:600,cg:true,m/qt=q:90',
+  ABOUT_MISSION: 'https://img1.wsimg.com/isteam/getty/852586044/:/rs=w:800,h:600,cg:true,m/qt=q:90',
+  ABOUT_VISION: 'https://img1.wsimg.com/isteam/getty/2193981513/:/rs=w:800,h:600,cg:true,m/qt=q:90',
+
+  // Background images
+  BG_GRADIENT: 'https://img1.wsimg.com/isteam/getty/158649166/:/rs=w:1920,h:1080,cg:true,m/qt=q:90',
+  BG_TECHNOLOGY: 'https://img1.wsimg.com/isteam/getty/2210258491/:/rs=w:1920,h:1080,cg:true,m/qt=q:90',
+
+  // Stock images
+  STOCK_OFFICE: 'https://img1.wsimg.com/isteam/stock/28704/:/rs=w:600,h:400,cg:true,m/qt=q:90',
+  STOCK_MEETING: 'https://img1.wsimg.com/isteam/stock/4195/:/rs=w:600,h:400,cg:true,m/qt=q:90',
+
+  // Placeholders
+  COURSE_PLACEHOLDER: 'https://img1.wsimg.com/isteam/getty/2165387046/:/rs=w:400,h:300,cg:true,m/qt=q:85',
+  USER_PLACEHOLDER: 'https://img1.wsimg.com/isteam/getty/1754192862/:/rs=w:200,h:200,cg:true,m/qt=q:85',
 };

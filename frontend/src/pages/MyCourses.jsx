@@ -36,6 +36,38 @@ function MyCourses() {
     }
   };
 
+  const reload = async () => {
+    setLoading(true);
+    try {
+      const data = await enrollmentService.getEnrolledCourses();
+      setCourses(data);
+    } catch (error) {
+      showError('Failed to refresh your courses');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUnenroll = async (courseId) => {
+    try {
+      await enrollmentService.unenroll(courseId);
+      showSuccess('You have been unenrolled');
+      reload();
+    } catch (error) {
+      showError('Failed to unenroll');
+    }
+  };
+
+  const handleMarkComplete = async (courseId) => {
+    try {
+      await enrollmentService.markComplete(courseId);
+      showSuccess('Course marked as completed');
+      reload();
+    } catch (error) {
+      showError('Failed to mark as completed');
+    }
+  };
+
   if (loading) {
     return <LoadingSpinner fullScreen text="Loading your courses..." />;
   }
@@ -63,18 +95,25 @@ function MyCourses() {
         />
       ) : (
         <Grid container spacing={3}>
-          {courses.map((course) => (
-            <Grid item xs={12} sm={6} md={4} key={course.id}>
-              <EnrolledCourseCard
-                course={course}
-                progress={0} // Would need progress from backend
-                completedVideos={0}
-                totalVideos={0}
-                onDownloadCertificate={handleDownloadCertificate}
-                certificateAvailable={false}
-              />
-            </Grid>
-          ))}
+          {courses.map((item) => {
+            const course = item.course ? item.course : item;
+            const status = item.status || null;
+            const isCompleted = status === 'COMPLETED' || status === 'COMPLETED';
+            return (
+              <Grid item xs={12} sm={6} md={4} key={course.id}>
+                <EnrolledCourseCard
+                  course={course}
+                  progress={isCompleted ? 100 : 0}
+                  completedVideos={0}
+                  totalVideos={0}
+                  onDownloadCertificate={handleDownloadCertificate}
+                  certificateAvailable={isCompleted}
+                  onUnenroll={() => handleUnenroll(course.id)}
+                  onMarkComplete={() => handleMarkComplete(course.id)}
+                />
+              </Grid>
+            );
+          })}
         </Grid>
       )}
     </Container>

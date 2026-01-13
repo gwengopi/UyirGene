@@ -17,14 +17,25 @@ import {
   ListItemText,
   TextField,
   InputAdornment,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
-import { EmptyState, LoadingSpinner } from '../common';
-import { formatDate, formatRole } from '../../utils/formatters';
+import BlockIcon from '@mui/icons-material/Block';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import SchoolIcon from '@mui/icons-material/School';
+import { Button, EmptyState, LoadingSpinner } from '../common';
+import UserEnrollmentsDialog from './UserEnrollmentsDialog';
+import { formatRole } from '../../utils/formatters';
 import { ROLES } from '../../utils/constants';
 
 /**
@@ -33,13 +44,20 @@ import { ROLES } from '../../utils/constants';
 function UserManager({
   users = [],
   loading = false,
-  onEdit,
+  onRoleChange,
+  onToggleStatus,
   onDelete,
-  onChangeRole,
+  onUnenroll,
+  onCompleteEnrollment,
+  onRefresh,
 }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+  const [selectedRole, setSelectedRole] = useState('');
+  const [enrollmentsDialogOpen, setEnrollmentsDialogOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const handleMenuOpen = (event, user) => {
     setAnchorEl(event.currentTarget);
@@ -48,14 +66,61 @@ function UserManager({
 
   const handleMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleOpenRoleDialog = () => {
+    if (selectedUser) {
+      setSelectedRole(selectedUser.role || 'STUDENT');
+      setRoleDialogOpen(true);
+    }
+    handleMenuClose();
+  };
+
+  const handleCloseRoleDialog = () => {
+    setRoleDialogOpen(false);
+    setSelectedUser(null);
+    setSelectedRole('');
+  };
+
+  const handleRoleSubmit = () => {
+    if (selectedUser && selectedRole) {
+      onRoleChange?.(selectedUser.id, selectedRole);
+    }
+    handleCloseRoleDialog();
+  };
+
+  const handleToggleStatus = () => {
+    if (selectedUser) {
+      onToggleStatus?.(selectedUser.id, !selectedUser.enabled);
+    }
+    handleMenuClose();
+  };
+
+  const handleOpenEnrollments = () => {
+    setEnrollmentsDialogOpen(true);
+    handleMenuClose();
+  };
+
+  const handleCloseEnrollments = () => {
+    setEnrollmentsDialogOpen(false);
     setSelectedUser(null);
   };
 
-  const handleAction = (action) => {
-    if (selectedUser) {
-      action(selectedUser);
-    }
+  const handleOpenDeleteConfirm = () => {
+    setDeleteConfirmOpen(true);
     handleMenuClose();
+  };
+
+  const handleCloseDeleteConfirm = () => {
+    setDeleteConfirmOpen(false);
+    setSelectedUser(null);
+  };
+
+  const handleDelete = () => {
+    if (selectedUser) {
+      onDelete?.(selectedUser.id);
+    }
+    handleCloseDeleteConfirm();
   };
 
   const filteredUsers = users.filter((user) => {
@@ -145,9 +210,9 @@ function UserManager({
                 </TableCell>
                 <TableCell align="center">
                   <Chip
-                    label={user.enabled ? 'Active' : 'Disabled'}
+                    label={user.enabled !== false ? 'Active' : 'Disabled'}
                     size="small"
-                    color={user.enabled ? 'success' : 'default'}
+                    color={user.enabled !== false ? 'success' : 'default'}
                     variant="outlined"
                   />
                 </TableCell>
@@ -182,25 +247,96 @@ function UserManager({
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
-        <MenuItem onClick={() => handleAction(onEdit)}>
-          <ListItemIcon>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Edit User</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={() => handleAction(onChangeRole)}>
+        <MenuItem onClick={handleOpenRoleDialog}>
           <ListItemIcon>
             <AdminPanelSettingsIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Change Role</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => handleAction(onDelete)} sx={{ color: 'error.main' }}>
+        <MenuItem onClick={handleToggleStatus}>
+          <ListItemIcon>
+            {selectedUser?.enabled !== false ? (
+              <BlockIcon fontSize="small" color="warning" />
+            ) : (
+              <CheckCircleIcon fontSize="small" color="success" />
+            )}
+          </ListItemIcon>
+          <ListItemText>
+            {selectedUser?.enabled !== false ? 'Disable User' : 'Enable User'}
+          </ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleOpenEnrollments}>
+          <ListItemIcon>
+            <SchoolIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>View Enrollments</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleOpenDeleteConfirm} sx={{ color: 'error.main' }}>
           <ListItemIcon>
             <DeleteIcon fontSize="small" color="error" />
           </ListItemIcon>
           <ListItemText>Delete User</ListItemText>
         </MenuItem>
       </Menu>
+
+      {/* Role Change Dialog */}
+      <Dialog open={roleDialogOpen} onClose={handleCloseRoleDialog} maxWidth="xs" fullWidth>
+        <DialogTitle>Change User Role</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Changing role for: <strong>{selectedUser?.name}</strong>
+            </Typography>
+            <FormControl fullWidth sx={{ mt: 2 }}>
+              <InputLabel>Role</InputLabel>
+              <Select
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+                label="Role"
+              >
+                <MenuItem value="STUDENT">Student</MenuItem>
+                <MenuItem value="INSTRUCTOR">Instructor</MenuItem>
+                <MenuItem value="ADMIN">Admin</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseRoleDialog}>Cancel</Button>
+          <Button variant="contained" onClick={handleRoleSubmit}>
+            Update Role
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onClose={handleCloseDeleteConfirm} maxWidth="xs" fullWidth>
+        <DialogTitle>Delete User</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete <strong>{selectedUser?.name}</strong>?
+          </Typography>
+          <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+            This will also delete all their course enrollments. This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteConfirm}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={handleDelete}>
+            Delete User
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* User Enrollments Dialog */}
+      <UserEnrollmentsDialog
+        open={enrollmentsDialogOpen}
+        user={selectedUser}
+        onClose={handleCloseEnrollments}
+        onUnenroll={onUnenroll}
+        onComplete={onCompleteEnrollment}
+        onRefresh={onRefresh}
+      />
     </Box>
   );
 }

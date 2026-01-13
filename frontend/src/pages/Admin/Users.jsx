@@ -35,17 +35,41 @@ function AdminUsers() {
     }
   };
 
-  const handleDelete = async (userId) => {
-    if (!window.confirm('Are you sure you want to delete this user?')) {
-      return;
+  const handleToggleStatus = async (userId, enabled) => {
+    try {
+      await adminService.updateUserStatus(userId, enabled);
+      showSuccess(`User ${enabled ? 'enabled' : 'disabled'} successfully`);
+      loadUsers();
+    } catch (error) {
+      showError('Failed to update user status');
     }
+  };
 
+  const handleDelete = async (userId) => {
     try {
       await adminService.deleteUser(userId);
       showSuccess('User deleted successfully');
       loadUsers();
     } catch (error) {
       showError('Failed to delete user');
+    }
+  };
+
+  const handleUnenroll = async (enrollmentId) => {
+    try {
+      await adminService.adminUnenroll(enrollmentId);
+      showSuccess('User unenrolled successfully');
+    } catch (error) {
+      showError('Failed to unenroll user');
+    }
+  };
+
+  const handleCompleteEnrollment = async (enrollmentId) => {
+    try {
+      await adminService.adminCompleteEnrollment(enrollmentId);
+      showSuccess('Enrollment marked as complete');
+    } catch (error) {
+      showError('Failed to complete enrollment');
     }
   };
 
@@ -65,14 +89,18 @@ function AdminUsers() {
             User Management
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            View and manage user accounts and roles.
+            View and manage user accounts, roles, and enrollments.
           </Typography>
         </Box>
 
         <UserManager
           users={users}
           onRoleChange={handleRoleChange}
+          onToggleStatus={handleToggleStatus}
           onDelete={handleDelete}
+          onUnenroll={handleUnenroll}
+          onCompleteEnrollment={handleCompleteEnrollment}
+          onRefresh={loadUsers}
         />
       </Container>
     </AdminLayout>

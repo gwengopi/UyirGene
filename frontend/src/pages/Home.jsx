@@ -6,20 +6,23 @@ import {
   Typography,
   Grid,
   Paper,
+  CardMedia,
 } from '@mui/material';
 import SchoolIcon from '@mui/icons-material/School';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import DevicesIcon from '@mui/icons-material/Devices';
+import ScienceIcon from '@mui/icons-material/Science';
 import { Button } from '../components/common';
 import { CourseCard } from '../components/course';
 import { courseService } from '../services';
-import { useAuth, useToast } from '../store';
-import { ROUTES } from '../utils/constants';
+import { useAuth, useToast, useConfig } from '../store';
+import { ROUTES, IMAGES } from '../utils/constants';
 
 function Home() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { showError } = useToast();
+  const { getImage } = useConfig();
   const [featuredCourses, setFeaturedCourses] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,17 +45,26 @@ function Home() {
     {
       icon: <SchoolIcon sx={{ fontSize: 48 }} />,
       title: 'Expert-Led Courses',
-      description: 'Learn from industry professionals with real-world experience',
+      description: 'Learn from industry professionals with real-world experience in ISO & Regulatory compliance',
+      image: getImage('COURSE_TRAINERS', IMAGES.COURSE_TRAINERS),
     },
     {
       icon: <VerifiedIcon sx={{ fontSize: 48 }} />,
-      title: 'Certificates',
-      description: 'Earn certificates upon course completion to showcase your skills',
+      title: 'Certification Support',
+      description: 'Earn certificates upon course completion to showcase your skills and boost your career',
+      image: getImage('COURSE_CERTIFICATION', IMAGES.COURSE_CERTIFICATION),
+    },
+    {
+      icon: <ScienceIcon sx={{ fontSize: 48 }} />,
+      title: 'Practical Learning',
+      description: 'Hands-on training with real-world case studies and practical exercises',
+      image: getImage('COURSE_PRACTICAL', IMAGES.COURSE_PRACTICAL),
     },
     {
       icon: <DevicesIcon sx={{ fontSize: 48 }} />,
       title: 'Learn Anywhere',
-      description: 'Access courses on any device, anytime, anywhere',
+      description: 'Access courses on any device, anytime, anywhere with our responsive platform',
+      image: getImage('COURSE_REGULATORY', IMAGES.COURSE_REGULATORY),
     },
   ];
 
@@ -61,12 +73,46 @@ function Home() {
       {/* Hero Section */}
       <Box
         sx={{
-          background: 'linear-gradient(135deg, rgba(79, 102, 114, 0.3) 0%, rgba(22, 22, 22, 1) 100%)',
+          position: 'relative',
           py: { xs: 8, md: 12 },
           textAlign: 'center',
+          overflow: 'hidden',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundImage: `url(${getImage('HERO_LEARNING', IMAGES.HERO_LEARNING)})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            opacity: 0.15,
+            zIndex: 0,
+          },
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(135deg, rgba(79, 102, 114, 0.8) 0%, rgba(22, 22, 22, 0.95) 100%)',
+            zIndex: 1,
+          },
         }}
       >
-        <Container maxWidth="md">
+        <Container maxWidth="md" sx={{ position: 'relative', zIndex: 2 }}>
+          <Box
+            component="img"
+            src={getImage('LOGO', IMAGES.LOGO)}
+            alt="Uyirgene International"
+            sx={{
+              height: { xs: 60, md: 80 },
+              mb: 3,
+              filter: 'brightness(1.2)',
+            }}
+          />
           <Typography
             variant="h2"
             component="h1"
@@ -78,9 +124,9 @@ function Home() {
           <Typography
             variant="h5"
             color="text.secondary"
-            sx={{ mb: 4, maxWidth: 600, mx: 'auto' }}
+            sx={{ mb: 4, maxWidth: 700, mx: 'auto' }}
           >
-            Transform your career with expert-led courses designed to help you succeed in today's digital world.
+            Transform your career with expert-led courses in ISO Standards, Regulatory Compliance, and Quality Management designed for the life sciences industry.
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Button
@@ -119,25 +165,35 @@ function Home() {
 
         <Grid container spacing={4}>
           {features.map((feature, index) => (
-            <Grid item xs={12} md={4} key={index}>
+            <Grid item xs={12} sm={6} md={3} key={index}>
               <Paper
                 sx={{
-                  p: 4,
                   textAlign: 'center',
                   height: '100%',
-                  transition: 'transform 0.2s',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  overflow: 'hidden',
                   '&:hover': {
                     transform: 'translateY(-8px)',
+                    boxShadow: 6,
                   },
                 }}
               >
-                <Box sx={{ color: 'primary.main', mb: 2 }}>{feature.icon}</Box>
-                <Typography variant="h6" gutterBottom fontWeight={600}>
-                  {feature.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {feature.description}
-                </Typography>
+                <CardMedia
+                  component="img"
+                  height={160}
+                  image={feature.image}
+                  alt={feature.title}
+                  sx={{ objectFit: 'cover' }}
+                />
+                <Box sx={{ p: 3 }}>
+                  <Box sx={{ color: 'primary.main', mb: 1 }}>{feature.icon}</Box>
+                  <Typography variant="h6" gutterBottom fontWeight={600}>
+                    {feature.title}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {feature.description}
+                  </Typography>
+                </Box>
               </Paper>
             </Grid>
           ))}

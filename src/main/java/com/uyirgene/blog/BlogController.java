@@ -42,7 +42,7 @@ public class BlogController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Delete blog post")
     @ApiResponse(responseCode = "204", description = "Deleted")
-    public ResponseEntity<?> delete(@PathVariable Long id) {
+    public ResponseEntity<?> delete(@PathVariable("id") Long id) {
         repo.deleteById(id);
         return ResponseEntity.noContent().build();
     }
@@ -54,7 +54,7 @@ public class BlogController {
             @ApiResponse(responseCode = "200", description = "Updated"),
             @ApiResponse(responseCode = "404", description = "Not found")
     })
-    public ResponseEntity<Blog> update(@PathVariable Long id, @RequestBody Blog b) {
+    public ResponseEntity<Blog> update(@PathVariable("id") Long id, @RequestBody Blog b) {
         return repo.findById(id).map(existing -> {
             existing.setTitle(b.getTitle());
             existing.setContent(b.getContent());

@@ -54,11 +54,31 @@ export async function getEnrolledCourses() {
  * @param {number} courseData.durationHours - Duration in hours
  * @param {number} courseData.price - Course price (null/0 for free)
  * @param {boolean} courseData.published - Whether course is published
+ * @param {Object} courseData.video - Optional video to add
  * @returns {Promise<Object>} Created course
  */
 export async function createCourse(courseData) {
-  const response = await api.post(COURSE_ENDPOINTS.LIST, courseData);
-  return response.data;
+  const { video, ...courseOnly } = courseData;
+
+  // Create course first
+  const response = await api.post(COURSE_ENDPOINTS.LIST, courseOnly);
+  const createdCourse = response.data;
+
+  // If video data provided, add video to course
+  if (video && video.url) {
+    try {
+      await addVideoToCourse(createdCourse.id, {
+        title: video.title || courseData.title,
+        url: video.url,
+        durationSeconds: 0,
+        sequenceOrder: 1,
+      });
+    } catch (error) {
+      console.error('Failed to add video to course:', error);
+    }
+  }
+
+  return createdCourse;
 }
 
 /**

@@ -2,3 +2,4 @@
 export { AuthProvider, useAuth } from './AuthContext';
 export { ToastProvider, useToast } from './ToastContext';
 export { UIProvider, useUI } from './UIContext';
+export { ConfigProvider, useConfig } from './ConfigContext';

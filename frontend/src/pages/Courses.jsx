@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Container, Typography, Box } from '@mui/material';
 import { CourseList, CourseFilters } from '../components/course';
 import { Breadcrumb } from '../components/common';
@@ -9,6 +10,7 @@ import { ROUTES } from '../utils/constants';
 function Courses() {
   const { isAuthenticated } = useAuth();
   const { showSuccess, showError } = useToast();
+  const navigate = useNavigate();
 
   const [courses, setCourses] = useState([]);
   const [enrolledIds, setEnrolledIds] = useState([]);
@@ -102,22 +104,23 @@ function Courses() {
       try {
         const result = await enrollmentService.startEnrollment(courseId);
 
-        // Check if payment is required
-        if (result.order) {
-          // Handle Razorpay payment
-          const paymentData = await enrollmentService.processRazorpayPayment({
-            orderId: result.order.orderId,
-            amount: result.order.amount,
-            currency: result.order.currency,
-            keyId: result.order.keyId,
-            courseName: courses.find((c) => c.id === courseId)?.title,
+        // Detect order shape (backend may return order object directly or wrapped)
+        // Accept either: { order: {...} } or { orderId: ..., amount: ..., ... }
+        const order = result && (result.order ? result.order : result.orderId ? result : null);
+        if (order) {
+          navigate(ROUTES.PAYMENT, {
+            state: {
+              courseId,
+              courseName: courses.find((c) => c.id === courseId)?.title,
+              order,
+            },
           });
 
-          // Confirm payment
-          await enrollmentService.confirmPayment(courseId, paymentData);
+          // stop here, actual enrollment will happen after payment confirmation on the Payment page
+          return;
         }
 
-        // Update enrolled list
+        // Free course was enrolled immediately
         setEnrolledIds((prev) => [...prev, courseId]);
         showSuccess('Successfully enrolled in the course!');
       } catch (error) {
@@ -128,7 +131,7 @@ function Courses() {
         setEnrollingId(null);
       }
     },
-    [isAuthenticated, courses, showSuccess, showError]
+    [isAuthenticated, courses, showSuccess, showError, navigate]
   );
 
   const handleClearFilters = () => {

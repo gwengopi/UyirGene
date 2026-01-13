@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Box, IconButton, Slider, Typography, Paper } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
@@ -10,9 +10,183 @@ import { formatDuration } from '../../utils/formatters';
 import { DEFAULTS } from '../../utils/constants';
 
 /**
- * Custom Video Player with progress tracking
+ * Detect video type from URL
  */
-function VideoPlayer({
+function getVideoType(url) {
+  if (!url) return 'unknown';
+
+  // YouTube
+  if (url.includes('youtube.com') || url.includes('youtu.be')) {
+    return 'youtube';
+  }
+
+  // Google Drive
+  if (url.includes('drive.google.com')) {
+    return 'googledrive';
+  }
+
+  // Google Classroom (usually redirects to Drive)
+  if (url.includes('classroom.google.com')) {
+    return 'googleclassroom';
+  }
+
+  // Vimeo
+  if (url.includes('vimeo.com')) {
+    return 'vimeo';
+  }
+
+  // Direct video file
+  if (url.match(/\.(mp4|webm|ogg|mov)(\?|$)/i)) {
+    return 'direct';
+  }
+
+  return 'unknown';
+}
+
+/**
+ * Convert video URL to embed URL
+ */
+function getEmbedUrl(url, type) {
+  switch (type) {
+    case 'youtube': {
+      // Handle various YouTube URL formats
+      let videoId = '';
+      if (url.includes('youtu.be/')) {
+        videoId = url.split('youtu.be/')[1]?.split('?')[0];
+      } else if (url.includes('v=')) {
+        videoId = url.split('v=')[1]?.split('&')[0];
+      } else if (url.includes('embed/')) {
+        videoId = url.split('embed/')[1]?.split('?')[0];
+      }
+      return videoId ? `https://www.youtube.com/embed/${videoId}?enablejsapi=1&rel=0` : url;
+    }
+
+    case 'googledrive': {
+      // Convert Google Drive URL to embed URL
+      let fileId = '';
+      if (url.includes('/file/d/')) {
+        fileId = url.split('/file/d/')[1]?.split('/')[0];
+      } else if (url.includes('id=')) {
+        fileId = url.split('id=')[1]?.split('&')[0];
+      }
+      return fileId ? `https://drive.google.com/file/d/${fileId}/preview` : url;
+    }
+
+    case 'vimeo': {
+      const videoId = url.split('vimeo.com/')[1]?.split('?')[0];
+      return videoId ? `https://player.vimeo.com/video/${videoId}` : url;
+    }
+
+    default:
+      return url;
+  }
+}
+
+/**
+ * Embedded Video Player (YouTube, Google Drive, Vimeo)
+ */
+function EmbeddedPlayer({ src, title, onProgress, initialPosition = 0 }) {
+  const iframeRef = useRef(null);
+  const containerRef = useRef(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Handle fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    if (!document.fullscreenElement) {
+      container.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  }, []);
+
+  // Save progress periodically (approximate for embedded players)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // For embedded videos, we can't easily track progress
+      // Just save that they've been watching
+      if (onProgress) {
+        onProgress(initialPosition + 10);
+      }
+    }, DEFAULTS.VIDEO.PROGRESS_SAVE_INTERVAL * 1000);
+
+    return () => clearInterval(interval);
+  }, [initialPosition, onProgress]);
+
+  return (
+    <Paper
+      ref={containerRef}
+      sx={{
+        position: 'relative',
+        backgroundColor: 'black',
+        borderRadius: 2,
+        overflow: 'hidden',
+      }}
+    >
+      <Box
+        sx={{
+          position: 'relative',
+          paddingTop: '56.25%', // 16:9 aspect ratio
+          width: '100%',
+        }}
+      >
+        <iframe
+          ref={iframeRef}
+          src={src}
+          title={title}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            border: 'none',
+          }}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+          allowFullScreen
+        />
+      </Box>
+
+      {/* Minimal controls for embedded */}
+      <Box
+        sx={{
+          position: 'absolute',
+          bottom: 8,
+          right: 8,
+          zIndex: 10,
+        }}
+      >
+        <IconButton
+          onClick={toggleFullscreen}
+          sx={{
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            color: 'white',
+            '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.8)' },
+          }}
+          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+        >
+          {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+        </IconButton>
+      </Box>
+    </Paper>
+  );
+}
+
+/**
+ * Direct Video Player with full controls
+ */
+function DirectVideoPlayer({
   src,
   poster,
   title,
@@ -75,7 +249,7 @@ function VideoPlayer({
           onProgress?.(Math.floor(video.currentTime));
           setLastSavedPosition(video.currentTime);
         }
-      }, 5000); // Check every 5 seconds
+      }, 5000);
     }
 
     return () => {
@@ -337,6 +511,47 @@ function VideoPlayer({
         </Box>
       </Box>
     </Paper>
+  );
+}
+
+/**
+ * Main Video Player component that handles different video sources
+ */
+function VideoPlayer({
+  src,
+  poster,
+  title,
+  initialPosition = 0,
+  onProgress,
+  onComplete,
+  autoPlay = false,
+}) {
+  const videoType = useMemo(() => getVideoType(src), [src]);
+  const embedUrl = useMemo(() => getEmbedUrl(src, videoType), [src, videoType]);
+
+  // Use embedded player for YouTube, Google Drive, Vimeo
+  if (['youtube', 'googledrive', 'googleclassroom', 'vimeo'].includes(videoType)) {
+    return (
+      <EmbeddedPlayer
+        src={embedUrl}
+        title={title}
+        onProgress={onProgress}
+        initialPosition={initialPosition}
+      />
+    );
+  }
+
+  // Use direct video player for direct video files
+  return (
+    <DirectVideoPlayer
+      src={src}
+      poster={poster}
+      title={title}
+      initialPosition={initialPosition}
+      onProgress={onProgress}
+      onComplete={onComplete}
+      autoPlay={autoPlay}
+    />
   );
 }
 

@@ -41,7 +41,7 @@ public class CourseController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get single course")
-    public ResponseEntity<Course> get(@PathVariable Long id) {
+    public ResponseEntity<Course> get(@PathVariable("id") Long id) {
         return repo.findById(id).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -49,7 +49,7 @@ public class CourseController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Delete a course")
     @ApiResponse(responseCode = "204", description = "Course deleted")
-    public ResponseEntity<?> delete(@PathVariable Long id) {
+    public ResponseEntity<?> delete(@PathVariable("id") Long id) {
         repo.deleteById(id);
         return ResponseEntity.noContent().build();
     }
@@ -61,7 +61,7 @@ public class CourseController {
             @ApiResponse(responseCode = "201", description = "Video created"),
             @ApiResponse(responseCode = "404", description = "Course not found")
     })
-    public ResponseEntity<Video> addVideo(@PathVariable Long id, @RequestBody Video v) {
+    public ResponseEntity<Video> addVideo(@PathVariable("id") Long id, @RequestBody Video v) {
         Course course = repo.findById(id).orElseThrow(() -> new IllegalArgumentException("Course not found"));
         v.setId(null);
         v.setCourse(course);

@@ -30,11 +30,13 @@ public class SecurityConfig {
                             "/api/auth/**",
                             "/api/courses/**",
                             "/api/blogs/**",
+                            "/api/certificates/verify/**",
                             "/actuator/health",
                             "/swagger-ui/**",
                             "/v3/api-docs/**",
                             "/swagger-ui.html"
                     ).permitAll()
+                    .requestMatchers("/api/admin/**").authenticated()
                     .anyRequest().authenticated())
             .httpBasic(Customizer.withDefaults())
             .authenticationProvider(authenticationProvider(userDetailsService));
@@ -44,12 +46,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:5173",
-            "http://localhost:5174",
-            "http://localhost:5175",
-            "http://localhost:5176",
-            "http://localhost:3000"
+        // Allow all localhost ports for development
+        configuration.setAllowedOriginPatterns(Arrays.asList(
+            "http://localhost:*",
+            "http://127.0.0.1:*"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));

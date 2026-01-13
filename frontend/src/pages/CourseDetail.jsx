@@ -8,16 +8,23 @@ import {
   Paper,
   Divider,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CategoryIcon from '@mui/icons-material/Category';
+import ExitToAppIcon from '@mui/icons-material/ExitToApp';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { Button, Breadcrumb, LoadingSpinner } from '../components/common';
 import { VideoPlayer, VideoList } from '../components/course';
 import { ProgressTracker } from '../components/user';
 import { courseService, enrollmentService, videoService, certificateService } from '../services';
 import { useAuth, useToast } from '../store';
 import { formatCurrency, formatDurationHours } from '../utils/formatters';
-import { ROUTES } from '../utils/constants';
+import { ROUTES, IMAGES } from '../utils/constants';
 
 function CourseDetail() {
   const { id } = useParams();
@@ -30,8 +37,11 @@ function CourseDetail() {
   const [progressMap, setProgressMap] = useState({});
   const [currentVideo, setCurrentVideo] = useState(null);
   const [isEnrolled, setIsEnrolled] = useState(false);
+  const [enrollmentStatus, setEnrollmentStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
+  const [unenrollDialogOpen, setUnenrollDialogOpen] = useState(false);
+  const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
 
   // Load course data
   useEffect(() => {
@@ -44,8 +54,15 @@ function CourseDetail() {
         if (isAuthenticated()) {
           // Check enrollment
           const enrolled = await enrollmentService.getEnrolledCourses();
-          const isUserEnrolled = enrolled.some((c) => c.id === parseInt(id));
+          const enrollmentData = enrolled.find((c) => {
+            const courseObj = c.course || c;
+            return courseObj.id === parseInt(id);
+          });
+          const isUserEnrolled = !!enrollmentData;
           setIsEnrolled(isUserEnrolled);
+          if (enrollmentData) {
+            setEnrollmentStatus(enrollmentData.status);
+          }
 
           if (isUserEnrolled) {
             // Load videos and progress
@@ -80,7 +97,7 @@ function CourseDetail() {
   // Handle enrollment
   const handleEnroll = async () => {
     if (!isAuthenticated()) {
-      navigate(ROUTES.LOGIN);
+      navigate(ROUTES.REGISTER);
       return;
     }
 
@@ -88,18 +105,20 @@ function CourseDetail() {
     try {
       const result = await enrollmentService.startEnrollment(id);
 
-      if (result.order) {
-        const paymentData = await enrollmentService.processRazorpayPayment({
-          orderId: result.order.orderId,
-          amount: result.order.amount,
-          currency: result.order.currency,
-          keyId: result.order.keyId,
-          courseName: course?.title,
+      // Detect order shape: backend may return order object directly or wrapped
+      const order = result && (result.order ? result.order : result.orderId ? result : null);
+      if (order) {
+        navigate(ROUTES.PAYMENT, {
+          state: {
+            courseId: id,
+            courseName: course?.title,
+            order,
+          },
         });
-
-        await enrollmentService.confirmPayment(id, paymentData);
+        return;
       }
 
+      // Free course was enrolled immediately
       setIsEnrolled(true);
       showSuccess('Successfully enrolled!');
 
@@ -167,11 +186,39 @@ function CourseDetail() {
     }
   };
 
+  // Handle unenroll
+  const handleUnenroll = async () => {
+    try {
+      await enrollmentService.unenroll(id);
+      showSuccess('You have been unenrolled from this course');
+      setIsEnrolled(false);
+      setEnrollmentStatus(null);
+      setVideos([]);
+      setCurrentVideo(null);
+      setProgressMap({});
+      setUnenrollDialogOpen(false);
+    } catch (error) {
+      showError('Failed to unenroll');
+    }
+  };
+
+  // Handle mark complete
+  const handleMarkComplete = async () => {
+    try {
+      await enrollmentService.markComplete(id);
+      showSuccess('Course marked as completed! You can now download your certificate.');
+      setEnrollmentStatus('COMPLETED');
+      setCompleteDialogOpen(false);
+    } catch (error) {
+      showError('Failed to mark course as complete');
+    }
+  };
+
   // Calculate overall progress
   const completedVideos = Object.values(progressMap).filter((p) => p?.completed).length;
   const totalVideos = videos.length;
   const progressPercent = totalVideos > 0 ? Math.round((completedVideos / totalVideos) * 100) : 0;
-  const isCompleted = progressPercent >= 100;
+  const isCompleted = progressPercent >= 100 || enrollmentStatus === 'COMPLETED';
 
   if (loading) {
     return <LoadingSpinner fullScreen text="Loading course..." />;
@@ -285,6 +332,30 @@ function CourseDetail() {
                     Download Certificate
                   </Button>
                 )}
+
+                {/* Course Actions */}
+                <Box sx={{ mt: 2, display: 'flex', gap: 1, flexDirection: 'column' }}>
+                  {!isCompleted && (
+                    <Button
+                      variant="outlined"
+                      color="success"
+                      fullWidth
+                      startIcon={<CheckCircleIcon />}
+                      onClick={() => setCompleteDialogOpen(true)}
+                    >
+                      Mark as Complete
+                    </Button>
+                  )}
+                  <Button
+                    variant="text"
+                    color="error"
+                    fullWidth
+                    startIcon={<ExitToAppIcon />}
+                    onClick={() => setUnenrollDialogOpen(true)}
+                  >
+                    Unenroll from Course
+                  </Button>
+                </Box>
               </Paper>
 
               {/* Video list */}
@@ -304,6 +375,46 @@ function CourseDetail() {
           )}
         </Grid>
       </Grid>
+
+      {/* Unenroll Confirmation Dialog */}
+      <Dialog
+        open={unenrollDialogOpen}
+        onClose={() => setUnenrollDialogOpen(false)}
+        aria-labelledby="unenroll-dialog-title"
+      >
+        <DialogTitle id="unenroll-dialog-title">Unenroll from Course?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to unenroll from "{course?.title}"? Your progress will be lost and you may need to pay again if it's a paid course.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setUnenrollDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleUnenroll} color="error" variant="contained">
+            Unenroll
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Mark Complete Confirmation Dialog */}
+      <Dialog
+        open={completeDialogOpen}
+        onClose={() => setCompleteDialogOpen(false)}
+        aria-labelledby="complete-dialog-title"
+      >
+        <DialogTitle id="complete-dialog-title">Mark Course as Complete?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to mark "{course?.title}" as complete? This will make you eligible for a certificate.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCompleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleMarkComplete} color="success" variant="contained">
+            Mark Complete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

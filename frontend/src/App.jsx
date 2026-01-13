@@ -1,11 +1,11 @@
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { ThemeProvider, CssBaseline, Box } from '@mui/material';
-import { darkTheme as theme } from './styles/theme';
+import { darkTheme, lightTheme } from './styles/theme';
 import './styles/global.css';
 
 // Store providers
-import { AuthProvider, ToastProvider, UIProvider } from './store';
+import { AuthProvider, ToastProvider, UIProvider, ConfigProvider, useUI } from './store';
 
 // Common components
 import {
@@ -29,11 +29,13 @@ const Register = lazy(() => import('./pages/Register'));
 const CertificateVerify = lazy(() => import('./pages/CertificateVerify'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const MyCourses = lazy(() => import('./pages/MyCourses'));
+const Payment = lazy(() => import('./pages/Payment'));
 const Profile = lazy(() => import('./pages/Profile'));
 const AdminDashboard = lazy(() => import('./pages/Admin/index'));
 const AdminCourses = lazy(() => import('./pages/Admin/Courses'));
 const AdminUsers = lazy(() => import('./pages/Admin/Users'));
 const AdminAnalytics = lazy(() => import('./pages/Admin/Analytics'));
+const AdminSettings = lazy(() => import('./pages/Admin/Settings'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Unauthorized = lazy(() => import('./pages/Unauthorized'));
 
@@ -56,15 +58,28 @@ function PageLoader() {
   return <LoadingSpinner fullScreen text="Loading..." />;
 }
 
-export default function App() {
+// Theme wrapper that uses UI context for theme mode
+function ThemedApp({ children }) {
+  const { isDarkMode } = useUI();
+  const theme = isDarkMode ? darkTheme : lightTheme;
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <ErrorBoundary>
-        <AuthProvider>
-          <ToastProvider>
-            <UIProvider>
-              <SkipLink />
+      {children}
+    </ThemeProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <UIProvider>
+      <ThemedApp>
+        <ErrorBoundary>
+          <AuthProvider>
+            <ToastProvider>
+              <ConfigProvider>
+                <SkipLink />
               <Box
                 sx={{
                   display: 'flex',
@@ -122,6 +137,16 @@ export default function App() {
                           </ProtectedRoute>
                         }
                       />
+
+                      {/* Payment page for paid enrollments */}
+                      <Route
+                        path={ROUTES.PAYMENT}
+                        element={
+                          <ProtectedRoute>
+                            <Payment />
+                          </ProtectedRoute>
+                        }
+                      />
                       <Route
                         path={ROUTES.PROFILE}
                         element={
@@ -131,11 +156,11 @@ export default function App() {
                         }
                       />
 
-                      {/* Admin routes - requires ADMIN role */}
+                      {/* Admin routes - requires ADMIN or INSTRUCTOR role */}
                       <Route
                         path={ROUTES.ADMIN.HOME}
                         element={
-                          <RoleRoute allowedRoles={[ROLES.ADMIN]}>
+                          <RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.INSTRUCTOR]}>
                             <AdminDashboard />
                           </RoleRoute>
                         }
@@ -143,7 +168,7 @@ export default function App() {
                       <Route
                         path={ROUTES.ADMIN.COURSES}
                         element={
-                          <RoleRoute allowedRoles={[ROLES.ADMIN]}>
+                          <RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.INSTRUCTOR]}>
                             <AdminCourses />
                           </RoleRoute>
                         }
@@ -151,7 +176,7 @@ export default function App() {
                       <Route
                         path={ROUTES.ADMIN.USERS}
                         element={
-                          <RoleRoute allowedRoles={[ROLES.ADMIN]}>
+                          <RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.INSTRUCTOR]}>
                             <AdminUsers />
                           </RoleRoute>
                         }
@@ -159,8 +184,16 @@ export default function App() {
                       <Route
                         path={ROUTES.ADMIN.ANALYTICS}
                         element={
-                          <RoleRoute allowedRoles={[ROLES.ADMIN]}>
+                          <RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.INSTRUCTOR]}>
                             <AdminAnalytics />
+                          </RoleRoute>
+                        }
+                      />
+                      <Route
+                        path={ROUTES.ADMIN.SETTINGS}
+                        element={
+                          <RoleRoute allowedRoles={[ROLES.ADMIN]}>
+                            <AdminSettings />
                           </RoleRoute>
                         }
                       />
@@ -187,10 +220,11 @@ export default function App() {
                 </Box>
                 <Footer />
               </Box>
-            </UIProvider>
-          </ToastProvider>
-        </AuthProvider>
-      </ErrorBoundary>
-    </ThemeProvider>
+              </ConfigProvider>
+            </ToastProvider>
+          </AuthProvider>
+        </ErrorBoundary>
+      </ThemedApp>
+    </UIProvider>
   );
 }

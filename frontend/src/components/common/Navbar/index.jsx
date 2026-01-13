@@ -29,8 +29,10 @@ import PersonIcon from '@mui/icons-material/Person';
 import LogoutIcon from '@mui/icons-material/Logout';
 import LoginIcon from '@mui/icons-material/Login';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
-import { useAuth } from '../../../store';
-import { ROUTES, ROLES } from '../../../utils/constants';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import { useAuth, useUI } from '../../../store';
+import { ROUTES, ROLES, IMAGES } from '../../../utils/constants';
 
 function Navbar() {
   const theme = useTheme();
@@ -38,6 +40,7 @@ function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { auth, user, logout, isAuthenticated, isAdmin, isInstructor } = useAuth();
+  const { isDarkMode, toggleTheme } = useUI();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -89,7 +92,8 @@ function Navbar() {
     let items = [...publicNavItems];
     if (isAuthenticated()) {
       items = [...items, ...authNavItems];
-      if (isAdmin()) {
+      // Show admin menu for both ADMIN and INSTRUCTOR roles
+      if (isAdmin() || isInstructor()) {
         items = [...items, ...adminNavItems];
       }
     }
@@ -132,6 +136,14 @@ function Navbar() {
       </List>
       <Divider />
       <List>
+        {/* Theme toggle in mobile */}
+        <ListItemButton onClick={toggleTheme}>
+          <ListItemIcon>
+            {isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
+          </ListItemIcon>
+          <ListItemText primary={isDarkMode ? 'Light Mode' : 'Dark Mode'} />
+        </ListItemButton>
+        <Divider />
         {isAuthenticated() ? (
           <>
             <ListItemButton onClick={() => handleNavigation(ROUTES.PROFILE)}>
@@ -183,20 +195,27 @@ function Navbar() {
             </IconButton>
           )}
 
-          <Typography
-            variant="h6"
+          <Box
             component={RouterLink}
             to={ROUTES.HOME}
             sx={{
+              display: 'flex',
+              alignItems: 'center',
               flexGrow: { xs: 1, md: 0 },
               mr: { md: 4 },
-              color: 'inherit',
               textDecoration: 'none',
-              fontWeight: 700,
             }}
           >
-            Uyirgene
-          </Typography>
+            <Box
+              component="img"
+              src={IMAGES.LOGO_SMALL}
+              alt="Uyirgene International"
+              sx={{
+                height: { xs: 32, md: 40 },
+                filter: 'brightness(1.2)',
+              }}
+            />
+          </Box>
 
           {!isMobile && (
             <Box sx={{ display: 'flex', gap: 1, flexGrow: 1 }} role="navigation" aria-label="Main navigation">
@@ -220,6 +239,16 @@ function Navbar() {
 
           {!isMobile && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {/* Theme toggle button */}
+              <IconButton
+                onClick={toggleTheme}
+                color="inherit"
+                aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                sx={{ mr: 1 }}
+              >
+                {isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
+              </IconButton>
+
               {isAuthenticated() ? (
                 <>
                   <IconButton

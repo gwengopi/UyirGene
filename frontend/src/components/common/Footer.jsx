@@ -5,7 +5,7 @@ import FacebookIcon from '@mui/icons-material/Facebook';
 import TwitterIcon from '@mui/icons-material/Twitter';
 import LinkedInIcon from '@mui/icons-material/LinkedIn';
 import YouTubeIcon from '@mui/icons-material/YouTube';
-import { ROUTES } from '../../utils/constants';
+import { ROUTES, IMAGES } from '../../utils/constants';
 
 function Footer() {
   const currentYear = new Date().getFullYear();
@@ -27,6 +27,7 @@ function Footer() {
       { label: 'Terms of Service', path: '/terms' },
       { label: 'Privacy Policy', path: '/privacy' },
       { label: 'Cookie Policy', path: '/cookies' },
+      { label: 'Refund Policy', path: '/refund' },
       { label: 'Accessibility', path: '/accessibility' },
     ],
   };
@@ -53,11 +54,16 @@ function Footer() {
         <Grid container spacing={4}>
           {/* Brand section */}
           <Grid item xs={12} md={4}>
-            <Typography variant="h6" gutterBottom fontWeight={700}>
-              Uyirgene
-            </Typography>
+            <Box sx={{ mb: 2 }}>
+              <Box
+                component="img"
+                src={IMAGES.LOGO}
+                alt="Uyirgene International"
+                sx={{ height: 50, filter: 'brightness(0.9)' }}
+              />
+            </Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Empowering learners worldwide with quality education and professional courses.
+              Professional Training Institute | ISO 9001 Certified | Training Partner of Skill India Digital Hub (Govt of India)
             </Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
               {socialLinks.map((social) => (
@@ -168,10 +174,10 @@ function Footer() {
           }}
         >
           <Typography variant="body2" color="text.secondary">
-            &copy; {currentYear} Uyirgene. All rights reserved.
+            &copy; {currentYear} Uyirgene International. All rights reserved.
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Made with care for learners everywhere
+            Excellence in Food Safety & Quality Training
           </Typography>
         </Box>
       </Container>

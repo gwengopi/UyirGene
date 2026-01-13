@@ -22,7 +22,7 @@ public class EnrollmentController {
             @ApiResponse(responseCode = "201", description = "Enrolled"),
             @ApiResponse(responseCode = "404", description = "Course not found")
     })
-    public ResponseEntity<?> enroll(@PathVariable Long id) {
+    public ResponseEntity<?> enroll(@PathVariable("id") Long id) {
         var result = enrollmentService.startEnrollment(id);
         // If result has a Razorpay order, return it for client to initiate payment
         if (result.getOrder() != null) {
@@ -34,7 +34,7 @@ public class EnrollmentController {
 
     @PostMapping("/{id}/enroll/confirm")
     @Operation(summary = "Confirm payment for enrollment")
-    public ResponseEntity<?> confirmEnrollment(@PathVariable Long id, @Valid @RequestBody PaymentConfirmDto dto) {
+    public ResponseEntity<?> confirmEnrollment(@PathVariable("id") Long id, @Valid @RequestBody PaymentConfirmDto dto) {
         enrollmentService.confirmEnrollmentPayment(id, dto.getRazorpayPaymentId(), dto.getRazorpayOrderId(), dto.getRazorpaySignature());
         return ResponseEntity.ok().build();
     }
@@ -42,8 +42,30 @@ public class EnrollmentController {
     @GetMapping("/enrolled")
     @Operation(summary = "List courses current user is enrolled in")
     @ApiResponse(responseCode = "200", description = "List of enrolled courses")
-    public ResponseEntity<java.util.List<Course>> enrolled() {
-        return ResponseEntity.ok(enrollmentService.listEnrolledCourses());
+    public ResponseEntity<java.util.List<com.uyirgene.course.EnrollmentDto>> enrolled() {
+        return ResponseEntity.ok(enrollmentService.listEnrolledEnrollments());
+    }
+
+    @DeleteMapping("/{id}/enroll")
+    @Operation(summary = "Unenroll current user from a course")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Unenrolled"),
+            @ApiResponse(responseCode = "404", description = "Course or enrollment not found")
+    })
+    public ResponseEntity<?> unenroll(@PathVariable("id") Long id) {
+        enrollmentService.unenroll(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/complete")
+    @Operation(summary = "Mark current user's enrollment as completed")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Marked completed"),
+            @ApiResponse(responseCode = "404", description = "Course or enrollment not found")
+    })
+    public ResponseEntity<?> complete(@PathVariable("id") Long id) {
+        enrollmentService.completeEnrollment(id);
+        return ResponseEntity.ok().build();
     }
 
     public static class PaymentConfirmDto {

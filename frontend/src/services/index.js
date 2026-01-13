@@ -7,3 +7,5 @@ export { default as videoService } from './videoService';
 export { default as certificateService } from './certificateService';
 export { default as blogService } from './blogService';
 export { default as adminService } from './adminService';
+export { default as configService } from './configService';
+export { default as masterDataService, DATA_TYPES } from './masterDataService';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Container, Typography, Box, Grid, Paper } from '@mui/material';
+import { Container, Typography, Box, Grid, Paper, CardMedia } from '@mui/material';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import ScienceIcon from '@mui/icons-material/Science';
 import SchoolIcon from '@mui/icons-material/School';
@@ -7,28 +7,35 @@ import BiotechIcon from '@mui/icons-material/Biotech';
 import BusinessIcon from '@mui/icons-material/Business';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { Breadcrumb } from '../components/common';
+import { useConfig } from '../store';
+import { IMAGES } from '../utils/constants';
 
 function About() {
+  const { getImage } = useConfig();
   const services = [
     {
       icon: SchoolIcon,
       title: 'Professional Training',
       description: 'Food safety, FSMS, QMS, and Industrial Microbiology technical programs for students, individuals, and organizations.',
+      image: getImage('COURSE_TRAINERS', IMAGES.COURSE_TRAINERS),
     },
     {
       icon: ScienceIcon,
       title: 'Research & Testing Lab',
       description: 'Microbiology research, environmental testing, food testing, and product testing with latest technology.',
+      image: getImage('COURSE_PRACTICAL', IMAGES.COURSE_PRACTICAL),
     },
     {
       icon: VerifiedIcon,
       title: 'ISO 9001 Certified',
       description: 'Quality Management System certified organization maintaining highest industry standards.',
+      image: getImage('COURSE_CERTIFICATION', IMAGES.COURSE_CERTIFICATION),
     },
     {
       icon: BiotechIcon,
       title: 'Microbiology Research',
       description: 'Rigorous testing process including sample collection, preparation, testing, and detailed analysis reports.',
+      image: getImage('COURSE_REGULATORY', IMAGES.COURSE_REGULATORY),
     },
   ];
 
@@ -44,46 +51,105 @@ function About() {
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Breadcrumb items={[{ label: 'About Us', path: '/about' }]} />
 
-      {/* Hero Section */}
-      <Box sx={{ textAlign: 'center', mb: 6 }}>
-        <Typography variant="h3" component="h1" gutterBottom fontWeight={700}>
-          About Uyirgene International
-        </Typography>
-        <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 900, mx: 'auto' }}>
-          Professional Training Institute | ISO 9001 Certified | Training Partner of Skill India Digital Hub (Govt of India)
-        </Typography>
+      {/* Hero Section with Image */}
+      <Box
+        sx={{
+          position: 'relative',
+          borderRadius: 2,
+          overflow: 'hidden',
+          mb: 6,
+        }}
+      >
+        <CardMedia
+          component="img"
+          height={300}
+          image={getImage('ABOUT_MISSION', IMAGES.ABOUT_MISSION)}
+          alt="Uyirgene International Team"
+          sx={{ objectFit: 'cover', filter: 'brightness(0.4)' }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            textAlign: 'center',
+            width: '90%',
+          }}
+        >
+          <Box
+            component="img"
+            src={getImage('LOGO', IMAGES.LOGO)}
+            alt="Uyirgene Logo"
+            sx={{ height: 60, mb: 2, filter: 'brightness(1.2)' }}
+          />
+          <Typography variant="h3" component="h1" gutterBottom fontWeight={700} color="white">
+            About Uyirgene International
+          </Typography>
+          <Typography variant="h6" sx={{ maxWidth: 900, mx: 'auto', color: 'rgba(255,255,255,0.9)' }}>
+            Professional Training Institute | ISO 9001 Certified | Training Partner of Skill India Digital Hub (Govt of India)
+          </Typography>
+        </Box>
       </Box>
 
       {/* Our Expertise Section */}
-      <Paper sx={{ p: 4, mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <BusinessIcon sx={{ fontSize: 32, color: 'primary.main', mr: 2 }} />
-          <Typography variant="h4" fontWeight={600}>
-            Our Expertise
-          </Typography>
-        </Box>
-        <Typography variant="body1" color="text.secondary" paragraph>
-          Uyir Tech International is a professional training institute, independent organization (ISO 9001) and Training partner of Skill India Digital Hub (Govt of India). U-Tech International collaborated with Uyirgene Research Lab and Academic Solution, providing global professional development training (Food safety, FSMS, QMS, and Industrial Microbiology technical programs) for students, individuals, and organizations.
-        </Typography>
-        <Typography variant="body1" color="text.secondary" paragraph>
-          Uyir Tech International is a leading training provider of certifications, dedicated to ensuring the industry's highest standards of food safety and quality. With our team of experienced professionals and extensive expertise in food safety management, we strive to assist businesses in meeting regulatory requirements, implementing best practices, and safeguarding their reputation.
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          At Uyir Tech International, we understand the critical importance of food safety in today's global marketplace. Our mission is to help food manufacturers, processors, distributors, and retailers establish and maintain robust food safety systems that protect consumers and meet regulatory compliance. We believe that every individual has the right to safe and wholesome food, and we are committed to making that a reality.
-        </Typography>
+      <Paper sx={{ p: 0, mb: 4, overflow: 'hidden' }}>
+        <Grid container>
+          <Grid item xs={12} md={4}>
+            <CardMedia
+              component="img"
+              image={getImage('COURSE_TRAINERS', IMAGES.COURSE_TRAINERS)}
+              alt="Expert Trainers"
+              sx={{ height: '100%', minHeight: 300, objectFit: 'cover' }}
+            />
+          </Grid>
+          <Grid item xs={12} md={8}>
+            <Box sx={{ p: 4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <BusinessIcon sx={{ fontSize: 32, color: 'primary.main', mr: 2 }} />
+                <Typography variant="h4" fontWeight={600}>
+                  Our Expertise
+                </Typography>
+              </Box>
+              <Typography variant="body1" color="text.secondary" paragraph>
+                Uyir Tech International is a professional training institute, independent organization (ISO 9001) and Training partner of Skill India Digital Hub (Govt of India). U-Tech International collaborated with Uyirgene Research Lab and Academic Solution, providing global professional development training (Food safety, FSMS, QMS, and Industrial Microbiology technical programs) for students, individuals, and organizations.
+              </Typography>
+              <Typography variant="body1" color="text.secondary" paragraph>
+                Uyir Tech International is a leading training provider of certifications, dedicated to ensuring the industry's highest standards of food safety and quality. With our team of experienced professionals and extensive expertise in food safety management, we strive to assist businesses in meeting regulatory requirements, implementing best practices, and safeguarding their reputation.
+              </Typography>
+              <Typography variant="body1" color="text.secondary">
+                At Uyir Tech International, we understand the critical importance of food safety in today's global marketplace. Our mission is to help food manufacturers, processors, distributors, and retailers establish and maintain robust food safety systems that protect consumers and meet regulatory compliance.
+              </Typography>
+            </Box>
+          </Grid>
+        </Grid>
       </Paper>
 
       {/* Research & Testing Lab */}
-      <Paper sx={{ p: 4, mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <ScienceIcon sx={{ fontSize: 32, color: 'primary.main', mr: 2 }} />
-          <Typography variant="h4" fontWeight={600}>
-            Research & Testing Lab
-          </Typography>
-        </Box>
-        <Typography variant="body1" color="text.secondary" paragraph>
-          At Uyirgene Research and Testing Lab, we have a team of experienced professionals who specialize in a wide range of research and testing services, including microbiology research, environmental testing, food testing, and product testing. We use the latest technology and techniques to ensure accurate and reliable results.
-        </Typography>
+      <Paper sx={{ p: 0, mb: 4, overflow: 'hidden' }}>
+        <Grid container direction={{ xs: 'column', md: 'row-reverse' }}>
+          <Grid item xs={12} md={4}>
+            <CardMedia
+              component="img"
+              image={getImage('COURSE_PRACTICAL', IMAGES.COURSE_PRACTICAL)}
+              alt="Research & Testing Lab"
+              sx={{ height: '100%', minHeight: 250, objectFit: 'cover' }}
+            />
+          </Grid>
+          <Grid item xs={12} md={8}>
+            <Box sx={{ p: 4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <ScienceIcon sx={{ fontSize: 32, color: 'primary.main', mr: 2 }} />
+                <Typography variant="h4" fontWeight={600}>
+                  Research & Testing Lab
+                </Typography>
+              </Box>
+              <Typography variant="body1" color="text.secondary" paragraph>
+                At Uyirgene Research and Testing Lab, we have a team of experienced professionals who specialize in a wide range of research and testing services, including microbiology research, environmental testing, food testing, and product testing. We use the latest technology and techniques to ensure accurate and reliable results.
+              </Typography>
+            </Box>
+          </Grid>
+        </Grid>
       </Paper>
 
       {/* Services Grid */}
@@ -93,14 +159,34 @@ function About() {
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {services.map((service, index) => (
           <Grid item xs={12} sm={6} md={3} key={index}>
-            <Paper sx={{ p: 3, height: '100%', textAlign: 'center' }}>
-              <service.icon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
-              <Typography variant="h6" gutterBottom fontWeight={600}>
-                {service.title}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {service.description}
-              </Typography>
+            <Paper
+              sx={{
+                height: '100%',
+                textAlign: 'center',
+                overflow: 'hidden',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 4,
+                },
+              }}
+            >
+              <CardMedia
+                component="img"
+                height={140}
+                image={service.image}
+                alt={service.title}
+                sx={{ objectFit: 'cover' }}
+              />
+              <Box sx={{ p: 3 }}>
+                <service.icon sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
+                <Typography variant="h6" gutterBottom fontWeight={600}>
+                  {service.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {service.description}
+                </Typography>
+              </Box>
             </Paper>
           </Grid>
         ))}

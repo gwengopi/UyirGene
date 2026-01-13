@@ -16,7 +16,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { formatCurrency, formatDurationHours } from '../../utils/formatters';
-import { ROUTES } from '../../utils/constants';
+import { ROUTES, IMAGES } from '../../utils/constants';
 
 /**
  * Course Card component for displaying course information
@@ -82,7 +82,7 @@ const CourseCard = memo(function CourseCard({
         <CardMedia
           component="img"
           height={180}
-          image={course.imageUrl || '/placeholder-course.jpg'}
+          image={course.imageUrl || IMAGES.COURSE_PLACEHOLDER}
           alt={course.title}
           sx={{ objectFit: 'cover' }}
         />

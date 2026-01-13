@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
+import { useConfig } from '../../store';
 import { COURSE_CATEGORIES } from '../../utils/constants';
 
 /**
@@ -28,7 +29,14 @@ function CourseFilters({
   onSortByChange,
   onClearFilters,
 }) {
+  const { getCategoryOptions } = useConfig();
   const hasFilters = search || category || priceFilter || sortBy;
+
+  // Use dynamic categories from master data, fallback to static list
+  const dynamicCategories = getCategoryOptions();
+  const categoryOptions = dynamicCategories.length > 0
+    ? dynamicCategories
+    : COURSE_CATEGORIES.map((cat) => ({ value: cat, label: cat }));
 
   const priceOptions = [
     { value: '', label: 'All Prices' },
@@ -88,9 +96,9 @@ function CourseFilters({
           label="Category"
         >
           <MenuItem value="">All Categories</MenuItem>
-          {COURSE_CATEGORIES.map((cat) => (
-            <MenuItem key={cat} value={cat}>
-              {cat}
+          {categoryOptions.map((cat) => (
+            <MenuItem key={cat.value} value={cat.value}>
+              {cat.label}
             </MenuItem>
           ))}
         </Select>

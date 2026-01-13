@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Box, Typography, Grid } from '@mui/material';
 import { FormField, Select, Checkbox, Button } from '../common';
 import { validateForm, hasErrors } from '../../utils/validators';
+import { useConfig } from '../../store';
 import { COURSE_CATEGORIES } from '../../utils/constants';
 
 /**
  * Course Form for creating/editing courses
  */
 function CourseForm({ course, onSave, onCancel, loading = false }) {
+  const { getCategoryOptions, categories } = useConfig();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -15,6 +17,8 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
     durationHours: '',
     price: '',
     published: false,
+    videoUrl: '',
+    videoTitle: '',
   });
   const [errors, setErrors] = useState({});
 
@@ -27,6 +31,8 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
         durationHours: course.durationHours?.toString() || '',
         price: course.price?.toString() || '',
         published: course.published || false,
+        videoUrl: course.videos?.[0]?.url || '',
+        videoTitle: course.videos?.[0]?.title || '',
       });
     }
   }, [course]);
@@ -61,18 +67,27 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
     }
 
     const dataToSave = {
-      ...formData,
+      title: formData.title,
+      description: formData.description,
+      category: formData.category,
       durationHours: formData.durationHours ? parseInt(formData.durationHours, 10) : null,
       price: formData.price ? parseFloat(formData.price) : null,
+      published: formData.published,
+      // Include video data if provided
+      video: formData.videoUrl ? {
+        title: formData.videoTitle || formData.title,
+        url: formData.videoUrl,
+      } : null,
     };
 
     onSave?.(dataToSave);
   };
 
-  const categoryOptions = COURSE_CATEGORIES.map((cat) => ({
-    value: cat,
-    label: cat,
-  }));
+  // Use dynamic categories from master data, fallback to static list
+  const dynamicCategories = getCategoryOptions();
+  const categoryOptions = dynamicCategories.length > 0
+    ? dynamicCategories
+    : COURSE_CATEGORIES.map((cat) => ({ value: cat, label: cat }));
 
   const isEditing = !!course?.id;
 
@@ -159,6 +174,39 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
               helperText="Published courses are visible to students"
             />
           </Box>
+        </Grid>
+
+        {/* Video Section */}
+        <Grid item xs={12}>
+          <Typography variant="subtitle1" fontWeight={600} sx={{ mt: 2, mb: 1 }}>
+            Course Video
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Add a Google Classroom or YouTube video URL for this course
+          </Typography>
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
+          <FormField
+            name="videoTitle"
+            label="Video Title"
+            value={formData.videoTitle}
+            onChange={handleChange}
+            error={errors.videoTitle}
+            placeholder="e.g., Introduction to the Course"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
+          <FormField
+            name="videoUrl"
+            label="Video URL"
+            value={formData.videoUrl}
+            onChange={handleChange}
+            error={errors.videoUrl}
+            placeholder="https://www.youtube.com/watch?v=... or Google Drive link"
+            helperText="YouTube, Google Drive, or direct video URL"
+          />
         </Grid>
       </Grid>
 

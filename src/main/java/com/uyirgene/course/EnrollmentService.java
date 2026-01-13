@@ -92,8 +92,29 @@ public class EnrollmentService {
         enrollmentRepo.save(e);
     }
 
+    public void completeEnrollment(Long courseId) {
+        User u = currentUserService.getCurrentUser();
+        Course c = courseRepo.findById(courseId).orElseThrow(() -> new com.uyirgene.exception.EntityNotFoundException("Course not found"));
+        Enrollment e = enrollmentRepo.findByUserAndCourse(u, c).orElseThrow(() -> new com.uyirgene.exception.EntityNotFoundException("Enrollment not found"));
+        markCompleted(e);
+    }
+
+    public void unenroll(Long courseId) {
+        User u = currentUserService.getCurrentUser();
+        Course c = courseRepo.findById(courseId).orElseThrow(() -> new com.uyirgene.exception.EntityNotFoundException("Course not found"));
+        Enrollment e = enrollmentRepo.findByUserAndCourse(u, c).orElseThrow(() -> new com.uyirgene.exception.EntityNotFoundException("Enrollment not found"));
+        enrollmentRepo.delete(e);
+    }
+
     public java.util.List<Course> listEnrolledCourses() {
         User u = currentUserService.getCurrentUser();
         return enrollmentRepo.findByUser(u).stream().map(Enrollment::getCourse).collect(Collectors.toList());
+    }
+
+    public java.util.List<EnrollmentDto> listEnrolledEnrollments() {
+        User u = currentUserService.getCurrentUser();
+        return enrollmentRepo.findByUser(u).stream()
+                .map(e -> new EnrollmentDto(e.getCourse(), e.getStatus()))
+                .collect(Collectors.toList());
     }
 }

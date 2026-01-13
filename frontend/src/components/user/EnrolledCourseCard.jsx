@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -9,12 +9,17 @@ import {
   Button,
   Box,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import DownloadIcon from '@mui/icons-material/Download';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ProgressTracker from './ProgressTracker';
-import { ROUTES } from '../../utils/constants';
+import { ROUTES, IMAGES } from '../../utils/constants';
 
 /**
  * Enrolled Course Card with progress display
@@ -26,9 +31,13 @@ function EnrolledCourseCard({
   totalVideos = 0,
   onDownloadCertificate,
   certificateAvailable = false,
+  onUnenroll,
+  onMarkComplete,
 }) {
   const navigate = useNavigate();
   const isCompleted = progress >= 100;
+  const [unenrollDialogOpen, setUnenrollDialogOpen] = useState(false);
+  const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
 
   const handleContinue = () => {
     navigate(ROUTES.COURSE_DETAIL(course.id));
@@ -37,6 +46,26 @@ function EnrolledCourseCard({
   const handleDownloadCertificate = (e) => {
     e.stopPropagation();
     onDownloadCertificate?.(course.id, course.title);
+  };
+
+  const handleUnenrollClick = (e) => {
+    e.stopPropagation();
+    setUnenrollDialogOpen(true);
+  };
+
+  const handleConfirmUnenroll = () => {
+    setUnenrollDialogOpen(false);
+    onUnenroll?.();
+  };
+
+  const handleCompleteClick = (e) => {
+    e.stopPropagation();
+    setCompleteDialogOpen(true);
+  };
+
+  const handleConfirmComplete = () => {
+    setCompleteDialogOpen(false);
+    onMarkComplete?.();
   };
 
   return (
@@ -62,7 +91,7 @@ function EnrolledCourseCard({
         <CardMedia
           component="img"
           height={160}
-          image={course.imageUrl || '/placeholder-course.jpg'}
+          image={course.imageUrl || IMAGES.COURSE_PLACEHOLDER}
           alt={course.title}
           sx={{ objectFit: 'cover' }}
         />
@@ -128,7 +157,68 @@ function EnrolledCourseCard({
             Certificate
           </Button>
         )}
+        {/* User actions: Mark Complete / Unenroll */}
+        {!isCompleted && (
+          <Button
+            variant="outlined"
+            color="success"
+            size="small"
+            onClick={handleCompleteClick}
+          >
+            Complete
+          </Button>
+        )}
+        <Button
+          variant="text"
+          color="error"
+          size="small"
+          onClick={handleUnenrollClick}
+        >
+          Unenroll
+        </Button>
       </CardActions>
+
+      {/* Unenroll Confirmation Dialog */}
+      <Dialog
+        open={unenrollDialogOpen}
+        onClose={() => setUnenrollDialogOpen(false)}
+        onClick={(e) => e.stopPropagation()}
+        aria-labelledby="unenroll-dialog-title"
+      >
+        <DialogTitle id="unenroll-dialog-title">Unenroll from Course?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to unenroll from "{course.title}"? Your progress will be lost and you may need to pay again if it's a paid course.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setUnenrollDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleConfirmUnenroll} color="error" variant="contained">
+            Unenroll
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Mark Complete Confirmation Dialog */}
+      <Dialog
+        open={completeDialogOpen}
+        onClose={() => setCompleteDialogOpen(false)}
+        onClick={(e) => e.stopPropagation()}
+        aria-labelledby="complete-dialog-title"
+      >
+        <DialogTitle id="complete-dialog-title">Mark Course as Complete?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to mark "{course.title}" as complete? This will make you eligible for a certificate.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCompleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleConfirmComplete} color="success" variant="contained">
+            Mark Complete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 }

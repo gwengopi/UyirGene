@@ -1,10 +1,34 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 
 const UIContext = createContext(null);
+
+const THEME_STORAGE_KEY = 'uyirgene-theme-mode';
 
 export function UIProvider({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Theme mode state - default to dark, check localStorage
+  const [themeMode, setThemeMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(THEME_STORAGE_KEY);
+      return saved || 'dark';
+    }
+    return 'dark';
+  });
+
+  // Persist theme mode to localStorage
+  useEffect(() => {
+    localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+  }, [themeMode]);
+
+  // Theme controls
+  const toggleTheme = useCallback(() => {
+    setThemeMode((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
+
+  const setDarkMode = useCallback(() => setThemeMode('dark'), []);
+  const setLightMode = useCallback(() => setThemeMode('light'), []);
 
   // Sidebar controls
   const openSidebar = useCallback(() => setSidebarOpen(true), []);
@@ -17,10 +41,18 @@ export function UIProvider({ children }) {
   const toggleMobileMenu = useCallback(() => setMobileMenuOpen((prev) => !prev), []);
 
   const value = {
+    // Theme
+    themeMode,
+    toggleTheme,
+    setDarkMode,
+    setLightMode,
+    isDarkMode: themeMode === 'dark',
+    // Sidebar
     sidebarOpen,
     openSidebar,
     closeSidebar,
     toggleSidebar,
+    // Mobile menu
     mobileMenuOpen,
     openMobileMenu,
     closeMobileMenu,

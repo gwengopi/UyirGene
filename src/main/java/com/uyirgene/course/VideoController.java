@@ -18,7 +18,7 @@ public class VideoController {
     @GetMapping("/api/courses/{id}/videos")
     @Operation(summary = "List videos for a course")
     @ApiResponse(responseCode = "200", description = "List of videos")
-    public ResponseEntity<List<Video>> listVideos(@PathVariable Long id) {
+    public ResponseEntity<List<Video>> listVideos(@PathVariable("id") Long id) {
         return ResponseEntity.ok(videoService.listCourseVideos(id));
     }
 
@@ -28,7 +28,7 @@ public class VideoController {
             @ApiResponse(responseCode = "200", description = "Progress updated"),
             @ApiResponse(responseCode = "404", description = "Video or enrollment not found")
     })
-    public ResponseEntity<VideoProgress> updateProgress(@PathVariable Long id, @RequestBody ProgressUpdateDto dto) {
+    public ResponseEntity<VideoProgress> updateProgress(@PathVariable("id") Long id, @RequestBody ProgressUpdateDto dto) {
         VideoProgress p = progressService.updateProgress(id, dto.getLastPositionSeconds());
         return ResponseEntity.ok(p);
     }
@@ -39,7 +39,7 @@ public class VideoController {
             @ApiResponse(responseCode = "200", description = "Progress found"),
             @ApiResponse(responseCode = "404", description = "Progress not found")
     })
-    public ResponseEntity<VideoProgress> getProgress(@PathVariable Long id) {
+    public ResponseEntity<VideoProgress> getProgress(@PathVariable("id") Long id) {
         VideoProgress p = progressService.getProgress(id);
         if (p == null) return ResponseEntity.notFound().build();
         return ResponseEntity.ok(p);

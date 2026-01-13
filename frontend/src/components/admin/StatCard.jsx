@@ -83,7 +83,8 @@ function StatCard({
                 justifyContent: 'center',
               }}
             >
-              {icon}
+              {/* Render icon - handle both component and element */}
+              {React.isValidElement(icon) ? icon : React.createElement(icon)}
             </Box>
           )}
         </Box>

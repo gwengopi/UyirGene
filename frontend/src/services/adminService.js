@@ -4,8 +4,12 @@ const ADMIN_ENDPOINTS = {
   USERS: '/api/admin/users',
   USER_DETAIL: (id) => `/api/admin/users/${id}`,
   USER_ROLE: (id) => `/api/admin/users/${id}/role`,
+  USER_STATUS: (id) => `/api/admin/users/${id}/status`,
+  USER_ENROLLMENTS: (id) => `/api/admin/users/${id}/enrollments`,
   ANALYTICS: '/api/admin/analytics',
   ENROLLMENTS: '/api/admin/enrollments',
+  ENROLLMENT_DETAIL: (id) => `/api/admin/enrollments/${id}`,
+  ENROLLMENT_COMPLETE: (id) => `/api/admin/enrollments/${id}/complete`,
 };
 
 /**
@@ -45,6 +49,45 @@ export async function updateUserRole(id, role) {
  */
 export async function deleteUser(id) {
   await api.delete(ADMIN_ENDPOINTS.USER_DETAIL(id));
+}
+
+/**
+ * Toggle user enabled/disabled status (Admin only)
+ * @param {number|string} id - User ID
+ * @param {boolean} enabled - New enabled status
+ * @returns {Promise<Object>} Updated user
+ */
+export async function updateUserStatus(id, enabled) {
+  const response = await api.put(ADMIN_ENDPOINTS.USER_STATUS(id), { enabled });
+  return response.data;
+}
+
+/**
+ * Get enrollments for a specific user (Admin only)
+ * @param {number|string} userId - User ID
+ * @returns {Promise<Array>} List of user's enrollments
+ */
+export async function getUserEnrollments(userId) {
+  const response = await api.get(ADMIN_ENDPOINTS.USER_ENROLLMENTS(userId));
+  return response.data;
+}
+
+/**
+ * Admin unenroll - delete an enrollment (Admin only)
+ * @param {number|string} enrollmentId - Enrollment ID
+ * @returns {Promise<void>}
+ */
+export async function adminUnenroll(enrollmentId) {
+  await api.delete(ADMIN_ENDPOINTS.ENROLLMENT_DETAIL(enrollmentId));
+}
+
+/**
+ * Admin mark enrollment as complete (Admin only)
+ * @param {number|string} enrollmentId - Enrollment ID
+ * @returns {Promise<void>}
+ */
+export async function adminCompleteEnrollment(enrollmentId) {
+  await api.post(ADMIN_ENDPOINTS.ENROLLMENT_COMPLETE(enrollmentId));
 }
 
 /**
@@ -92,7 +135,11 @@ export default {
   getAllUsers,
   getUser,
   updateUserRole,
+  updateUserStatus,
   deleteUser,
+  getUserEnrollments,
+  adminUnenroll,
+  adminCompleteEnrollment,
   getAnalytics,
   getAllEnrollments,
   calculateEnrollmentStats,

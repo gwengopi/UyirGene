@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { Container, Paper, Typography, Box, Link, Alert } from '@mui/material';
-import { FormField, Select, Button } from '../components/common';
+import { FormField, Button } from '../components/common';
 import { authService } from '../services';
 import { useToast } from '../store';
 import { validateForm, hasErrors } from '../utils/validators';
@@ -16,7 +16,6 @@ function Register() {
     email: '',
     password: '',
     confirmPassword: '',
-    role: ROLES.STUDENT,
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -46,7 +45,6 @@ function Register() {
         custom: (value, values) =>
           value !== values.password ? 'Passwords do not match' : null,
       },
-      role: { required: true, label: 'Role' },
     };
 
     const validationErrors = validateForm(schema, formData);
@@ -64,7 +62,7 @@ function Register() {
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        role: formData.role,
+        role: ROLES.STUDENT, // Only students can self-register
       });
 
       showSuccess('Account created successfully! Please login.');
@@ -77,11 +75,6 @@ function Register() {
       setLoading(false);
     }
   };
-
-  const roleOptions = [
-    { value: ROLES.STUDENT, label: 'Student' },
-    { value: ROLES.INSTRUCTOR, label: 'Instructor' },
-  ];
 
   return (
     <Container maxWidth="sm" sx={{ py: 8 }}>
@@ -143,16 +136,6 @@ function Register() {
             error={errors.confirmPassword}
             required
             autoComplete="new-password"
-          />
-
-          <Select
-            name="role"
-            label="I want to"
-            value={formData.role}
-            onChange={handleChange}
-            error={errors.role}
-            options={roleOptions}
-            required
           />
 
           <Button

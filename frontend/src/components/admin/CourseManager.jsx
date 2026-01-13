@@ -74,13 +74,6 @@ function CourseManager({
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h6">Courses ({courses.length})</Typography>
-        <Button variant="contained" onClick={onAdd}>
-          Add Course
-        </Button>
-      </Box>
-
       <TableContainer component={Paper}>
         <Table aria-label="courses table">
           <TableHead>

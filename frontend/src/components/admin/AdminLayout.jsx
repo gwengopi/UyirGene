@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Box, useMediaQuery, useTheme } from '@mui/material';
+import { Box, useMediaQuery, useTheme, IconButton } from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import SchoolIcon from '@mui/icons-material/School';
 import PeopleIcon from '@mui/icons-material/People';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import SettingsIcon from '@mui/icons-material/Settings';
-import { Sidebar, Navbar } from '../common';
+import { Sidebar } from '../common';
 import { ROUTES } from '../../utils/constants';
 
 /**
@@ -26,7 +27,7 @@ function AdminLayout({ children, title }) {
     { subheader: 'Reports' },
     { label: 'Analytics', path: ROUTES.ADMIN.ANALYTICS, icon: <BarChartIcon /> },
     { divider: true },
-    { label: 'Settings', path: '/admin/settings', icon: <SettingsIcon /> },
+    { label: 'Settings', path: ROUTES.ADMIN.SETTINGS, icon: <SettingsIcon /> },
   ];
 
   const sidebarWidth = 280;
@@ -45,25 +46,25 @@ function AdminLayout({ children, title }) {
 
       {/* Main content area */}
       <Box
-        component="main"
+        component="div"
         sx={{
           flexGrow: 1,
           ml: { md: `${sidebarWidth}px` },
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
+          minHeight: 'calc(100vh - 64px)', // Account for main navbar height
         }}
       >
-        <Navbar />
-        <Box
-          sx={{
-            p: 3,
-            flex: 1,
-          }}
-          id="main-content"
-        >
-          {children}
-        </Box>
+        {/* Mobile menu button */}
+        {isMobile && (
+          <Box sx={{ p: 1 }}>
+            <IconButton
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open admin menu"
+            >
+              <MenuIcon />
+            </IconButton>
+          </Box>
+        )}
+        {children}
       </Box>
     </Box>
   );
