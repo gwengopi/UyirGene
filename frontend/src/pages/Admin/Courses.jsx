@@ -53,14 +53,14 @@ function AdminCourses() {
     }
   };
 
-  const handleSave = async (courseData) => {
+  const handleSave = async (courseData, imageFile = null, removeImage = false) => {
     setSaving(true);
     try {
       if (editingCourse) {
-        await courseService.updateCourse(editingCourse.id, courseData);
+        await courseService.updateCourse(editingCourse.id, courseData, imageFile, removeImage);
         showSuccess('Course updated successfully');
       } else {
-        await courseService.createCourse(courseData);
+        await courseService.createCourse(courseData, imageFile);
         showSuccess('Course created successfully');
       }
       setIsFormOpen(false);

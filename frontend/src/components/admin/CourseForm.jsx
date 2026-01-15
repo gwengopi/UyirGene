@@ -1,15 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Typography, Grid } from '@mui/material';
+import React, { useState, useEffect, useRef } from 'react';
+import { Box, Typography, Grid, Card, CardMedia, IconButton } from '@mui/material';
+import ImageIcon from '@mui/icons-material/Image';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { FormField, Select, Checkbox, Button } from '../common';
 import { validateForm, hasErrors } from '../../utils/validators';
 import { useConfig } from '../../store';
-import { COURSE_CATEGORIES } from '../../utils/constants';
+import { COURSE_CATEGORIES, IMAGES } from '../../utils/constants';
+import { getApiBaseUrl } from '../../services/api';
 
 /**
  * Course Form for creating/editing courses
  */
 function CourseForm({ course, onSave, onCancel, loading = false }) {
-  const { getCategoryOptions, categories } = useConfig();
+  const { getCategoryOptions } = useConfig();
+  const fileInputRef = useRef(null);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -21,6 +27,9 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
     videoTitle: '',
   });
   const [errors, setErrors] = useState({});
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [removeImage, setRemoveImage] = useState(false);
 
   useEffect(() => {
     if (course) {
@@ -34,18 +43,64 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
         videoUrl: course.videos?.[0]?.url || '',
         videoTitle: course.videos?.[0]?.title || '',
       });
+      // Set existing image preview from API
+      if (course.hasImage && course.imageUrl) {
+        setImagePreview(`${getApiBaseUrl()}${course.imageUrl}`);
+      }
     }
   }, [course]);
 
   const handleChange = (e) => {
     const { name, value, checked, type } = e.target;
+    const newValue = type === 'checkbox' ? checked : value;
+
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: newValue,
     }));
+
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
+  };
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image size should be less than 5MB');
+        return;
+      }
+
+      setImageFile(file);
+      setRemoveImage(false);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setRemoveImage(true);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
   };
 
   const handleSubmit = (e) => {
@@ -73,14 +128,13 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
       durationHours: formData.durationHours ? parseInt(formData.durationHours, 10) : null,
       price: formData.price ? parseFloat(formData.price) : null,
       published: formData.published,
-      // Include video data if provided
       video: formData.videoUrl ? {
         title: formData.videoTitle || formData.title,
         url: formData.videoUrl,
       } : null,
     };
 
-    onSave?.(dataToSave);
+    onSave?.(dataToSave, imageFile, removeImage);
   };
 
   // Use dynamic categories from master data, fallback to static list
@@ -98,6 +152,97 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
       </Typography>
 
       <Grid container spacing={3}>
+        {/* Course Image Section */}
+        <Grid item xs={12}>
+          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+            Course Image
+          </Typography>
+          <Grid container spacing={2} alignItems="flex-start">
+            <Grid item xs={12} sm={4}>
+              <Card
+                sx={{
+                  height: 180,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: 'background.default',
+                  border: '2px dashed',
+                  borderColor: 'divider',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
+              >
+                {imagePreview ? (
+                  <>
+                    <CardMedia
+                      component="img"
+                      image={imagePreview}
+                      alt="Course preview"
+                      sx={{
+                        height: '100%',
+                        width: '100%',
+                        objectFit: 'cover',
+                      }}
+                    />
+                    <IconButton
+                      onClick={handleRemoveImage}
+                      sx={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        bgcolor: 'rgba(0,0,0,0.6)',
+                        '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' },
+                      }}
+                      size="small"
+                    >
+                      <DeleteIcon fontSize="small" sx={{ color: 'white' }} />
+                    </IconButton>
+                  </>
+                ) : (
+                  <Box
+                    sx={{
+                      textAlign: 'center',
+                      color: 'text.secondary',
+                      cursor: 'pointer',
+                      p: 2,
+                    }}
+                    onClick={handleUploadClick}
+                  >
+                    <ImageIcon sx={{ fontSize: 48, opacity: 0.5, mb: 1 }} />
+                    <Typography variant="body2">Click to upload</Typography>
+                  </Box>
+                )}
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={8}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageSelect}
+                style={{ display: 'none' }}
+              />
+              <Button
+                variant="outlined"
+                startIcon={<CloudUploadIcon />}
+                onClick={handleUploadClick}
+                sx={{ mb: 2 }}
+              >
+                {imagePreview ? 'Change Image' : 'Upload Image'}
+              </Button>
+              <Typography variant="body2" color="text.secondary" sx={{ display: 'block' }}>
+                Upload a course thumbnail image. Supported formats: JPG, PNG, GIF.
+                Maximum size: 5MB. Recommended: 800x450 pixels (16:9 ratio).
+              </Typography>
+              {!imagePreview && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                  If no image is uploaded, a default placeholder will be used.
+                </Typography>
+              )}
+            </Grid>
+          </Grid>
+        </Grid>
+
         <Grid item xs={12}>
           <FormField
             name="title"

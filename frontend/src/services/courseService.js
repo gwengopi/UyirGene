@@ -4,6 +4,7 @@ const COURSE_ENDPOINTS = {
   LIST: '/api/courses',
   DETAIL: (id) => `/api/courses/${id}`,
   VIDEOS: (courseId) => `/api/courses/${courseId}/videos`,
+  IMAGE: (courseId) => `/api/courses/${courseId}/image`,
   ENROLLED: '/api/courses/enrolled',
 };
 
@@ -46,22 +47,40 @@ export async function getEnrolledCourses() {
 }
 
 /**
- * Create a new course (Admin/Instructor only)
+ * Get course image URL
+ * @param {number|string} courseId - Course ID
+ * @returns {string} Image URL
+ */
+export function getCourseImageUrl(courseId) {
+  return `${api.defaults.baseURL || ''}${COURSE_ENDPOINTS.IMAGE(courseId)}`;
+}
+
+/**
+ * Create a new course with optional image (Admin/Instructor only)
  * @param {Object} courseData - Course data
- * @param {string} courseData.title - Course title
- * @param {string} courseData.description - Course description
- * @param {string} courseData.category - Course category
- * @param {number} courseData.durationHours - Duration in hours
- * @param {number} courseData.price - Course price (null/0 for free)
- * @param {boolean} courseData.published - Whether course is published
- * @param {Object} courseData.video - Optional video to add
+ * @param {File} imageFile - Optional image file
  * @returns {Promise<Object>} Created course
  */
-export async function createCourse(courseData) {
+export async function createCourse(courseData, imageFile = null) {
   const { video, ...courseOnly } = courseData;
 
-  // Create course first
-  const response = await api.post(COURSE_ENDPOINTS.LIST, courseOnly);
+  const formData = new FormData();
+  formData.append('title', courseOnly.title);
+  formData.append('description', courseOnly.description);
+  if (courseOnly.category) formData.append('category', courseOnly.category);
+  if (courseOnly.durationHours) formData.append('durationHours', courseOnly.durationHours);
+  if (courseOnly.price) formData.append('price', courseOnly.price);
+  formData.append('published', courseOnly.published || false);
+
+  if (imageFile) {
+    formData.append('image', imageFile);
+  }
+
+  const response = await api.post(COURSE_ENDPOINTS.LIST, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   const createdCourse = response.data;
 
   // If video data provided, add video to course
@@ -82,13 +101,32 @@ export async function createCourse(courseData) {
 }
 
 /**
- * Update a course (Admin/Instructor only)
+ * Update a course with optional image (Admin/Instructor only)
  * @param {number|string} id - Course ID
  * @param {Object} courseData - Updated course data
+ * @param {File} imageFile - Optional image file
+ * @param {boolean} removeImage - Whether to remove existing image
  * @returns {Promise<Object>} Updated course
  */
-export async function updateCourse(id, courseData) {
-  const response = await api.put(COURSE_ENDPOINTS.DETAIL(id), courseData);
+export async function updateCourse(id, courseData, imageFile = null, removeImage = false) {
+  const formData = new FormData();
+  formData.append('title', courseData.title);
+  formData.append('description', courseData.description);
+  if (courseData.category) formData.append('category', courseData.category);
+  if (courseData.durationHours) formData.append('durationHours', courseData.durationHours);
+  if (courseData.price) formData.append('price', courseData.price);
+  formData.append('published', courseData.published || false);
+  formData.append('removeImage', removeImage);
+
+  if (imageFile) {
+    formData.append('image', imageFile);
+  }
+
+  const response = await api.put(COURSE_ENDPOINTS.DETAIL(id), formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 }
 
@@ -117,6 +155,7 @@ export default {
   getCourse,
   getCourseVideos,
   getEnrolledCourses,
+  getCourseImageUrl,
   createCourse,
   updateCourse,
   deleteCourse,

@@ -171,6 +171,6 @@ export const IMAGES = {
   STOCK_MEETING: 'https://img1.wsimg.com/isteam/stock/4195/:/rs=w:600,h:400,cg:true,m/qt=q:90',
 
   // Placeholders
-  COURSE_PLACEHOLDER: 'https://img1.wsimg.com/isteam/getty/2165387046/:/rs=w:400,h:300,cg:true,m/qt=q:85',
+  COURSE_PLACEHOLDER: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800',
   USER_PLACEHOLDER: 'https://img1.wsimg.com/isteam/getty/1754192862/:/rs=w:200,h:200,cg:true,m/qt=q:85',
 };

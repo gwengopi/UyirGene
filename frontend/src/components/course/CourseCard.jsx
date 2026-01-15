@@ -17,6 +17,7 @@ import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { formatCurrency, formatDurationHours } from '../../utils/formatters';
 import { ROUTES, IMAGES } from '../../utils/constants';
+import { getApiBaseUrl } from '../../services/api';
 
 /**
  * Course Card component for displaying course information
@@ -59,6 +60,11 @@ const CourseCard = memo(function CourseCard({
   const isFree = !course.price || course.price === 0;
   const isCompleted = progress >= 100;
 
+  // Construct full image URL from API base URL
+  const imageUrl = course.imageUrl
+    ? `${getApiBaseUrl()}${course.imageUrl}`
+    : IMAGES.COURSE_PLACEHOLDER;
+
   return (
     <Card
       sx={{
@@ -82,7 +88,7 @@ const CourseCard = memo(function CourseCard({
         <CardMedia
           component="img"
           height={180}
-          image={course.imageUrl || IMAGES.COURSE_PLACEHOLDER}
+          image={imageUrl}
           alt={course.title}
           sx={{ objectFit: 'cover' }}
         />

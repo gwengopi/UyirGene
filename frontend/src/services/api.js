@@ -90,4 +90,8 @@ export function isAuthenticated() {
   return !!getAuthToken();
 }
 
+export function getApiBaseUrl() {
+  return api.defaults.baseURL || '';
+}
+
 export default api;
