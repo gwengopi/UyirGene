@@ -2,6 +2,8 @@ package com.uyirgene.course;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -15,4 +17,10 @@ public class Course {
     private Integer durationHours;
     private Double price;
     private Boolean published;
+
+    @JdbcTypeCode(SqlTypes.BINARY)
+    @Column(columnDefinition = "BYTEA")
+    private byte[] image;
+
+    private String imageContentType;
 }

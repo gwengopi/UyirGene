@@ -7,6 +7,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
+@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "course_id"}))
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Enrollment {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

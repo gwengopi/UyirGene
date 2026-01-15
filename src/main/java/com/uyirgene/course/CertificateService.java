@@ -10,16 +10,14 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
-import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -39,12 +37,7 @@ public class CertificateService {
     @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
 
-    @Value("${app.certificate.logo-path:static/images/logo.png}")
-    private String logoPath;
-
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMMM dd, yyyy");
-    private static final float PAGE_WIDTH = PDRectangle.A4.getWidth();
-    private static final float PAGE_HEIGHT = PDRectangle.A4.getHeight();
 
     public Certificate generateCertificate(User user, Course course) {
         Optional<Certificate> existing = certRepo.findByUserAndCourse(user, course);
@@ -66,17 +59,17 @@ public class CertificateService {
             String fileName = certificate.getCertificateId() + ".pdf";
             Path filePath = dir.resolve(fileName);
 
-            createProfessionalPdfCertificate(
+            createCertificatePdf(
                     user.getName(),
                     course.getTitle(),
                     certificate.getCertificateId(),
                     certificate.getIssuedAt(),
-                    filePath
+                    filePath.toString()
             );
 
             certificate.setFilePath(filePath.toString());
             return certRepo.save(certificate);
-        } catch (IOException | WriterException ex) {
+        } catch (Exception ex) {
             log.error("Failed to generate certificate for user {} and course {}", user.getId(), course.getId(), ex);
             throw new RuntimeException("Failed to generate certificate", ex);
         }
@@ -90,177 +83,163 @@ public class CertificateService {
         return "CERT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
-    private void createProfessionalPdfCertificate(String userName, String courseTitle,
-                                                   String certificateId, LocalDateTime issuedAt,
-                                                   Path filePath) throws IOException, WriterException {
-        PDDocument doc = null;
-        PDPageContentStream cs = null;
+    private void createCertificatePdf(String userName, String courseTitle,
+                                       String certificateId, LocalDateTime issuedAt,
+                                       String filePath) throws IOException, WriterException {
+
+        PDDocument document = new PDDocument();
 
         try {
-            doc = new PDDocument();
-            PDPage page = new PDPage(new PDRectangle(PAGE_WIDTH, PAGE_HEIGHT));
-            doc.addPage(page);
+            PDPage page = new PDPage(PDRectangle.A4);
+            document.addPage(page);
 
-            cs = new PDPageContentStream(doc, page);
+            float pageWidth = page.getMediaBox().getWidth();
+            float pageHeight = page.getMediaBox().getHeight();
 
-            // Draw decorative border
-            drawBorder(cs);
+            PDPageContentStream contentStream = new PDPageContentStream(document, page);
 
-            float yPosition = PAGE_HEIGHT - 80;
+            // Draw border
+            contentStream.setStrokingColor(0.16f, 0.50f, 0.73f); // Blue color
+            contentStream.setLineWidth(3);
+            contentStream.addRect(30, 30, pageWidth - 60, pageHeight - 60);
+            contentStream.stroke();
 
-            // Draw logo at the top
-            yPosition = drawLogo(doc, cs, yPosition);
+            // Inner border
+            contentStream.setStrokingColor(0.74f, 0.76f, 0.78f); // Gray
+            contentStream.setLineWidth(1);
+            contentStream.addRect(40, 40, pageWidth - 80, pageHeight - 80);
+            contentStream.stroke();
 
-            // Draw title
-            yPosition = drawCenteredText(cs, "CERTIFICATE OF COMPLETION", yPosition - 30,
-                    PDType1Font.HELVETICA_BOLD, 28, 44, 62, 80);
+            float centerX = pageWidth / 2;
+            float y = pageHeight - 120;
 
-            // Draw decorative line
-            yPosition = drawDecorativeLine(cs, yPosition - 20);
+            // Title: UyirGene
+            String title = "UyirGene";
+            float titleWidth = PDType1Font.HELVETICA_BOLD.getStringWidth(title) / 1000 * 36;
+            contentStream.beginText();
+            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 36);
+            contentStream.setNonStrokingColor(0.16f, 0.50f, 0.73f);
+            contentStream.newLineAtOffset(centerX - titleWidth / 2, y);
+            contentStream.showText(title);
+            contentStream.endText();
 
-            // Draw "This is to certify that"
-            yPosition = drawCenteredText(cs, "This is to certify that", yPosition - 40,
-                    PDType1Font.HELVETICA, 14, 100, 100, 100);
+            // Certificate of Completion
+            y -= 60;
+            String certTitle = "CERTIFICATE OF COMPLETION";
+            float certTitleWidth = PDType1Font.HELVETICA_BOLD.getStringWidth(certTitle) / 1000 * 28;
+            contentStream.beginText();
+            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 28);
+            contentStream.setNonStrokingColor(0.17f, 0.24f, 0.31f);
+            contentStream.newLineAtOffset(centerX - certTitleWidth / 2, y);
+            contentStream.showText(certTitle);
+            contentStream.endText();
 
-            // Draw student name
-            yPosition = drawCenteredText(cs, userName, yPosition - 30,
-                    PDType1Font.HELVETICA_BOLD, 24, 41, 128, 185);
+            // Decorative line
+            y -= 25;
+            contentStream.setStrokingColor(0.74f, 0.76f, 0.78f);
+            contentStream.setLineWidth(2);
+            contentStream.moveTo(centerX - 100, y);
+            contentStream.lineTo(centerX + 100, y);
+            contentStream.stroke();
 
-            // Draw "has successfully completed"
-            yPosition = drawCenteredText(cs, "has successfully completed the course", yPosition - 30,
-                    PDType1Font.HELVETICA, 14, 100, 100, 100);
+            // This is to certify that
+            y -= 50;
+            String certifyText = "This is to certify that";
+            float certifyWidth = PDType1Font.HELVETICA.getStringWidth(certifyText) / 1000 * 14;
+            contentStream.beginText();
+            contentStream.setFont(PDType1Font.HELVETICA, 14);
+            contentStream.setNonStrokingColor(0.39f, 0.39f, 0.39f);
+            contentStream.newLineAtOffset(centerX - certifyWidth / 2, y);
+            contentStream.showText(certifyText);
+            contentStream.endText();
 
-            // Draw course title
-            yPosition = drawCenteredText(cs, courseTitle, yPosition - 30,
-                    PDType1Font.HELVETICA_BOLD, 20, 44, 62, 80);
+            // Student Name
+            y -= 40;
+            float nameWidth = PDType1Font.HELVETICA_BOLD.getStringWidth(userName) / 1000 * 24;
+            contentStream.beginText();
+            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 24);
+            contentStream.setNonStrokingColor(0.16f, 0.50f, 0.73f);
+            contentStream.newLineAtOffset(centerX - nameWidth / 2, y);
+            contentStream.showText(userName);
+            contentStream.endText();
 
-            // Draw issued date
-            String formattedDate = issuedAt.format(DATE_FORMATTER);
-            yPosition = drawCenteredText(cs, "Issued on: " + formattedDate, yPosition - 40,
-                    PDType1Font.HELVETICA_OBLIQUE, 12, 100, 100, 100);
+            // has successfully completed the course
+            y -= 40;
+            String completedText = "has successfully completed the course";
+            float completedWidth = PDType1Font.HELVETICA.getStringWidth(completedText) / 1000 * 14;
+            contentStream.beginText();
+            contentStream.setFont(PDType1Font.HELVETICA, 14);
+            contentStream.setNonStrokingColor(0.39f, 0.39f, 0.39f);
+            contentStream.newLineAtOffset(centerX - completedWidth / 2, y);
+            contentStream.showText(completedText);
+            contentStream.endText();
 
-            // Draw certificate ID
-            yPosition = drawCenteredText(cs, "Certificate ID: " + certificateId, yPosition - 20,
-                    PDType1Font.HELVETICA, 10, 150, 150, 150);
+            // Course Title
+            y -= 40;
+            float courseTitleWidth = PDType1Font.HELVETICA_BOLD.getStringWidth(courseTitle) / 1000 * 20;
+            contentStream.beginText();
+            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 20);
+            contentStream.setNonStrokingColor(0.17f, 0.24f, 0.31f);
+            contentStream.newLineAtOffset(centerX - courseTitleWidth / 2, y);
+            contentStream.showText(courseTitle);
+            contentStream.endText();
 
-            // Draw QR code for verification
-            drawQRCode(doc, cs, certificateId, yPosition - 100);
+            // Issued date
+            y -= 50;
+            String dateText = "Issued on: " + issuedAt.format(DATE_FORMATTER);
+            float dateWidth = PDType1Font.HELVETICA_OBLIQUE.getStringWidth(dateText) / 1000 * 12;
+            contentStream.beginText();
+            contentStream.setFont(PDType1Font.HELVETICA_OBLIQUE, 12);
+            contentStream.setNonStrokingColor(0.39f, 0.39f, 0.39f);
+            contentStream.newLineAtOffset(centerX - dateWidth / 2, y);
+            contentStream.showText(dateText);
+            contentStream.endText();
 
-            // Close content stream before saving
-            cs.close();
-            cs = null;
+            // Certificate ID
+            y -= 25;
+            String idText = "Certificate ID: " + certificateId;
+            float idWidth = PDType1Font.HELVETICA.getStringWidth(idText) / 1000 * 10;
+            contentStream.beginText();
+            contentStream.setFont(PDType1Font.HELVETICA, 10);
+            contentStream.setNonStrokingColor(0.59f, 0.59f, 0.59f);
+            contentStream.newLineAtOffset(centerX - idWidth / 2, y);
+            contentStream.showText(idText);
+            contentStream.endText();
+
+            // Generate and add QR code
+            y -= 100;
+            String verificationUrl = baseUrl + "/api/certificates/verify/" + certificateId;
+            BufferedImage qrImage = QRCodeGenerator.generateQRCodeImage(verificationUrl, 150, 150);
+
+            // Convert BufferedImage to PDImageXObject
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(qrImage, "PNG", baos);
+            byte[] qrBytes = baos.toByteArray();
+            PDImageXObject pdImage = PDImageXObject.createFromByteArray(document, qrBytes, "qr");
+
+            float qrSize = 70;
+            contentStream.drawImage(pdImage, centerX - qrSize / 2, y, qrSize, qrSize);
+
+            // Scan to verify text
+            y -= 15;
+            String scanText = "Scan to verify";
+            float scanWidth = PDType1Font.HELVETICA.getStringWidth(scanText) / 1000 * 8;
+            contentStream.beginText();
+            contentStream.setFont(PDType1Font.HELVETICA, 8);
+            contentStream.setNonStrokingColor(0.59f, 0.59f, 0.59f);
+            contentStream.newLineAtOffset(centerX - scanWidth / 2, y);
+            contentStream.showText(scanText);
+            contentStream.endText();
+
+            // Close the content stream
+            contentStream.close();
 
             // Save the document
-            doc.save(filePath.toFile());
-            log.info("Certificate generated successfully: {}", filePath);
+            document.save(filePath);
+            log.info("Certificate PDF created successfully: {}", filePath);
 
         } finally {
-            // Ensure content stream is closed
-            if (cs != null) {
-                try {
-                    cs.close();
-                } catch (IOException e) {
-                    log.warn("Error closing content stream", e);
-                }
-            }
-            // Ensure document is closed
-            if (doc != null) {
-                try {
-                    doc.close();
-                } catch (IOException e) {
-                    log.warn("Error closing document", e);
-                }
-            }
+            document.close();
         }
-    }
-
-    private void drawBorder(PDPageContentStream cs) throws IOException {
-        float margin = 30;
-        float borderWidth = 3;
-
-        // Outer border - blue
-        cs.setStrokingColor(41 / 255f, 128 / 255f, 185 / 255f);
-        cs.setLineWidth(borderWidth);
-        cs.addRect(margin, margin, PAGE_WIDTH - 2 * margin, PAGE_HEIGHT - 2 * margin);
-        cs.stroke();
-
-        // Inner border - gray
-        float innerMargin = margin + 10;
-        cs.setStrokingColor(189 / 255f, 195 / 255f, 199 / 255f);
-        cs.setLineWidth(1);
-        cs.addRect(innerMargin, innerMargin, PAGE_WIDTH - 2 * innerMargin, PAGE_HEIGHT - 2 * innerMargin);
-        cs.stroke();
-    }
-
-    private float drawLogo(PDDocument doc, PDPageContentStream cs, float yPosition) throws IOException {
-        try {
-            ClassPathResource logoResource = new ClassPathResource(logoPath);
-            if (logoResource.exists()) {
-                try (InputStream is = logoResource.getInputStream()) {
-                    BufferedImage logoImage = ImageIO.read(is);
-                    if (logoImage != null) {
-                        PDImageXObject pdImage = LosslessFactory.createFromImage(doc, logoImage);
-
-                        float logoWidth = 100;
-                        float logoHeight = logoWidth * pdImage.getHeight() / pdImage.getWidth();
-                        float logoX = (PAGE_WIDTH - logoWidth) / 2;
-
-                        cs.drawImage(pdImage, logoX, yPosition - logoHeight, logoWidth, logoHeight);
-                        return yPosition - logoHeight;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Could not load logo from {}, proceeding without logo", logoPath);
-        }
-
-        // If logo not found, draw a placeholder text
-        return drawCenteredText(cs, "UyirGene", yPosition - 40,
-                PDType1Font.HELVETICA_BOLD, 32, 41, 128, 185);
-    }
-
-    private float drawCenteredText(PDPageContentStream cs, String text, float yPosition,
-                                    PDType1Font font, float fontSize, int r, int g, int b) throws IOException {
-        float textWidth = font.getStringWidth(text) / 1000 * fontSize;
-        float xPosition = (PAGE_WIDTH - textWidth) / 2;
-
-        cs.beginText();
-        cs.setFont(font, fontSize);
-        cs.setNonStrokingColor(r / 255f, g / 255f, b / 255f);
-        cs.newLineAtOffset(xPosition, yPosition);
-        cs.showText(text);
-        cs.endText();
-
-        return yPosition;
-    }
-
-    private float drawDecorativeLine(PDPageContentStream cs, float yPosition) throws IOException {
-        float lineWidth = 200;
-        float xStart = (PAGE_WIDTH - lineWidth) / 2;
-
-        cs.setStrokingColor(189 / 255f, 195 / 255f, 199 / 255f);
-        cs.setLineWidth(2);
-        cs.moveTo(xStart, yPosition);
-        cs.lineTo(xStart + lineWidth, yPosition);
-        cs.stroke();
-
-        return yPosition;
-    }
-
-    private void drawQRCode(PDDocument doc, PDPageContentStream cs, String certificateId, float yPosition)
-            throws IOException, WriterException {
-        String verificationUrl = baseUrl + "/api/certificates/verify/" + certificateId;
-        BufferedImage qrImage = QRCodeGenerator.generateQRCodeImage(verificationUrl, 100, 100);
-
-        PDImageXObject pdImage = LosslessFactory.createFromImage(doc, qrImage);
-
-        float qrSize = 80;
-        float qrX = (PAGE_WIDTH - qrSize) / 2;
-
-        cs.drawImage(pdImage, qrX, yPosition, qrSize, qrSize);
-
-        // Add verification text below QR code
-        drawCenteredText(cs, "Scan to verify", yPosition - 15,
-                PDType1Font.HELVETICA, 8, 150, 150, 150);
     }
 }
