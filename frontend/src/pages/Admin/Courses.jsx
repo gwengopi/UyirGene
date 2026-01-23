@@ -34,9 +34,18 @@ function AdminCourses() {
     setIsFormOpen(true);
   };
 
-  const handleEdit = (course) => {
-    setEditingCourse(course);
-    setIsFormOpen(true);
+  const handleEdit = async (course) => {
+    // Load course with videos for editing
+    try {
+      const courseWithVideos = await courseService.getCourse(course.id);
+      const videos = await courseService.getAdminCourseVideos(course.id);
+      setEditingCourse({ ...courseWithVideos, videos });
+      setIsFormOpen(true);
+    } catch (error) {
+      // Fallback to basic course data
+      setEditingCourse(course);
+      setIsFormOpen(true);
+    }
   };
 
   const handleDelete = async (courseId) => {
@@ -53,14 +62,14 @@ function AdminCourses() {
     }
   };
 
-  const handleSave = async (courseData, imageFile = null, removeImage = false) => {
+  const handleSave = async (courseData, imageOptions = {}) => {
     setSaving(true);
     try {
       if (editingCourse) {
-        await courseService.updateCourse(editingCourse.id, courseData, imageFile, removeImage);
+        await courseService.updateCourse(editingCourse.id, courseData, imageOptions);
         showSuccess('Course updated successfully');
       } else {
-        await courseService.createCourse(courseData, imageFile);
+        await courseService.createCourse(courseData, imageOptions);
         showSuccess('Course created successfully');
       }
       setIsFormOpen(false);

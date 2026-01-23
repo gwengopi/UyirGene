@@ -1,5 +1,6 @@
 // Export all admin components
 export { default as AdminLayout } from './AdminLayout';
+export { default as AdminHeader } from './AdminHeader';
 export { default as StatCard } from './StatCard';
 export { default as CourseManager } from './CourseManager';
 export { default as CourseForm } from './CourseForm';

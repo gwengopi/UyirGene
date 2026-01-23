@@ -30,20 +30,41 @@ api.interceptors.request.use(
   }
 );
 
+// Track if we're already handling a 401 to prevent multiple redirects
+let isHandling401 = false;
+
 // Response interceptor with error handling
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const { response } = error;
+    const { response, config } = error;
 
     if (response) {
       // Handle specific error codes
       switch (response.status) {
         case 401:
-          // Unauthorized - clear auth and redirect to login
-          clearAuthHeader();
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login';
+          // Only clear auth and redirect if:
+          // 1. We're not already handling a 401
+          // 2. There was actually a token (user was logged in)
+          // 3. We're not on certain paths that shouldn't trigger redirect
+          const currentToken = localStorage.getItem('uyir_auth');
+          const isVideoProgressCall = config?.url?.includes('/progress');
+          const isCertificateCall = config?.url?.includes('/certificate');
+
+          // Don't redirect for video progress or certificate calls - these are non-critical
+          if (isVideoProgressCall || isCertificateCall) {
+            console.warn('401 on non-critical call, not redirecting');
+            break;
+          }
+
+          if (!isHandling401 && currentToken && window.location.pathname !== '/login') {
+            isHandling401 = true;
+            clearAuthHeader();
+            // Small delay to prevent race conditions with multiple 401s
+            setTimeout(() => {
+              window.location.href = '/login';
+              isHandling401 = false;
+            }, 100);
           }
           break;
         case 403:

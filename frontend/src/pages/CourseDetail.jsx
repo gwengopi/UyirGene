@@ -69,13 +69,18 @@ function CourseDetail() {
             const videosData = await courseService.getCourseVideos(id);
             setVideos(videosData);
 
-            // Load progress for all videos
+            // Load progress for all videos - handle errors gracefully
             const progress = {};
-            for (const video of videosData) {
-              const videoProgress = await videoService.getProgress(video.id);
-              if (videoProgress) {
-                progress[video.id] = videoProgress;
+            try {
+              for (const video of videosData) {
+                const videoProgress = await videoService.getProgress(video.id);
+                if (videoProgress) {
+                  progress[video.id] = videoProgress;
+                }
               }
+            } catch (progressError) {
+              console.warn('Failed to load some video progress:', progressError);
+              // Continue without progress data - user can still watch videos
             }
             setProgressMap(progress);
 

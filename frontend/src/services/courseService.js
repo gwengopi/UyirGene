@@ -4,7 +4,11 @@ const COURSE_ENDPOINTS = {
   LIST: '/api/courses',
   DETAIL: (id) => `/api/courses/${id}`,
   VIDEOS: (courseId) => `/api/courses/${courseId}/videos`,
+  VIDEOS_ADMIN: (courseId) => `/api/courses/${courseId}/videos/admin`,
+  VIDEO: (courseId, videoId) => `/api/courses/${courseId}/videos/${videoId}`,
   IMAGE: (courseId) => `/api/courses/${courseId}/image`,
+  THUMBNAIL: (courseId) => `/api/courses/${courseId}/thumbnail`,
+  DESCRIPTION_IMAGE: (courseId) => `/api/courses/${courseId}/description-image`,
   ENROLLED: '/api/courses/enrolled',
 };
 
@@ -56,13 +60,13 @@ export function getCourseImageUrl(courseId) {
 }
 
 /**
- * Create a new course with optional image (Admin/Instructor only)
- * @param {Object} courseData - Course data
- * @param {File} imageFile - Optional image file
+ * Create a new course with optional images (Admin/Instructor only)
+ * @param {Object} courseData - Course data including videos array
+ * @param {Object} imageOptions - Image options { thumbnailImage, descriptionImage }
  * @returns {Promise<Object>} Created course
  */
-export async function createCourse(courseData, imageFile = null) {
-  const { video, ...courseOnly } = courseData;
+export async function createCourse(courseData, imageOptions = {}) {
+  const { videos, ...courseOnly } = courseData;
 
   const formData = new FormData();
   formData.append('title', courseOnly.title);
@@ -71,9 +75,15 @@ export async function createCourse(courseData, imageFile = null) {
   if (courseOnly.durationHours) formData.append('durationHours', courseOnly.durationHours);
   if (courseOnly.price) formData.append('price', courseOnly.price);
   formData.append('published', courseOnly.published || false);
+  if (courseOnly.testLink) formData.append('testLink', courseOnly.testLink);
+  if (courseOnly.testDescription) formData.append('testDescription', courseOnly.testDescription);
 
-  if (imageFile) {
-    formData.append('image', imageFile);
+  // Handle images
+  if (imageOptions.thumbnailImage) {
+    formData.append('thumbnailImage', imageOptions.thumbnailImage);
+  }
+  if (imageOptions.descriptionImage) {
+    formData.append('descriptionImage', imageOptions.descriptionImage);
   }
 
   const response = await api.post(COURSE_ENDPOINTS.LIST, formData, {
@@ -83,17 +93,21 @@ export async function createCourse(courseData, imageFile = null) {
   });
   const createdCourse = response.data;
 
-  // If video data provided, add video to course
-  if (video && video.url) {
-    try {
-      await addVideoToCourse(createdCourse.id, {
-        title: video.title || courseData.title,
-        url: video.url,
-        durationSeconds: 0,
-        sequenceOrder: 1,
-      });
-    } catch (error) {
-      console.error('Failed to add video to course:', error);
+  // If videos provided, add them to the course
+  if (videos && videos.length > 0) {
+    for (const video of videos) {
+      if (video.url) {
+        try {
+          await addVideoToCourse(createdCourse.id, {
+            title: video.title || courseData.title,
+            url: video.url,
+            orderIndex: video.orderIndex || 0,
+            durationSeconds: 0,
+          });
+        } catch (error) {
+          console.error('Failed to add video to course:', error);
+        }
+      }
     }
   }
 
@@ -101,33 +115,127 @@ export async function createCourse(courseData, imageFile = null) {
 }
 
 /**
- * Update a course with optional image (Admin/Instructor only)
+ * Update a course with optional images (Admin/Instructor only)
  * @param {number|string} id - Course ID
- * @param {Object} courseData - Updated course data
- * @param {File} imageFile - Optional image file
- * @param {boolean} removeImage - Whether to remove existing image
+ * @param {Object} courseData - Updated course data including videos array
+ * @param {Object} imageOptions - Image options { thumbnailImage, descriptionImage, removeThumbnailImage, removeDescriptionImage }
  * @returns {Promise<Object>} Updated course
  */
-export async function updateCourse(id, courseData, imageFile = null, removeImage = false) {
-  const formData = new FormData();
-  formData.append('title', courseData.title);
-  formData.append('description', courseData.description);
-  if (courseData.category) formData.append('category', courseData.category);
-  if (courseData.durationHours) formData.append('durationHours', courseData.durationHours);
-  if (courseData.price) formData.append('price', courseData.price);
-  formData.append('published', courseData.published || false);
-  formData.append('removeImage', removeImage);
+export async function updateCourse(id, courseData, imageOptions = {}) {
+  const { videos, ...courseOnly } = courseData;
 
-  if (imageFile) {
-    formData.append('image', imageFile);
+  const formData = new FormData();
+  formData.append('title', courseOnly.title);
+  formData.append('description', courseOnly.description);
+  if (courseOnly.category) formData.append('category', courseOnly.category);
+  if (courseOnly.durationHours) formData.append('durationHours', courseOnly.durationHours);
+  if (courseOnly.price) formData.append('price', courseOnly.price);
+  formData.append('published', courseOnly.published || false);
+  if (courseOnly.testLink !== undefined) formData.append('testLink', courseOnly.testLink || '');
+  if (courseOnly.testDescription !== undefined) formData.append('testDescription', courseOnly.testDescription || '');
+
+  // Handle images
+  if (imageOptions.thumbnailImage) {
+    formData.append('thumbnailImage', imageOptions.thumbnailImage);
   }
+  if (imageOptions.descriptionImage) {
+    formData.append('descriptionImage', imageOptions.descriptionImage);
+  }
+  formData.append('removeThumbnailImage', imageOptions.removeThumbnailImage || false);
+  formData.append('removeDescriptionImage', imageOptions.removeDescriptionImage || false);
 
   const response = await api.put(COURSE_ENDPOINTS.DETAIL(id), formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
+
+  // Handle videos - update existing, add new, delete removed
+  if (videos) {
+    // Get existing videos
+    const existingVideos = await getAdminCourseVideos(id);
+    const existingVideoIds = existingVideos.map(v => v.id);
+    const newVideoIds = videos.filter(v => v.id).map(v => v.id);
+
+    // Delete videos that are no longer in the list
+    for (const existingVideo of existingVideos) {
+      if (!newVideoIds.includes(existingVideo.id)) {
+        try {
+          await deleteVideo(id, existingVideo.id);
+        } catch (error) {
+          console.error('Failed to delete video:', error);
+        }
+      }
+    }
+
+    // Update existing videos and add new ones
+    for (const video of videos) {
+      if (video.url) {
+        if (video.id && existingVideoIds.includes(video.id)) {
+          // Update existing video
+          try {
+            await updateVideo(id, video.id, {
+              title: video.title || courseOnly.title,
+              url: video.url,
+              orderIndex: video.orderIndex || 0,
+            });
+          } catch (error) {
+            console.error('Failed to update video:', error);
+          }
+        } else if (!video.id) {
+          // Add new video
+          try {
+            await addVideoToCourse(id, {
+              title: video.title || courseOnly.title,
+              url: video.url,
+              orderIndex: video.orderIndex || 0,
+              durationSeconds: 0,
+            });
+          } catch (error) {
+            console.error('Failed to add video:', error);
+          }
+        }
+      }
+    }
+  }
+
   return response.data;
+}
+
+/**
+ * Get admin videos for a course (includes all videos)
+ * @param {number|string} courseId - Course ID
+ * @returns {Promise<Array>} List of videos
+ */
+export async function getAdminCourseVideos(courseId) {
+  try {
+    const response = await api.get(COURSE_ENDPOINTS.VIDEOS_ADMIN(courseId));
+    return response.data;
+  } catch (error) {
+    return [];
+  }
+}
+
+/**
+ * Update a video
+ * @param {number|string} courseId - Course ID
+ * @param {number|string} videoId - Video ID
+ * @param {Object} videoData - Video data
+ * @returns {Promise<Object>} Updated video
+ */
+export async function updateVideo(courseId, videoId, videoData) {
+  const response = await api.put(COURSE_ENDPOINTS.VIDEO(courseId, videoId), videoData);
+  return response.data;
+}
+
+/**
+ * Delete a video
+ * @param {number|string} courseId - Course ID
+ * @param {number|string} videoId - Video ID
+ * @returns {Promise<void>}
+ */
+export async function deleteVideo(courseId, videoId) {
+  await api.delete(COURSE_ENDPOINTS.VIDEO(courseId, videoId));
 }
 
 /**
@@ -154,10 +262,13 @@ export default {
   getAllCourses,
   getCourse,
   getCourseVideos,
+  getAdminCourseVideos,
   getEnrolledCourses,
   getCourseImageUrl,
   createCourse,
   updateCourse,
   deleteCourse,
   addVideoToCourse,
+  updateVideo,
+  deleteVideo,
 };

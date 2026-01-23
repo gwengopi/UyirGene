@@ -27,7 +27,9 @@ export async function getProgress(videoId) {
     const response = await api.get(VIDEO_ENDPOINTS.PROGRESS(videoId));
     return response.data;
   } catch (error) {
-    if (error.response?.status === 404) {
+    // Return null for 404 (no progress) and 401 (auth issues during progress fetch)
+    // We don't want a failed progress fetch to trigger logout
+    if (error.response?.status === 404 || error.response?.status === 401) {
       return null;
     }
     throw error;

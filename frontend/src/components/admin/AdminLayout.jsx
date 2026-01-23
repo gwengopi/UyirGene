@@ -8,6 +8,7 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import SettingsIcon from '@mui/icons-material/Settings';
 import CardMembershipIcon from '@mui/icons-material/CardMembership';
 import { Sidebar } from '../common';
+import AdminHeader from './AdminHeader';
 import { ROUTES } from '../../utils/constants';
 
 /**
@@ -35,38 +36,60 @@ function AdminLayout({ children, title }) {
   const sidebarWidth = 280;
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Sidebar */}
-      <Sidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        items={sidebarItems}
-        header="Admin Panel"
-        width={sidebarWidth}
-        variant={isMobile ? 'temporary' : 'permanent'}
-      />
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      {/* Admin Header */}
+      <AdminHeader />
 
-      {/* Main content area */}
-      <Box
-        component="div"
-        sx={{
-          flexGrow: 1,
-          ml: { md: `${sidebarWidth}px` },
-          minHeight: 'calc(100vh - 64px)', // Account for main navbar height
-        }}
-      >
-        {/* Mobile menu button */}
-        {isMobile && (
-          <Box sx={{ p: 1 }}>
-            <IconButton
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open admin menu"
-            >
-              <MenuIcon />
-            </IconButton>
+      {/* Content area with sidebar */}
+      <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {/* Sidebar */}
+        <Sidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          items={sidebarItems}
+          header="Navigation"
+          width={sidebarWidth}
+          variant={isMobile ? 'temporary' : 'permanent'}
+        />
+
+        {/* Main content area */}
+        <Box
+          component="main"
+          role="main"
+          sx={{
+            flexGrow: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'auto',
+            backgroundColor: 'background.default',
+          }}
+        >
+          {/* Mobile menu button */}
+          {isMobile && (
+            <Box sx={{ p: 2 }}>
+              <IconButton
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open menu"
+                size="large"
+              >
+                <MenuIcon />
+              </IconButton>
+            </Box>
+          )}
+
+          {/* Page content with proper padding and styling */}
+          <Box
+            sx={{
+              flex: 1,
+              p: { xs: 2, sm: 3 },
+              maxWidth: '100%',
+              width: '100%',
+              boxSizing: 'border-box',
+            }}
+          >
+            {children}
           </Box>
-        )}
-        {children}
+        </Box>
       </Box>
     </Box>
   );

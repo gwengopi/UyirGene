@@ -10,6 +10,9 @@ const ADMIN_ENDPOINTS = {
   ENROLLMENTS: '/api/admin/enrollments',
   ENROLLMENT_DETAIL: (id) => `/api/admin/enrollments/${id}`,
   ENROLLMENT_COMPLETE: (id) => `/api/admin/enrollments/${id}/complete`,
+  ENROLLMENT_MARKS: (id) => `/api/admin/enrollments/${id}/marks`,
+  ENROLLMENT_PUBLISH_RESULT: (id) => `/api/admin/enrollments/${id}/publish-result`,
+  ENROLLMENT_GENERATE_CERTIFICATE: (id) => `/api/admin/enrollments/${id}/generate-certificate`,
 };
 
 /**
@@ -91,6 +94,48 @@ export async function adminCompleteEnrollment(enrollmentId) {
 }
 
 /**
+ * Update marks for an enrollment (Admin only)
+ * @param {number|string} enrollmentId - Enrollment ID
+ * @param {number} marks - Marks to assign (0-100)
+ * @returns {Promise<Object>} Updated enrollment
+ */
+export async function updateEnrollmentMarks(enrollmentId, marks) {
+  const response = await api.put(ADMIN_ENDPOINTS.ENROLLMENT_MARKS(enrollmentId), { marks });
+  return response.data;
+}
+
+/**
+ * Publish test result for an enrollment (Admin only)
+ * Makes the result visible to the user
+ * @param {number|string} enrollmentId - Enrollment ID
+ * @returns {Promise<Object>} Updated enrollment
+ */
+export async function publishResult(enrollmentId) {
+  const response = await api.post(ADMIN_ENDPOINTS.ENROLLMENT_PUBLISH_RESULT(enrollmentId));
+  return response.data;
+}
+
+/**
+ * Generate certificate for an enrollment based on marks (Admin only)
+ * @param {number|string} enrollmentId - Enrollment ID
+ * @returns {Promise<Object>} Generated certificate
+ */
+export async function generateCertificate(enrollmentId) {
+  const response = await api.post(ADMIN_ENDPOINTS.ENROLLMENT_GENERATE_CERTIFICATE(enrollmentId));
+  return response.data;
+}
+
+/**
+ * Get single enrollment details (Admin only)
+ * @param {number|string} enrollmentId - Enrollment ID
+ * @returns {Promise<Object>} Enrollment details
+ */
+export async function getEnrollment(enrollmentId) {
+  const response = await api.get(ADMIN_ENDPOINTS.ENROLLMENT_DETAIL(enrollmentId));
+  return response.data;
+}
+
+/**
  * Get analytics dashboard data (Admin only)
  * @returns {Promise<Object>} Analytics data
  */
@@ -140,6 +185,10 @@ export default {
   getUserEnrollments,
   adminUnenroll,
   adminCompleteEnrollment,
+  updateEnrollmentMarks,
+  publishResult,
+  generateCertificate,
+  getEnrollment,
   getAnalytics,
   getAllEnrollments,
   calculateEnrollmentStats,

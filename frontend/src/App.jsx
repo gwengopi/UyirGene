@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { ThemeProvider, CssBaseline, Box } from '@mui/material';
 import { darkTheme, lightTheme } from './styles/theme';
 import './styles/global.css';
@@ -72,6 +72,163 @@ function ThemedApp({ children }) {
   );
 }
 
+// App content component that handles conditional navbar rendering
+function AppContent() {
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh',
+      }}
+    >
+      {!isAdminRoute && <Navbar />}
+      <Box
+        component="main"
+        id="main-content"
+        sx={{ flex: 1 }}
+        role="main"
+      >
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            {/* Public routes */}
+            <Route path={ROUTES.HOME} element={<Home />} />
+            <Route path={ROUTES.COURSES} element={<Courses />} />
+            <Route path="/courses/:id" element={<CourseDetail />} />
+            <Route path="/certificate/:id" element={<CertificateVerify />} />
+
+            {/* Auth routes - redirect if logged in */}
+            <Route
+              path={ROUTES.LOGIN}
+              element={
+                <PublicRoute>
+                  <Login />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path={ROUTES.REGISTER}
+              element={
+                <PublicRoute>
+                  <Register />
+                </PublicRoute>
+              }
+            />
+
+            {/* Protected routes - requires authentication */}
+            <Route
+              path={ROUTES.DASHBOARD}
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path={ROUTES.MY_COURSES}
+              element={
+                <ProtectedRoute>
+                  <MyCourses />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Payment page for paid enrollments */}
+            <Route
+              path={ROUTES.PAYMENT}
+              element={
+                <ProtectedRoute>
+                  <Payment />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path={ROUTES.PROFILE}
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Admin routes - requires ADMIN or INSTRUCTOR role */}
+            <Route
+              path={ROUTES.ADMIN.HOME}
+              element={
+                <RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.INSTRUCTOR]}>
+                  <AdminDashboard />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={ROUTES.ADMIN.COURSES}
+              element={
+                <RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.INSTRUCTOR]}>
+                  <AdminCourses />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={ROUTES.ADMIN.USERS}
+              element={
+                <RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.INSTRUCTOR]}>
+                  <AdminUsers />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={ROUTES.ADMIN.ANALYTICS}
+              element={
+                <RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.INSTRUCTOR]}>
+                  <AdminAnalytics />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={ROUTES.ADMIN.SETTINGS}
+              element={
+                <RoleRoute allowedRoles={[ROLES.ADMIN]}>
+                  <AdminSettings />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={ROUTES.ADMIN.CERTIFICATE_TEMPLATES}
+              element={
+                <RoleRoute allowedRoles={[ROLES.ADMIN]}>
+                  <AdminCertificateTemplates />
+                </RoleRoute>
+              }
+            />
+
+            {/* Static pages */}
+            <Route path="/about" element={<About />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/careers" element={<Careers />} />
+            <Route path="/help" element={<Help />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/community" element={<Community />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/cookies" element={<Cookies />} />
+            <Route path="/accessibility" element={<Accessibility />} />
+            <Route path="/refund" element={<Refund />} />
+
+            {/* Error pages */}
+            <Route path={ROUTES.UNAUTHORIZED} element={<Unauthorized />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
+      </Box>
+      {!isAdminRoute && <Footer />}
+    </Box>
+  );
+}
+
 export default function App() {
   return (
     <UIProvider>
@@ -81,154 +238,7 @@ export default function App() {
             <ToastProvider>
               <ConfigProvider>
                 <SkipLink />
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  minHeight: '100vh',
-                }}
-              >
-                <Navbar />
-                <Box
-                  component="main"
-                  id="main-content"
-                  sx={{ flex: 1 }}
-                  role="main"
-                >
-                  <Suspense fallback={<PageLoader />}>
-                    <Routes>
-                      {/* Public routes */}
-                      <Route path={ROUTES.HOME} element={<Home />} />
-                      <Route path={ROUTES.COURSES} element={<Courses />} />
-                      <Route path="/courses/:id" element={<CourseDetail />} />
-                      <Route path="/certificate/:id" element={<CertificateVerify />} />
-
-                      {/* Auth routes - redirect if logged in */}
-                      <Route
-                        path={ROUTES.LOGIN}
-                        element={
-                          <PublicRoute>
-                            <Login />
-                          </PublicRoute>
-                        }
-                      />
-                      <Route
-                        path={ROUTES.REGISTER}
-                        element={
-                          <PublicRoute>
-                            <Register />
-                          </PublicRoute>
-                        }
-                      />
-
-                      {/* Protected routes - requires authentication */}
-                      <Route
-                        path={ROUTES.DASHBOARD}
-                        element={
-                          <ProtectedRoute>
-                            <Dashboard />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path={ROUTES.MY_COURSES}
-                        element={
-                          <ProtectedRoute>
-                            <MyCourses />
-                          </ProtectedRoute>
-                        }
-                      />
-
-                      {/* Payment page for paid enrollments */}
-                      <Route
-                        path={ROUTES.PAYMENT}
-                        element={
-                          <ProtectedRoute>
-                            <Payment />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path={ROUTES.PROFILE}
-                        element={
-                          <ProtectedRoute>
-                            <Profile />
-                          </ProtectedRoute>
-                        }
-                      />
-
-                      {/* Admin routes - requires ADMIN or INSTRUCTOR role */}
-                      <Route
-                        path={ROUTES.ADMIN.HOME}
-                        element={
-                          <RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.INSTRUCTOR]}>
-                            <AdminDashboard />
-                          </RoleRoute>
-                        }
-                      />
-                      <Route
-                        path={ROUTES.ADMIN.COURSES}
-                        element={
-                          <RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.INSTRUCTOR]}>
-                            <AdminCourses />
-                          </RoleRoute>
-                        }
-                      />
-                      <Route
-                        path={ROUTES.ADMIN.USERS}
-                        element={
-                          <RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.INSTRUCTOR]}>
-                            <AdminUsers />
-                          </RoleRoute>
-                        }
-                      />
-                      <Route
-                        path={ROUTES.ADMIN.ANALYTICS}
-                        element={
-                          <RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.INSTRUCTOR]}>
-                            <AdminAnalytics />
-                          </RoleRoute>
-                        }
-                      />
-                      <Route
-                        path={ROUTES.ADMIN.SETTINGS}
-                        element={
-                          <RoleRoute allowedRoles={[ROLES.ADMIN]}>
-                            <AdminSettings />
-                          </RoleRoute>
-                        }
-                      />
-                      <Route
-                        path={ROUTES.ADMIN.CERTIFICATE_TEMPLATES}
-                        element={
-                          <RoleRoute allowedRoles={[ROLES.ADMIN]}>
-                            <AdminCertificateTemplates />
-                          </RoleRoute>
-                        }
-                      />
-
-                      {/* Static pages */}
-                      <Route path="/about" element={<About />} />
-                      <Route path="/blog" element={<Blog />} />
-                      <Route path="/contact" element={<Contact />} />
-                      <Route path="/careers" element={<Careers />} />
-                      <Route path="/help" element={<Help />} />
-                      <Route path="/faq" element={<FAQ />} />
-                      <Route path="/community" element={<Community />} />
-                      <Route path="/terms" element={<Terms />} />
-                      <Route path="/privacy" element={<Privacy />} />
-                      <Route path="/cookies" element={<Cookies />} />
-                      <Route path="/accessibility" element={<Accessibility />} />
-                      <Route path="/refund" element={<Refund />} />
-
-                      {/* Error pages */}
-                      <Route path={ROUTES.UNAUTHORIZED} element={<Unauthorized />} />
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </Suspense>
-                </Box>
-                <Footer />
-              </Box>
+                <AppContent />
               </ConfigProvider>
             </ToastProvider>
           </AuthProvider>
