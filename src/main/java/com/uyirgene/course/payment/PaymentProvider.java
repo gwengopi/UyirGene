@@ -22,4 +22,11 @@ public interface PaymentProvider {
      * @return true if signature is valid, false otherwise
      */
     boolean verifySignature(String orderId, String paymentId, String signature);
+
+    /**
+     * Get the public key ID for the payment provider.
+     *
+     * @return The public key ID
+     */
+    String getKeyId();
 }

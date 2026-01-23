@@ -1,11 +1,15 @@
 package com.uyirgene.course;
 
+import com.uyirgene.config.SiteConfigService;
 import com.uyirgene.user.CurrentUserService;
 import com.uyirgene.user.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpHeaders;
@@ -15,7 +19,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -38,6 +44,9 @@ public class CertificateController {
 
     @Autowired
     private EnrollmentRepository enrollmentRepo;
+
+    @Autowired
+    private SiteConfigService siteConfigService;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMMM dd, yyyy");
 
@@ -83,25 +92,42 @@ public class CertificateController {
     @Operation(summary = "Download certificate PDF for completed course")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "PDF certificate returned"),
+            @ApiResponse(responseCode = "403", description = "Results not yet published"),
             @ApiResponse(responseCode = "404", description = "Certificate not found")
     })
     public ResponseEntity<?> downloadCertificate(@PathVariable("id") Long courseId) {
         User user = currentUserService.getCurrentUser();
 
-        Course course = new Course();
-        course.setId(courseId);
+        Course course = courseRepo.findById(courseId).orElse(null);
+        if (course == null) {
+            return ResponseEntity.status(404).body(Map.of("error", "Course not found"));
+        }
+
+        // Check enrollment and result publication status
+        Optional<Enrollment> enrollmentOpt = enrollmentRepo.findByUserAndCourse(user, course);
+        if (enrollmentOpt.isEmpty()) {
+            return ResponseEntity.status(400).body(Map.of("error", "You are not enrolled in this course"));
+        }
+
+        Enrollment enrollment = enrollmentOpt.get();
+
+        // Check if result is published - only allow download after result is published
+        if (enrollment.getResultPublishedAt() == null) {
+            return ResponseEntity.status(403)
+                    .body(Map.of("error", "Results not yet published. Certificate download will be available after results are published."));
+        }
 
         Optional<Certificate> certOpt = certRepo.findByUserAndCourse(user, course);
         if (certOpt.isEmpty()) {
             return ResponseEntity.status(404)
-                    .body(Map.of("error", "Certificate not found. Complete the course to obtain a certificate."));
+                    .body(Map.of("error", "Certificate not found. Please wait for admin to generate your certificate."));
         }
 
         Certificate cert = certOpt.get();
         File file = new File(cert.getFilePath());
         if (!file.exists()) {
             return ResponseEntity.status(404)
-                    .body(Map.of("error", "Certificate file not found. Please regenerate the certificate."));
+                    .body(Map.of("error", "Certificate file not found. Please contact admin to regenerate the certificate."));
         }
 
         FileSystemResource fs = new FileSystemResource(file);
@@ -148,23 +174,151 @@ public class CertificateController {
     public ResponseEntity<?> getCertificateStatus(@PathVariable("id") Long courseId) {
         User user = currentUserService.getCurrentUser();
 
-        Course course = new Course();
-        course.setId(courseId);
+        Course course = courseRepo.findById(courseId).orElse(null);
+        if (course == null) {
+            return ResponseEntity.status(404).body(Map.of("error", "Course not found"));
+        }
+
+        // Get enrollment to check result publication status
+        Optional<Enrollment> enrollmentOpt = enrollmentRepo.findByUserAndCourse(user, course);
+        if (enrollmentOpt.isEmpty()) {
+            return ResponseEntity.status(400).body(Map.of("error", "You are not enrolled in this course"));
+        }
+
+        Enrollment enrollment = enrollmentOpt.get();
+
+        // Check if result is published (only then show certificate)
+        boolean resultPublished = enrollment.getResultPublishedAt() != null;
 
         Optional<Certificate> certOpt = certRepo.findByUserAndCourse(user, course);
         if (certOpt.isEmpty()) {
-            return ResponseEntity.ok(Map.of(
-                    "exists", false,
-                    "message", "No certificate found. Complete the course to generate a certificate."
-            ));
+            Map<String, Object> response = new HashMap<>();
+            response.put("exists", false);
+            response.put("resultPublished", resultPublished);
+            response.put("message", resultPublished
+                    ? "Certificate not yet generated. Please wait for admin to generate your certificate."
+                    : "Results not yet published. Certificate will be available after results are published.");
+            return ResponseEntity.ok(response);
         }
 
+        // Certificate exists - but can only be downloaded if result is published
         Certificate cert = certOpt.get();
-        return ResponseEntity.ok(Map.of(
-                "exists", true,
-                "certificateId", cert.getCertificateId(),
-                "issuedAt", cert.getIssuedAt() != null ? cert.getIssuedAt().format(DATE_FORMATTER) : null,
-                "downloadUrl", "/api/courses/" + courseId + "/certificate/download"
-        ));
+        Map<String, Object> response = new HashMap<>();
+        response.put("exists", true);
+        response.put("resultPublished", resultPublished);
+        response.put("certificateId", cert.getCertificateId());
+        response.put("certificateType", cert.getType() != null ? cert.getType().name() : null);
+        response.put("issuedAt", cert.getIssuedAt() != null ? cert.getIssuedAt().format(DATE_FORMATTER) : null);
+        response.put("canDownload", resultPublished);
+        response.put("downloadUrl", resultPublished ? "/api/courses/" + courseId + "/certificate/download" : null);
+        response.put("marks", cert.getMarks());
+
+        if (!resultPublished) {
+            response.put("message", "Certificate generated but results not yet published. Download will be available after results are published.");
+        }
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/courses/{id}/my-enrollment")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Get current user's enrollment details for a course")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Enrollment details"),
+            @ApiResponse(responseCode = "404", description = "Not enrolled")
+    })
+    public ResponseEntity<?> getMyEnrollment(@PathVariable("id") Long courseId) {
+        User user = currentUserService.getCurrentUser();
+
+        Course course = courseRepo.findById(courseId).orElse(null);
+        if (course == null) {
+            return ResponseEntity.status(404).body(Map.of("error", "Course not found"));
+        }
+
+        Optional<Enrollment> enrollmentOpt = enrollmentRepo.findByUserAndCourse(user, course);
+        if (enrollmentOpt.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of("error", "You are not enrolled in this course"));
+        }
+
+        Enrollment enrollment = enrollmentOpt.get();
+
+        // Get result delay hours from config
+        int resultDelayHours = getResultDelayHours();
+
+        // Check if results can be viewed
+        boolean resultPublished = enrollment.getResultPublishedAt() != null;
+        boolean testCompleted = enrollment.getTestCompletedAt() != null;
+
+        // Calculate when results will be visible (if test completed but not yet published)
+        LocalDateTime resultsVisibleAt = null;
+        if (testCompleted && !resultPublished) {
+            resultsVisibleAt = enrollment.getTestCompletedAt().plusHours(resultDelayHours);
+        }
+
+        // Check if certificate exists
+        Optional<Certificate> certOpt = certRepo.findByUserAndCourse(user, course);
+        boolean hasCertificate = certOpt.isPresent();
+        String certificateId = certOpt.map(Certificate::getCertificateId).orElse(null);
+        String certificateType = certOpt.map(c -> c.getType() != null ? c.getType().name() : null).orElse(null);
+
+        // Build response - only show marks if result is published
+        UserEnrollmentResponse response = UserEnrollmentResponse.builder()
+                .enrollmentId(enrollment.getId())
+                .courseId(course.getId())
+                .courseName(course.getTitle())
+                .status(enrollment.getStatus() != null ? enrollment.getStatus().name() : null)
+                .enrolledAt(enrollment.getEnrolledAt() != null ? enrollment.getEnrolledAt().toString() : null)
+                .hasTestLink(course.getTestLink() != null && !course.getTestLink().isEmpty())
+                .testLink(course.getTestLink())
+                .testDescription(course.getTestDescription())
+                .testCompleted(testCompleted)
+                .testCompletedAt(enrollment.getTestCompletedAt() != null ? enrollment.getTestCompletedAt().toString() : null)
+                .resultPublished(resultPublished)
+                .resultPublishedAt(enrollment.getResultPublishedAt() != null ? enrollment.getResultPublishedAt().toString() : null)
+                .resultsVisibleAt(resultsVisibleAt != null ? resultsVisibleAt.toString() : null)
+                // Only show marks if result is published
+                .marks(resultPublished ? enrollment.getMarks() : null)
+                .certificateType(resultPublished ? certificateType : null)
+                .hasCertificate(hasCertificate && resultPublished)
+                .certificateId(resultPublished ? certificateId : null)
+                .canDownloadCertificate(hasCertificate && resultPublished)
+                .downloadUrl(hasCertificate && resultPublished ? "/api/courses/" + courseId + "/certificate/download" : null)
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    private int getResultDelayHours() {
+        String delayStr = siteConfigService.getConfigValue("RESULT_DELAY_HOURS", "48");
+        try {
+            return Integer.parseInt(delayStr);
+        } catch (NumberFormatException e) {
+            return 48;
+        }
+    }
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    public static class UserEnrollmentResponse {
+        private Long enrollmentId;
+        private Long courseId;
+        private String courseName;
+        private String status;
+        private String enrolledAt;
+        private Boolean hasTestLink;
+        private String testLink;
+        private String testDescription;
+        private Boolean testCompleted;
+        private String testCompletedAt;
+        private Boolean resultPublished;
+        private String resultPublishedAt;
+        private String resultsVisibleAt;
+        private Double marks;
+        private String certificateType;
+        private Boolean hasCertificate;
+        private String certificateId;
+        private Boolean canDownloadCertificate;
+        private String downloadUrl;
     }
 }

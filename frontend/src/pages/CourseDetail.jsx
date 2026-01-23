@@ -182,7 +182,14 @@ function CourseDetail() {
       await certificateService.downloadAndSaveCertificate(id, course?.title);
       showSuccess('Certificate downloaded!');
     } catch (error) {
-      showError('Certificate not available yet');
+      // Check if it's a result not published error
+      if (error.response?.status === 403) {
+        showError('Results not yet published. Certificate download will be available after results are published.');
+      } else if (error.response?.status === 404) {
+        showError('Certificate not found. Please wait for admin to generate your certificate.');
+      } else {
+        showError(error.message || 'Certificate not available yet');
+      }
     }
   };
 

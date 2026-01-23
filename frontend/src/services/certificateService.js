@@ -1,9 +1,32 @@
 import api from './api';
 
 const CERTIFICATE_ENDPOINTS = {
-  DOWNLOAD: (courseId) => `/api/courses/${courseId}/certificate`,
-  VERIFY: (certificateId) => `/api/certificates/${certificateId}/verify`,
+  STATUS: (courseId) => `/api/courses/${courseId}/certificate`,
+  DOWNLOAD: (courseId) => `/api/courses/${courseId}/certificate/download`,
+  GENERATE: (courseId) => `/api/courses/${courseId}/certificate`,
+  VERIFY: (certificateId) => `/api/certificates/verify/${certificateId}`,
+  MY_ENROLLMENT: (courseId) => `/api/courses/${courseId}/my-enrollment`,
 };
+
+/**
+ * Get certificate status for a course
+ * @param {number|string} courseId - Course ID
+ * @returns {Promise<Object>} Certificate status object
+ */
+export async function getCertificateStatus(courseId) {
+  const response = await api.get(CERTIFICATE_ENDPOINTS.STATUS(courseId));
+  return response.data;
+}
+
+/**
+ * Generate certificate for a completed course
+ * @param {number|string} courseId - Course ID
+ * @returns {Promise<Object>} Certificate generation result
+ */
+export async function generateCertificate(courseId) {
+  const response = await api.post(CERTIFICATE_ENDPOINTS.GENERATE(courseId));
+  return response.data;
+}
 
 /**
  * Download certificate for a completed course
@@ -14,6 +37,16 @@ export async function downloadCertificate(courseId) {
   const response = await api.get(CERTIFICATE_ENDPOINTS.DOWNLOAD(courseId), {
     responseType: 'blob',
   });
+  return response.data;
+}
+
+/**
+ * Get user's enrollment details for a course
+ * @param {number|string} courseId - Course ID
+ * @returns {Promise<Object>} Enrollment details including certificate info
+ */
+export async function getMyEnrollment(courseId) {
+  const response = await api.get(CERTIFICATE_ENDPOINTS.MY_ENROLLMENT(courseId));
   return response.data;
 }
 
@@ -56,8 +89,11 @@ export function isCertificateAvailable(enrollment) {
 }
 
 export default {
+  getCertificateStatus,
+  generateCertificate,
   downloadCertificate,
   downloadAndSaveCertificate,
   verifyCertificate,
+  getMyEnrollment,
   isCertificateAvailable,
 };

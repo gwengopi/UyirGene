@@ -83,6 +83,7 @@ export const ROUTES = {
     USERS: '/admin/users',
     ANALYTICS: '/admin/analytics',
     SETTINGS: '/admin/settings',
+    CERTIFICATE_TEMPLATES: '/admin/certificate-templates',
   },
   INSTRUCTOR: {
     COURSES: '/instructor/courses',

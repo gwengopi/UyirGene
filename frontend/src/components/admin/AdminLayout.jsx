@@ -6,6 +6,7 @@ import SchoolIcon from '@mui/icons-material/School';
 import PeopleIcon from '@mui/icons-material/People';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import SettingsIcon from '@mui/icons-material/Settings';
+import CardMembershipIcon from '@mui/icons-material/CardMembership';
 import { Sidebar } from '../common';
 import { ROUTES } from '../../utils/constants';
 
@@ -23,6 +24,7 @@ function AdminLayout({ children, title }) {
     { subheader: 'Management' },
     { label: 'Courses', path: ROUTES.ADMIN.COURSES, icon: <SchoolIcon /> },
     { label: 'Users', path: ROUTES.ADMIN.USERS, icon: <PeopleIcon /> },
+    { label: 'Certificate Templates', path: ROUTES.ADMIN.CERTIFICATE_TEMPLATES, icon: <CardMembershipIcon /> },
     { divider: true },
     { subheader: 'Reports' },
     { label: 'Analytics', path: ROUTES.ADMIN.ANALYTICS, icon: <BarChartIcon /> },

@@ -8,3 +8,4 @@ export { default as Analytics } from './Analytics';
 export { default as SiteConfigManager } from './SiteConfigManager';
 export { default as MasterDataManager } from './MasterDataManager';
 export { default as UserEnrollmentsDialog } from './UserEnrollmentsDialog';
+export { default as CertificateTemplateManager } from './CertificateTemplateManager';

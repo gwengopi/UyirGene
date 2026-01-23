@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PaymentOrder {
     private String id;
-    private Integer amount;
+    private Long amount;
     private String currency;
     private String keyId;
 }

@@ -13,6 +13,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        ddl-auto: update
   mail:
     properties:
       mail:
@@ -49,3 +50,5 @@ app:
   certificate:
     folder: uploads/certificates
     logo-path: static/images/logo.png
+  video:
+    encryption-key: ${VIDEO_ENCRYPTION_KEY:UyirGene2024SecretKey123456789}

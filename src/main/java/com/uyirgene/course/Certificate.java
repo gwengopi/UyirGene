@@ -21,4 +21,17 @@ public class Certificate {
     private LocalDateTime issuedAt;
     private String certificateId;
     private String filePath;
+
+    // Certificate type: COMPLETION or PARTICIPATION
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private CertificateType type = CertificateType.COMPLETION;
+
+    // Marks achieved (stored for reference)
+    private Double marks;
+
+    public enum CertificateType {
+        COMPLETION,    // Course completion certificate (passed)
+        PARTICIPATION  // Participation certificate (did not pass)
+    }
 }

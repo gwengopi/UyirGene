@@ -60,7 +60,8 @@ public class RazorpayPaymentService implements PaymentProvider {
 
             Map data = resp.getBody();
             String orderId = String.valueOf(data.get("id"));
-            Integer amt = (Integer) data.get("amount");
+            Object amtObj = data.get("amount");
+            Long amt = amtObj instanceof Number ? ((Number) amtObj).longValue() : Long.parseLong(amtObj.toString());
             String currency = (String) data.get("currency");
 
             log.info("Razorpay order created successfully: {}", orderId);
@@ -100,5 +101,10 @@ public class RazorpayPaymentService implements PaymentProvider {
             log.error("Error verifying Razorpay signature", e);
             return false;
         }
+    }
+
+    @Override
+    public String getKeyId() {
+        return keyId;
     }
 }

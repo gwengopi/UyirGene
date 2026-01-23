@@ -39,7 +39,7 @@ public class MockPaymentService implements PaymentProvider {
 
         return new PaymentOrder(
             orderId,
-            amountPaise.intValue(),
+            amountPaise,
             "INR",
             "mock_key_id"
         );
@@ -53,5 +53,10 @@ public class MockPaymentService implements PaymentProvider {
         log.info("Mock signature verification successful (always returns true in mock mode)");
 
         return true;
+    }
+
+    @Override
+    public String getKeyId() {
+        return "mock_key_id";
     }
 }

@@ -15,7 +15,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/courses")
@@ -26,18 +28,49 @@ public class CourseController {
     private final VideoRepository videoRepo;
 
     @GetMapping
-    @Operation(summary = "List all courses")
+    @Operation(summary = "List all courses with optional sorting")
     @ApiResponse(responseCode = "200", description = "List of courses")
-    public ResponseEntity<List<CourseDto>> all() {
-        List<CourseDto> courses = repo.findAll().stream()
+    public ResponseEntity<List<CourseDto>> all(
+            @RequestParam(value = "sortBy", required = false) String sortBy,
+            @RequestParam(value = "sortOrder", defaultValue = "asc") String sortOrder
+    ) {
+        List<Course> courses = repo.findAll();
+
+        // Apply sorting
+        if (sortBy != null) {
+            Comparator<Course> comparator = switch (sortBy.toLowerCase()) {
+                case "duration", "durationhours" -> Comparator.comparing(
+                        Course::getDurationHours,
+                        Comparator.nullsLast(Comparator.naturalOrder())
+                );
+                case "price" -> Comparator.comparing(
+                        Course::getPrice,
+                        Comparator.nullsLast(Comparator.naturalOrder())
+                );
+                case "title" -> Comparator.comparing(
+                        Course::getTitle,
+                        Comparator.nullsLast(Comparator.naturalOrder())
+                );
+                default -> null;
+            };
+
+            if (comparator != null) {
+                if ("desc".equalsIgnoreCase(sortOrder)) {
+                    comparator = comparator.reversed();
+                }
+                courses = courses.stream().sorted(comparator).collect(Collectors.toList());
+            }
+        }
+
+        List<CourseDto> courseDtos = courses.stream()
                 .map(CourseDto::fromEntity)
                 .toList();
-        return ResponseEntity.ok(courses);
+        return ResponseEntity.ok(courseDtos);
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
-    @Operation(summary = "Create a course with optional image")
+    @Operation(summary = "Create a course with optional images")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Course created"),
             @ApiResponse(responseCode = "400", description = "Invalid request")
@@ -49,7 +82,11 @@ public class CourseController {
             @RequestParam(value = "durationHours", required = false) Integer durationHours,
             @RequestParam(value = "price", required = false) Double price,
             @RequestParam(value = "published", defaultValue = "false") Boolean published,
-            @RequestParam(value = "image", required = false) MultipartFile image
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "thumbnailImage", required = false) MultipartFile thumbnailImage,
+            @RequestParam(value = "descriptionImage", required = false) MultipartFile descriptionImage,
+            @RequestParam(value = "testLink", required = false) String testLink,
+            @RequestParam(value = "testDescription", required = false) String testDescription
     ) throws IOException {
         Course course = Course.builder()
                 .title(title)
@@ -58,11 +95,30 @@ public class CourseController {
                 .durationHours(durationHours)
                 .price(price)
                 .published(published)
+                .testLink(testLink)
+                .testDescription(testDescription)
                 .build();
 
+        // Handle legacy image field
         if (image != null && !image.isEmpty()) {
             course.setImage(image.getBytes());
             course.setImageContentType(image.getContentType());
+        }
+
+        // Handle thumbnail image (use dedicated field or fall back to legacy)
+        if (thumbnailImage != null && !thumbnailImage.isEmpty()) {
+            course.setThumbnailImage(thumbnailImage.getBytes());
+            course.setThumbnailImageContentType(thumbnailImage.getContentType());
+        } else if (image != null && !image.isEmpty()) {
+            // If only legacy image provided, also set it as thumbnail
+            course.setThumbnailImage(image.getBytes());
+            course.setThumbnailImageContentType(image.getContentType());
+        }
+
+        // Handle description image
+        if (descriptionImage != null && !descriptionImage.isEmpty()) {
+            course.setDescriptionImage(descriptionImage.getBytes());
+            course.setDescriptionImageContentType(descriptionImage.getContentType());
         }
 
         Course saved = repo.save(course);
@@ -90,7 +146,7 @@ public class CourseController {
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
-    @Operation(summary = "Update a course with optional image")
+    @Operation(summary = "Update a course with optional images")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Course updated"),
             @ApiResponse(responseCode = "404", description = "Course not found")
@@ -104,7 +160,13 @@ public class CourseController {
             @RequestParam(value = "price", required = false) Double price,
             @RequestParam(value = "published", defaultValue = "false") Boolean published,
             @RequestParam(value = "image", required = false) MultipartFile image,
-            @RequestParam(value = "removeImage", defaultValue = "false") Boolean removeImage
+            @RequestParam(value = "thumbnailImage", required = false) MultipartFile thumbnailImage,
+            @RequestParam(value = "descriptionImage", required = false) MultipartFile descriptionImage,
+            @RequestParam(value = "testLink", required = false) String testLink,
+            @RequestParam(value = "testDescription", required = false) String testDescription,
+            @RequestParam(value = "removeImage", defaultValue = "false") Boolean removeImage,
+            @RequestParam(value = "removeThumbnailImage", defaultValue = "false") Boolean removeThumbnailImage,
+            @RequestParam(value = "removeDescriptionImage", defaultValue = "false") Boolean removeDescriptionImage
     ) throws IOException {
         return repo.findById(id).map(existing -> {
             existing.setTitle(title);
@@ -113,14 +175,35 @@ public class CourseController {
             existing.setDurationHours(durationHours);
             existing.setPrice(price);
             existing.setPublished(published);
+            existing.setTestLink(testLink);
+            existing.setTestDescription(testDescription);
 
             try {
+                // Handle legacy image
                 if (removeImage) {
                     existing.setImage(null);
                     existing.setImageContentType(null);
                 } else if (image != null && !image.isEmpty()) {
                     existing.setImage(image.getBytes());
                     existing.setImageContentType(image.getContentType());
+                }
+
+                // Handle thumbnail image
+                if (removeThumbnailImage) {
+                    existing.setThumbnailImage(null);
+                    existing.setThumbnailImageContentType(null);
+                } else if (thumbnailImage != null && !thumbnailImage.isEmpty()) {
+                    existing.setThumbnailImage(thumbnailImage.getBytes());
+                    existing.setThumbnailImageContentType(thumbnailImage.getContentType());
+                }
+
+                // Handle description image
+                if (removeDescriptionImage) {
+                    existing.setDescriptionImage(null);
+                    existing.setDescriptionImageContentType(null);
+                } else if (descriptionImage != null && !descriptionImage.isEmpty()) {
+                    existing.setDescriptionImage(descriptionImage.getBytes());
+                    existing.setDescriptionImageContentType(descriptionImage.getContentType());
                 }
             } catch (IOException e) {
                 throw new RuntimeException("Failed to process image", e);
@@ -142,8 +225,77 @@ public class CourseController {
             existing.setDurationHours(c.getDurationHours());
             existing.setPrice(c.getPrice());
             existing.setPublished(c.getPublished());
+            existing.setTestLink(c.getTestLink());
+            existing.setTestDescription(c.getTestDescription());
             Course saved = repo.save(existing);
             return ResponseEntity.ok(CourseDto.fromEntity(saved));
+        }).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/thumbnail")
+    @Operation(summary = "Get course thumbnail image")
+    public ResponseEntity<byte[]> getThumbnailImage(@PathVariable("id") Long id) {
+        return repo.findById(id).map(course -> {
+            // Check thumbnail first, fall back to legacy image
+            byte[] imageData = course.getThumbnailImage();
+            String contentType = course.getThumbnailImageContentType();
+
+            if (imageData == null || imageData.length == 0) {
+                imageData = course.getImage();
+                contentType = course.getImageContentType();
+            }
+
+            if (imageData == null || imageData.length == 0) {
+                return ResponseEntity.notFound().<byte[]>build();
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType(contentType != null ? contentType : "image/jpeg"));
+            headers.setContentLength(imageData.length);
+
+            return new ResponseEntity<>(imageData, headers, HttpStatus.OK);
+        }).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/description-image")
+    @Operation(summary = "Get course description image")
+    public ResponseEntity<byte[]> getDescriptionImage(@PathVariable("id") Long id) {
+        return repo.findById(id).map(course -> {
+            if (course.getDescriptionImage() == null || course.getDescriptionImage().length == 0) {
+                return ResponseEntity.notFound().<byte[]>build();
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType(
+                    course.getDescriptionImageContentType() != null ? course.getDescriptionImageContentType() : "image/jpeg"
+            ));
+            headers.setContentLength(course.getDescriptionImage().length);
+
+            return new ResponseEntity<>(course.getDescriptionImage(), headers, HttpStatus.OK);
+        }).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}/thumbnail")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @Operation(summary = "Delete course thumbnail image")
+    public ResponseEntity<?> deleteThumbnailImage(@PathVariable("id") Long id) {
+        return repo.findById(id).map(course -> {
+            course.setThumbnailImage(null);
+            course.setThumbnailImageContentType(null);
+            repo.save(course);
+            return ResponseEntity.noContent().build();
+        }).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}/description-image")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @Operation(summary = "Delete course description image")
+    public ResponseEntity<?> deleteDescriptionImage(@PathVariable("id") Long id) {
+        return repo.findById(id).map(course -> {
+            course.setDescriptionImage(null);
+            course.setDescriptionImageContentType(null);
+            repo.save(course);
+            return ResponseEntity.noContent().build();
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -199,5 +351,81 @@ public class CourseController {
         v.setCourse(course);
         Video saved = videoRepo.save(v);
         return ResponseEntity.created(URI.create("/api/courses/" + id + "/videos/" + saved.getId())).body(saved);
+    }
+
+    @GetMapping("/{id}/videos/admin")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @Operation(summary = "List all videos for a course (admin)")
+    @ApiResponse(responseCode = "200", description = "List of videos")
+    public ResponseEntity<List<Video>> listVideosAdmin(@PathVariable("id") Long id) {
+        Course course = repo.findById(id).orElseThrow(() -> new IllegalArgumentException("Course not found"));
+        return ResponseEntity.ok(videoRepo.findByCourseOrderByOrderIndex(course));
+    }
+
+    @PutMapping("/{courseId}/videos/{videoId}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @Operation(summary = "Update a video")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Video updated"),
+            @ApiResponse(responseCode = "404", description = "Video not found")
+    })
+    public ResponseEntity<Video> updateVideo(
+            @PathVariable("courseId") Long courseId,
+            @PathVariable("videoId") Long videoId,
+            @RequestBody Video v
+    ) {
+        return videoRepo.findById(videoId).map(existing -> {
+            existing.setTitle(v.getTitle());
+            existing.setUrl(v.getUrl());
+            existing.setOrderIndex(v.getOrderIndex());
+            existing.setDurationSeconds(v.getDurationSeconds());
+            Video saved = videoRepo.save(existing);
+            return ResponseEntity.ok(saved);
+        }).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{courseId}/videos/{videoId}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @Operation(summary = "Delete a video from a course")
+    @ApiResponse(responseCode = "204", description = "Video deleted")
+    public ResponseEntity<?> deleteVideo(
+            @PathVariable("courseId") Long courseId,
+            @PathVariable("videoId") Long videoId
+    ) {
+        if (videoRepo.existsById(videoId)) {
+            videoRepo.deleteById(videoId);
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @PostMapping("/{id}/publish")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @Operation(summary = "Publish a course")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Course published"),
+            @ApiResponse(responseCode = "404", description = "Course not found")
+    })
+    public ResponseEntity<CourseDto> publishCourse(@PathVariable("id") Long id) {
+        return repo.findById(id).map(course -> {
+            course.setPublished(true);
+            Course saved = repo.save(course);
+            return ResponseEntity.ok(CourseDto.fromEntity(saved));
+        }).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/{id}/unpublish")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @Operation(summary = "Unpublish a course")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Course unpublished"),
+            @ApiResponse(responseCode = "404", description = "Course not found")
+    })
+    public ResponseEntity<CourseDto> unpublishCourse(@PathVariable("id") Long id) {
+        return repo.findById(id).map(course -> {
+            course.setPublished(false);
+            Course saved = repo.save(course);
+            return ResponseEntity.ok(CourseDto.fromEntity(saved));
+        }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

@@ -159,6 +159,15 @@ public class SiteConfigService {
 
         // Background images
         createIfNotExists("BG_TECHNOLOGY", "https://img1.wsimg.com/isteam/getty/2210258491/:/rs=w:1920,h:1080,cg:true,m/qt=q:90", "IMAGE", "BACKGROUND", "Technology background");
+
+        // Contact and Communication
+        createIfNotExists("TALK_TO_EXPERT_URL", "https://api.whatsapp.com/send/?phone=919943712383&text&type=phone_number&app_absent=0", "URL", "CONTACT", "Talk to Expert WhatsApp URL");
+        createIfNotExists("CONTACT_PHONE", "+919943712383", "TEXT", "CONTACT", "Contact phone number");
+        createIfNotExists("CONTACT_EMAIL", "info@uyirgene.com", "TEXT", "CONTACT", "Contact email");
+
+        // Certification Settings
+        createIfNotExists("PASS_MARK_PERCENTAGE", "60", "TEXT", "SETTINGS", "Pass mark percentage for course completion certificate");
+        createIfNotExists("RESULT_DELAY_HOURS", "48", "TEXT", "SETTINGS", "Hours to wait before publishing test results");
     }
 
     private void createIfNotExists(String key, String value, String type, String category, String description) {

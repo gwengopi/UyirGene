@@ -18,11 +18,30 @@ public class CourseDto {
     private Integer durationHours;
     private Double price;
     private Boolean published;
+
+    // Thumbnail image (for course list)
+    private boolean hasThumbnailImage;
+    private String thumbnailImageUrl;
+
+    // Description image (for course detail page)
+    private boolean hasDescriptionImage;
+    private String descriptionImageUrl;
+
+    // Legacy image support
     private boolean hasImage;
     private String imageUrl;
 
+    // Test/Assessment
+    private String testLink;
+    private String testDescription;
+
     public static CourseDto fromEntity(Course course) {
-        boolean hasImg = course.getImage() != null && course.getImage().length > 0;
+        // Check for thumbnail image (prefer thumbnailImage, fall back to legacy image)
+        boolean hasThumbnail = (course.getThumbnailImage() != null && course.getThumbnailImage().length > 0)
+                || (course.getImage() != null && course.getImage().length > 0);
+        boolean hasDescImg = course.getDescriptionImage() != null && course.getDescriptionImage().length > 0;
+        boolean hasLegacyImg = course.getImage() != null && course.getImage().length > 0;
+
         return CourseDto.builder()
                 .id(course.getId())
                 .title(course.getTitle())
@@ -31,8 +50,15 @@ public class CourseDto {
                 .durationHours(course.getDurationHours())
                 .price(course.getPrice())
                 .published(course.getPublished())
-                .hasImage(hasImg)
-                .imageUrl(hasImg ? "/api/courses/" + course.getId() + "/image" : null)
+                .hasThumbnailImage(hasThumbnail)
+                .thumbnailImageUrl(hasThumbnail ? "/api/courses/" + course.getId() + "/thumbnail" : null)
+                .hasDescriptionImage(hasDescImg)
+                .descriptionImageUrl(hasDescImg ? "/api/courses/" + course.getId() + "/description-image" : null)
+                // Legacy support
+                .hasImage(hasLegacyImg)
+                .imageUrl(hasLegacyImg ? "/api/courses/" + course.getId() + "/image" : null)
+                .testLink(course.getTestLink())
+                .testDescription(course.getTestDescription())
                 .build();
     }
 }

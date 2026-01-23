@@ -30,6 +30,7 @@ import java.util.UUID;
 @Slf4j
 public class CertificateService {
     private final CertificateRepository certRepo;
+    private final CertificateTemplateService templateService;
 
     @Value("${app.certificate.folder:uploads/certificates}")
     private String certFolder;
@@ -39,10 +40,26 @@ public class CertificateService {
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMMM dd, yyyy");
 
+    /**
+     * Generate a certificate (defaults to COMPLETION type)
+     */
     public Certificate generateCertificate(User user, Course course) {
+        return generateCertificateWithType(user, course, Certificate.CertificateType.COMPLETION, null);
+    }
+
+    /**
+     * Generate a certificate with specific type and marks
+     */
+    public Certificate generateCertificateWithType(User user, Course course, Certificate.CertificateType type, Double marks) {
         Optional<Certificate> existing = certRepo.findByUserAndCourse(user, course);
         if (existing.isPresent()) {
-            return existing.get();
+            // If existing certificate is of different type, regenerate
+            Certificate existingCert = existing.get();
+            if (existingCert.getType() == type) {
+                return existingCert;
+            }
+            // Delete existing and create new with different type
+            certRepo.delete(existingCert);
         }
 
         Certificate certificate = Certificate.builder()
@@ -50,6 +67,8 @@ public class CertificateService {
                 .course(course)
                 .issuedAt(LocalDateTime.now())
                 .certificateId(generateUniqueCertificateId())
+                .type(type)
+                .marks(marks)
                 .build();
 
         try {
@@ -59,12 +78,18 @@ public class CertificateService {
             String fileName = certificate.getCertificateId() + ".pdf";
             Path filePath = dir.resolve(fileName);
 
+            // Look up template for this course and type
+            Optional<CertificateTemplate> templateOpt = templateService.findTemplateForCertificate(course, type);
+
             createCertificatePdf(
                     user.getName(),
                     course.getTitle(),
                     certificate.getCertificateId(),
                     certificate.getIssuedAt(),
-                    filePath.toString()
+                    type,
+                    marks,
+                    filePath.toString(),
+                    templateOpt.orElse(null)
             );
 
             certificate.setFilePath(filePath.toString());
@@ -85,7 +110,8 @@ public class CertificateService {
 
     private void createCertificatePdf(String userName, String courseTitle,
                                        String certificateId, LocalDateTime issuedAt,
-                                       String filePath) throws IOException, WriterException {
+                                       Certificate.CertificateType type, Double marks,
+                                       String filePath, CertificateTemplate template) throws IOException, WriterException {
 
         PDDocument document = new PDDocument();
 
@@ -98,17 +124,34 @@ public class CertificateService {
 
             PDPageContentStream contentStream = new PDPageContentStream(document, page);
 
-            // Draw border
-            contentStream.setStrokingColor(0.16f, 0.50f, 0.73f); // Blue color
-            contentStream.setLineWidth(3);
-            contentStream.addRect(30, 30, pageWidth - 60, pageHeight - 60);
-            contentStream.stroke();
+            // Draw background image if template has one
+            if (template != null && template.getBackgroundImage() != null && template.getBackgroundImage().length > 0) {
+                PDImageXObject bgImage = PDImageXObject.createFromByteArray(document, template.getBackgroundImage(), "background");
+                contentStream.drawImage(bgImage, 0, 0, pageWidth, pageHeight);
+            }
 
-            // Inner border
-            contentStream.setStrokingColor(0.74f, 0.76f, 0.78f); // Gray
-            contentStream.setLineWidth(1);
-            contentStream.addRect(40, 40, pageWidth - 80, pageHeight - 80);
-            contentStream.stroke();
+            // Different colors for different certificate types
+            float borderR, borderG, borderB;
+            if (type == Certificate.CertificateType.COMPLETION) {
+                borderR = 0.16f; borderG = 0.50f; borderB = 0.73f; // Blue
+            } else {
+                borderR = 0.60f; borderG = 0.40f; borderB = 0.20f; // Bronze/Brown for participation
+            }
+
+            // Draw border only if no background image
+            boolean hasBackgroundImage = template != null && template.getBackgroundImage() != null && template.getBackgroundImage().length > 0;
+            if (!hasBackgroundImage) {
+                contentStream.setStrokingColor(borderR, borderG, borderB);
+                contentStream.setLineWidth(3);
+                contentStream.addRect(30, 30, pageWidth - 60, pageHeight - 60);
+                contentStream.stroke();
+
+                // Inner border
+                contentStream.setStrokingColor(0.74f, 0.76f, 0.78f); // Gray
+                contentStream.setLineWidth(1);
+                contentStream.addRect(40, 40, pageWidth - 80, pageHeight - 80);
+                contentStream.stroke();
+            }
 
             float centerX = pageWidth / 2;
             float y = pageHeight - 120;
@@ -118,17 +161,24 @@ public class CertificateService {
             float titleWidth = PDType1Font.HELVETICA_BOLD.getStringWidth(title) / 1000 * 36;
             contentStream.beginText();
             contentStream.setFont(PDType1Font.HELVETICA_BOLD, 36);
-            contentStream.setNonStrokingColor(0.16f, 0.50f, 0.73f);
+            contentStream.setNonStrokingColor(borderR, borderG, borderB);
             contentStream.newLineAtOffset(centerX - titleWidth / 2, y);
             contentStream.showText(title);
             contentStream.endText();
 
-            // Certificate of Completion
+            // Certificate Type Title - use template header if available
             y -= 60;
-            String certTitle = "CERTIFICATE OF COMPLETION";
-            float certTitleWidth = PDType1Font.HELVETICA_BOLD.getStringWidth(certTitle) / 1000 * 28;
+            String certTitle;
+            if (template != null && template.getHeaderText() != null && !template.getHeaderText().isEmpty()) {
+                certTitle = template.getHeaderText();
+            } else {
+                certTitle = type == Certificate.CertificateType.COMPLETION
+                        ? "CERTIFICATE OF COMPLETION"
+                        : "CERTIFICATE OF PARTICIPATION";
+            }
+            float certTitleWidth = PDType1Font.HELVETICA_BOLD.getStringWidth(certTitle) / 1000 * 24;
             contentStream.beginText();
-            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 28);
+            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 24);
             contentStream.setNonStrokingColor(0.17f, 0.24f, 0.31f);
             contentStream.newLineAtOffset(centerX - certTitleWidth / 2, y);
             contentStream.showText(certTitle);
@@ -158,14 +208,16 @@ public class CertificateService {
             float nameWidth = PDType1Font.HELVETICA_BOLD.getStringWidth(userName) / 1000 * 24;
             contentStream.beginText();
             contentStream.setFont(PDType1Font.HELVETICA_BOLD, 24);
-            contentStream.setNonStrokingColor(0.16f, 0.50f, 0.73f);
+            contentStream.setNonStrokingColor(borderR, borderG, borderB);
             contentStream.newLineAtOffset(centerX - nameWidth / 2, y);
             contentStream.showText(userName);
             contentStream.endText();
 
-            // has successfully completed the course
+            // Certificate type specific text
             y -= 40;
-            String completedText = "has successfully completed the course";
+            String completedText = type == Certificate.CertificateType.COMPLETION
+                    ? "has successfully completed the course"
+                    : "has participated in the course";
             float completedWidth = PDType1Font.HELVETICA.getStringWidth(completedText) / 1000 * 14;
             contentStream.beginText();
             contentStream.setFont(PDType1Font.HELVETICA, 14);
@@ -184,8 +236,21 @@ public class CertificateService {
             contentStream.showText(courseTitle);
             contentStream.endText();
 
+            // Show marks if available
+            if (marks != null) {
+                y -= 35;
+                String marksText = String.format("Score: %.1f%%", marks);
+                float marksWidth = PDType1Font.HELVETICA.getStringWidth(marksText) / 1000 * 12;
+                contentStream.beginText();
+                contentStream.setFont(PDType1Font.HELVETICA, 12);
+                contentStream.setNonStrokingColor(0.39f, 0.39f, 0.39f);
+                contentStream.newLineAtOffset(centerX - marksWidth / 2, y);
+                contentStream.showText(marksText);
+                contentStream.endText();
+            }
+
             // Issued date
-            y -= 50;
+            y -= 40;
             String dateText = "Issued on: " + issuedAt.format(DATE_FORMATTER);
             float dateWidth = PDType1Font.HELVETICA_OBLIQUE.getStringWidth(dateText) / 1000 * 12;
             contentStream.beginText();
@@ -207,7 +272,7 @@ public class CertificateService {
             contentStream.endText();
 
             // Generate and add QR code
-            y -= 100;
+            y -= 90;
             String verificationUrl = baseUrl + "/api/certificates/verify/" + certificateId;
             BufferedImage qrImage = QRCodeGenerator.generateQRCodeImage(verificationUrl, 150, 150);
 
@@ -236,7 +301,7 @@ public class CertificateService {
 
             // Save the document
             document.save(filePath);
-            log.info("Certificate PDF created successfully: {}", filePath);
+            log.info("Certificate PDF created successfully: {} (type: {})", filePath, type);
 
         } finally {
             document.close();

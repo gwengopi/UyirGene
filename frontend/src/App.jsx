@@ -36,6 +36,7 @@ const AdminCourses = lazy(() => import('./pages/Admin/Courses'));
 const AdminUsers = lazy(() => import('./pages/Admin/Users'));
 const AdminAnalytics = lazy(() => import('./pages/Admin/Analytics'));
 const AdminSettings = lazy(() => import('./pages/Admin/Settings'));
+const AdminCertificateTemplates = lazy(() => import('./pages/Admin/CertificateTemplates'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Unauthorized = lazy(() => import('./pages/Unauthorized'));
 
@@ -194,6 +195,14 @@ export default function App() {
                         element={
                           <RoleRoute allowedRoles={[ROLES.ADMIN]}>
                             <AdminSettings />
+                          </RoleRoute>
+                        }
+                      />
+                      <Route
+                        path={ROUTES.ADMIN.CERTIFICATE_TEMPLATES}
+                        element={
+                          <RoleRoute allowedRoles={[ROLES.ADMIN]}>
+                            <AdminCertificateTemplates />
                           </RoleRoute>
                         }
                       />
