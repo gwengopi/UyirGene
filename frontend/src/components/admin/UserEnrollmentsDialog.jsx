@@ -52,6 +52,7 @@ function UserEnrollmentsDialog({
   const [loading, setLoading] = useState(false);
   const [editingMarks, setEditingMarks] = useState(null); // enrollment ID being edited
   const [marksValue, setMarksValue] = useState('');
+  const [trainerNameValue, setTrainerNameValue] = useState(''); // trainer name for certificate
   const [expandedRow, setExpandedRow] = useState(null);
   const [actionLoading, setActionLoading] = useState(null); // track which action is loading
 
@@ -99,11 +100,14 @@ function UserEnrollmentsDialog({
   const handleStartEditMarks = (enrollment) => {
     setEditingMarks(enrollment.id);
     setMarksValue(enrollment.marks !== null ? enrollment.marks.toString() : '');
+    // Use existing trainer name or default to course trainer
+    setTrainerNameValue(enrollment.trainerName || enrollment.defaultTrainerName || '');
   };
 
   const handleCancelEditMarks = () => {
     setEditingMarks(null);
     setMarksValue('');
+    setTrainerNameValue('');
   };
 
   const handleSaveMarks = async (enrollmentId) => {
@@ -115,10 +119,12 @@ function UserEnrollmentsDialog({
 
     setActionLoading(`marks-${enrollmentId}`);
     try {
-      await adminService.updateEnrollmentMarks(enrollmentId, marks);
+      // Send trainer name along with marks (null/empty will use course default)
+      await adminService.updateEnrollmentMarks(enrollmentId, marks, trainerNameValue || null);
       showSuccess('Marks updated successfully');
       setEditingMarks(null);
       setMarksValue('');
+      setTrainerNameValue('');
       loadEnrollments();
     } catch (error) {
       showError(error.message || 'Failed to update marks');
@@ -249,30 +255,44 @@ function UserEnrollmentsDialog({
                       </TableCell>
                       <TableCell align="center">
                         {editingMarks === enrollment.id ? (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
-                            <TextField
-                              size="small"
-                              type="number"
-                              value={marksValue}
-                              onChange={(e) => setMarksValue(e.target.value)}
-                              inputProps={{ min: 0, max: 100, step: 0.1 }}
-                              sx={{ width: 80 }}
-                              placeholder="0-100"
-                            />
-                            <IconButton
-                              size="small"
-                              color="success"
-                              onClick={() => handleSaveMarks(enrollment.id)}
-                              disabled={actionLoading === `marks-${enrollment.id}`}
-                            >
-                              <SaveIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={handleCancelEditMarks}
-                            >
-                              <CancelIcon fontSize="small" />
-                            </IconButton>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <TextField
+                                size="small"
+                                type="number"
+                                value={marksValue}
+                                onChange={(e) => setMarksValue(e.target.value)}
+                                inputProps={{ min: 0, max: 100, step: 0.1 }}
+                                sx={{ width: 80 }}
+                                placeholder="0-100"
+                                label="Marks"
+                              />
+                              <TextField
+                                size="small"
+                                value={trainerNameValue}
+                                onChange={(e) => setTrainerNameValue(e.target.value)}
+                                sx={{ width: 150 }}
+                                placeholder="Trainer name"
+                                label="Trainer"
+                                helperText={enrollment.defaultTrainerName ? `Default: ${enrollment.defaultTrainerName}` : ''}
+                              />
+                            </Box>
+                            <Box sx={{ display: 'flex', gap: 0.5 }}>
+                              <IconButton
+                                size="small"
+                                color="success"
+                                onClick={() => handleSaveMarks(enrollment.id)}
+                                disabled={actionLoading === `marks-${enrollment.id}`}
+                              >
+                                <SaveIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={handleCancelEditMarks}
+                              >
+                                <CancelIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
                           </Box>
                         ) : (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
@@ -288,7 +308,7 @@ function UserEnrollmentsDialog({
                                 -
                               </Typography>
                             )}
-                            <Tooltip title="Edit Marks">
+                            <Tooltip title="Edit Marks & Trainer">
                               <IconButton
                                 size="small"
                                 onClick={() => handleStartEditMarks(enrollment)}
@@ -420,6 +440,17 @@ function UserEnrollmentsDialog({
                                 </Typography>
                                 <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
                                   {enrollment.certificateId || '-'}
+                                </Typography>
+                              </Box>
+                              <Box>
+                                <Typography variant="caption" color="text.secondary">
+                                  Trainer (for Certificate)
+                                </Typography>
+                                <Typography variant="body2">
+                                  {enrollment.trainerName || enrollment.defaultTrainerName || '-'}
+                                  {enrollment.trainerName && enrollment.trainerName !== enrollment.defaultTrainerName && (
+                                    <Chip label="Custom" size="small" sx={{ ml: 1 }} />
+                                  )}
                                 </Typography>
                               </Box>
                             </Box>

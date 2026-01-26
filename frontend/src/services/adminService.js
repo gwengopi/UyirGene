@@ -97,10 +97,15 @@ export async function adminCompleteEnrollment(enrollmentId) {
  * Update marks for an enrollment (Admin only)
  * @param {number|string} enrollmentId - Enrollment ID
  * @param {number} marks - Marks to assign (0-100)
+ * @param {string} trainerName - Optional trainer name for certificate (defaults to course trainer)
  * @returns {Promise<Object>} Updated enrollment
  */
-export async function updateEnrollmentMarks(enrollmentId, marks) {
-  const response = await api.put(ADMIN_ENDPOINTS.ENROLLMENT_MARKS(enrollmentId), { marks });
+export async function updateEnrollmentMarks(enrollmentId, marks, trainerName = null) {
+  const payload = { marks };
+  if (trainerName !== null && trainerName !== undefined) {
+    payload.trainerName = trainerName;
+  }
+  const response = await api.put(ADMIN_ENDPOINTS.ENROLLMENT_MARKS(enrollmentId), payload);
   return response.data;
 }
 

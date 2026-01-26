@@ -161,6 +161,16 @@ public class AdminController {
                     boolean isFirstTimeMarks = enrollment.getTestCompletedAt() == null;
                     enrollment.setMarks(req.getMarks());
 
+                    // Set trainer name - use provided name or default to course trainer
+                    String trainerName = req.getTrainerName();
+                    if (trainerName == null || trainerName.isBlank()) {
+                        // Default to course trainer name if not provided
+                        if (enrollment.getCourse() != null && enrollment.getCourse().getTrainerName() != null) {
+                            trainerName = enrollment.getCourse().getTrainerName();
+                        }
+                    }
+                    enrollment.setTrainerName(trainerName);
+
                     // Determine certificate type based on pass mark
                     double passMarkPercentage = getPassMarkPercentage();
                     String certTypeName = null;
@@ -245,12 +255,19 @@ public class AdminController {
                             ? Certificate.CertificateType.COMPLETION
                             : Certificate.CertificateType.PARTICIPATION;
 
-                    // Generate certificate
+                    // Get trainer name from enrollment (set during marks entry) or fallback to course trainer
+                    String trainerName = enrollment.getTrainerName();
+                    if (trainerName == null || trainerName.isBlank()) {
+                        trainerName = enrollment.getCourse() != null ? enrollment.getCourse().getTrainerName() : null;
+                    }
+
+                    // Generate certificate with trainer name
                     Certificate certificate = certificateService.generateCertificateWithType(
                             enrollment.getUser(),
                             enrollment.getCourse(),
                             certType,
-                            enrollment.getMarks()
+                            enrollment.getMarks(),
+                            trainerName
                     );
 
                     // Update enrollment
@@ -300,6 +317,10 @@ public class AdminController {
         // Determine pass mark
         double passMarkPercentage = getPassMarkPercentage();
 
+        // Get trainer name from enrollment or default to course trainer
+        String trainerName = e.getTrainerName();
+        String defaultTrainerName = e.getCourse() != null ? e.getCourse().getTrainerName() : null;
+
         return EnrollmentResponse.builder()
                 .id(e.getId())
                 .userId(e.getUser() != null ? e.getUser().getId() : null)
@@ -322,6 +343,8 @@ public class AdminController {
                 .testLink(e.getCourse() != null ? e.getCourse().getTestLink() : null)
                 .testDescription(e.getCourse() != null ? e.getCourse().getTestDescription() : null)
                 .canGenerateCertificate(e.getMarks() != null && !hasCertificate)
+                .trainerName(trainerName)
+                .defaultTrainerName(defaultTrainerName)
                 .build();
     }
 
@@ -338,6 +361,8 @@ public class AdminController {
     @Data
     static class MarksUpdateRequest {
         private Double marks;
+        // Trainer name for certificate - defaults to course trainer if not provided
+        private String trainerName;
     }
 
     // ========== Analytics Endpoints ==========
@@ -466,5 +491,9 @@ public class AdminController {
         private String testLink;
         private String testDescription;
         private Boolean canGenerateCertificate;
+        // Trainer name for certificate (from enrollment, defaults to course trainer)
+        private String trainerName;
+        // Default trainer name from course (for UI to show as default)
+        private String defaultTrainerName;
     }
 }

@@ -1,3 +1,15 @@
 # Default ignored files
 /shelf/
 /workspace.xml
+
+
+# Node modules
+node_modules/
+
+# Vite build output
+dist/
+
+# Local env
+.env
+/frontend/node_modules/
+/target/

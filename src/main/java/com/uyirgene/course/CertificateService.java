@@ -47,13 +47,21 @@ public class CertificateService {
      * Generate a certificate (defaults to COMPLETION type)
      */
     public Certificate generateCertificate(User user, Course course) {
-        return generateCertificateWithType(user, course, Certificate.CertificateType.COMPLETION, null);
+        return generateCertificateWithType(user, course, Certificate.CertificateType.COMPLETION, null, null);
     }
 
     /**
-     * Generate a certificate with specific type and marks
+     * Generate a certificate with specific type and marks (uses course trainer name)
      */
     public Certificate generateCertificateWithType(User user, Course course, Certificate.CertificateType type, Double marks) {
+        return generateCertificateWithType(user, course, type, marks, null);
+    }
+
+    /**
+     * Generate a certificate with specific type, marks, and trainer name
+     * @param trainerName - if null, uses course trainer name
+     */
+    public Certificate generateCertificateWithType(User user, Course course, Certificate.CertificateType type, Double marks, String trainerName) {
         Optional<Certificate> existing = certRepo.findByUserAndCourse(user, course);
         if (existing.isPresent()) {
             // If existing certificate is of different type, regenerate
@@ -65,6 +73,11 @@ public class CertificateService {
             certRepo.delete(existingCert);
         }
 
+        // Use provided trainer name or fallback to course trainer
+        String effectiveTrainerName = (trainerName != null && !trainerName.isBlank())
+                ? trainerName
+                : course.getTrainerName();
+
         Certificate certificate = Certificate.builder()
                 .user(user)
                 .course(course)
@@ -72,6 +85,7 @@ public class CertificateService {
                 .certificateId(generateUniqueCertificateId())
                 .type(type)
                 .marks(marks)
+                .trainerName(effectiveTrainerName)
                 .build();
 
         try {
@@ -108,7 +122,8 @@ public class CertificateService {
                         type,
                         marks,
                         filePath.toString(),
-                        template
+                        template,
+                        effectiveTrainerName
                 );
             } else {
                 log.info("Using dynamic certificate generation (no PDF template found or template has no PDF file)");
@@ -121,7 +136,8 @@ public class CertificateService {
                         type,
                         marks,
                         filePath.toString(),
-                        template
+                        template,
+                        effectiveTrainerName
                 );
             }
 
@@ -156,7 +172,8 @@ public class CertificateService {
     private void createCertificateFromTemplate(String userName, Course course,
                                                 String certificateId, LocalDateTime issuedAt,
                                                 Certificate.CertificateType type, Double marks,
-                                                String filePath, CertificateTemplate template) throws IOException, WriterException {
+                                                String filePath, CertificateTemplate template,
+                                                String trainerName) throws IOException, WriterException {
 
         log.info("Creating certificate from PDF template: {}", template.getName());
 
@@ -211,9 +228,9 @@ public class CertificateService {
                 drawText(contentStream, "Course ID: " + course.getCourseCode(), config.getCourseCode(), fontRegular, pageWidth);
             }
 
-            // Draw trainer name
-            if (config.getTrainerName() != null && config.getTrainerName().isVisible() && course.getTrainerName() != null) {
-                drawText(contentStream, "Trainer: " + course.getTrainerName(), config.getTrainerName(), fontRegular, pageWidth);
+            // Draw trainer name (use provided trainerName, not course.getTrainerName())
+            if (config.getTrainerName() != null && config.getTrainerName().isVisible() && trainerName != null) {
+                drawText(contentStream, "Trainer: " + trainerName, config.getTrainerName(), fontRegular, pageWidth);
             }
 
             // Draw short description
@@ -299,7 +316,8 @@ public class CertificateService {
     private void createCertificatePdfDynamic(String userName, Course course,
                                               String certificateId, LocalDateTime issuedAt,
                                               Certificate.CertificateType type, Double marks,
-                                              String filePath, CertificateTemplate template) throws IOException, WriterException {
+                                              String filePath, CertificateTemplate template,
+                                              String trainerName) throws IOException, WriterException {
 
         PDDocument document = new PDDocument();
 
@@ -443,10 +461,10 @@ public class CertificateService {
                 contentStream.endText();
             }
 
-            // Trainer Name (if available)
-            if (course.getTrainerName() != null && !course.getTrainerName().isEmpty()) {
+            // Trainer Name (use provided trainerName, not course.getTrainerName())
+            if (trainerName != null && !trainerName.isEmpty()) {
                 y -= 25;
-                String trainerText = "Trainer: " + course.getTrainerName();
+                String trainerText = "Trainer: " + trainerName;
                 float trainerWidth = fontRegular.getStringWidth(trainerText) / 1000 * 12;
                 contentStream.beginText();
                 contentStream.setFont(fontRegular, 12);

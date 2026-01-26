@@ -35,6 +35,10 @@ public class Enrollment {
     @Enumerated(EnumType.STRING)
     private CertificateType certificateType;
 
+    // Trainer name at the time of marks entry (for certificate)
+    // Defaults to course trainer, can be overridden by admin
+    private String trainerName;
+
     // Payment order ID for idempotency
     private String paymentOrderId;
 

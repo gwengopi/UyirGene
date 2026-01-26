@@ -30,6 +30,9 @@ public class Certificate {
     // Marks achieved (stored for reference)
     private Double marks;
 
+    // Trainer name at the time of certificate generation
+    private String trainerName;
+
     public enum CertificateType {
         COMPLETION,    // Course completion certificate (passed)
         PARTICIPATION  // Participation certificate (did not pass)
