@@ -3,6 +3,7 @@ import { Box, useMediaQuery, useTheme, IconButton } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import SchoolIcon from '@mui/icons-material/School';
+import ArticleIcon from '@mui/icons-material/Article';
 import PeopleIcon from '@mui/icons-material/People';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -24,6 +25,7 @@ function AdminLayout({ children, title }) {
     { divider: true },
     { subheader: 'Management' },
     { label: 'Courses', path: ROUTES.ADMIN.COURSES, icon: <SchoolIcon /> },
+    { label: 'Blogs', path: ROUTES.ADMIN.BLOGS, icon: <ArticleIcon /> },
     { label: 'Users', path: ROUTES.ADMIN.USERS, icon: <PeopleIcon /> },
     { label: 'Certificate Templates', path: ROUTES.ADMIN.CERTIFICATE_TEMPLATES, icon: <CardMembershipIcon /> },
     { divider: true },

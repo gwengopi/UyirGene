@@ -81,6 +81,7 @@ export const ROUTES = {
   ADMIN: {
     HOME: '/admin',
     COURSES: '/admin/courses',
+    BLOGS: '/admin/blogs',
     USERS: '/admin/users',
     ANALYTICS: '/admin/analytics',
     SETTINGS: '/admin/settings',

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Blog Post</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+        <!-- Header -->
+        <tr>
+            <td style="background: linear-gradient(135deg, #8E44AD 0%, #9B59B6 100%); padding: 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px;">New Blog Post</h1>
+                <p style="color: #ffffff; margin: 10px 0 0; opacity: 0.9;">Fresh content from {{appName}}</p>
+            </td>
+        </tr>
+
+        <!-- Content -->
+        <tr>
+            <td style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px;">Hi {{name}},</p>
+
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px;">
+                    We've just published a new article that we think you'll enjoy!
+                </p>
+
+                <!-- Blog Card -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-radius: 8px; margin: 20px 0; border-left: 4px solid #8E44AD;">
+                    <tr>
+                        <td style="padding: 25px;">
+                            <h2 style="color: #8E44AD; margin: 0 0 10px; font-size: 22px;">{{blogTitle}}</h2>
+                            <p style="color: #666; margin: 0 0 15px; font-size: 14px; line-height: 1.6;">{{blogDescription}}</p>
+                            <table cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td style="padding-right: 20px;">
+                                        <span style="color: #999; font-size: 12px;">Category</span><br>
+                                        <strong style="color: #333;">{{category}}</strong>
+                                    </td>
+                                    <td style="padding-right: 20px;">
+                                        <span style="color: #999; font-size: 12px;">Author</span><br>
+                                        <strong style="color: #333;">{{authorName}}</strong>
+                                    </td>
+                                    <td>
+                                        <span style="color: #999; font-size: 12px;">Reading Time</span><br>
+                                        <strong style="color: #333;">{{readingTime}} min</strong>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- CTA Button -->
+                <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td style="text-align: center; padding: 20px 0;">
+                            <a href="{{blogUrl}}" style="display: inline-block; background-color: #8E44AD; color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 5px; font-size: 16px; font-weight: bold;">Read Article</a>
+                        </td>
+                    </tr>
+                </table>
+
+                <p style="font-size: 14px; color: #666; margin: 20px 0 0;">
+                    Stay curious,<br>
+                    <strong>The {{appName}} Team</strong>
+                </p>
+            </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+            <td style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #eee;">
+                <p style="font-size: 12px; color: #999; margin: 0 0 10px;">
+                    You're receiving this email because you subscribed to our blog newsletter.
+                </p>
+                <p style="font-size: 12px; margin: 0;">
+                    <a href="{{unsubscribeUrl}}" style="color: #8E44AD; text-decoration: none;">Unsubscribe</a>
+                </p>
+                <p style="font-size: 12px; color: #999; margin: 10px 0 0;">
+                    &copy; 2024 {{appName}}. All rights reserved.
+                </p>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

@@ -33,6 +33,7 @@ const Payment = lazy(() => import('./pages/Payment'));
 const Profile = lazy(() => import('./pages/Profile'));
 const AdminDashboard = lazy(() => import('./pages/Admin/index'));
 const AdminCourses = lazy(() => import('./pages/Admin/Courses'));
+const AdminBlogs = lazy(() => import('./pages/Admin/Blogs'));
 const AdminUsers = lazy(() => import('./pages/Admin/Users'));
 const AdminAnalytics = lazy(() => import('./pages/Admin/Analytics'));
 const AdminSettings = lazy(() => import('./pages/Admin/Settings'));
@@ -43,6 +44,8 @@ const Unauthorized = lazy(() => import('./pages/Unauthorized'));
 // Static pages
 const About = lazy(() => import('./pages/About'));
 const Blog = lazy(() => import('./pages/Blog'));
+const BlogDetail = lazy(() => import('./pages/BlogDetail'));
+const BlogUnsubscribe = lazy(() => import('./pages/BlogUnsubscribe'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Careers = lazy(() => import('./pages/Careers'));
 const Help = lazy(() => import('./pages/Help'));
@@ -173,6 +176,14 @@ function AppContent() {
               }
             />
             <Route
+              path={ROUTES.ADMIN.BLOGS}
+              element={
+                <RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.INSTRUCTOR]}>
+                  <AdminBlogs />
+                </RoleRoute>
+              }
+            />
+            <Route
               path={ROUTES.ADMIN.USERS}
               element={
                 <RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.INSTRUCTOR]}>
@@ -208,6 +219,8 @@ function AppContent() {
             {/* Static pages */}
             <Route path="/about" element={<About />} />
             <Route path="/blog" element={<Blog />} />
+            <Route path="/blog/:slug" element={<BlogDetail />} />
+            <Route path="/blog/unsubscribe/:token" element={<BlogUnsubscribe />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/careers" element={<Careers />} />
             <Route path="/help" element={<Help />} />

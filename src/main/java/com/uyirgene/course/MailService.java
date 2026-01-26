@@ -1,5 +1,7 @@
 package com.uyirgene.course;
 
+import com.uyirgene.blog.Blog;
+import com.uyirgene.blog.BlogSubscription;
 import com.uyirgene.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +17,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -126,6 +129,57 @@ public class MailService {
         }
     }
 
+    /**
+     * Send new blog notification to subscribers
+     */
+    @Async
+    public void sendNewBlogNotification(List<BlogSubscription> subscribers, Blog blog) {
+        log.info("Sending new blog notification to {} subscribers for blog: {}", subscribers.size(), blog.getTitle());
+
+        for (BlogSubscription subscriber : subscribers) {
+            try {
+                MimeMessage msg = mailSender.createMimeMessage();
+                MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+                helper.setTo(subscriber.getEmail());
+                helper.setFrom(getFromAddress());
+                helper.setSubject("New Post: " + blog.getTitle());
+
+                String html = buildNewBlogHtml(subscriber, blog);
+                helper.setText(html, true);
+
+                mailSender.send(msg);
+                log.debug("Blog notification sent to {}", subscriber.getEmail());
+            } catch (Exception e) {
+                log.error("Failed to send blog notification to {}: {}", subscriber.getEmail(), e.getMessage());
+            }
+        }
+
+        log.info("Finished sending blog notifications for: {}", blog.getTitle());
+    }
+
+    /**
+     * Send new blog notification to a single subscriber
+     */
+    @Async
+    public void sendNewBlogNotification(BlogSubscription subscriber, Blog blog) {
+        try {
+            log.info("Sending new blog notification to {} for blog: {}", subscriber.getEmail(), blog.getTitle());
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setTo(subscriber.getEmail());
+            helper.setFrom(getFromAddress());
+            helper.setSubject("New Post: " + blog.getTitle());
+
+            String html = buildNewBlogHtml(subscriber, blog);
+            helper.setText(html, true);
+
+            mailSender.send(msg);
+            log.info("Blog notification sent successfully to {}", subscriber.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to send blog notification to {}: {}", subscriber.getEmail(), e.getMessage(), e);
+        }
+    }
+
     private String getFromAddress() {
         return (from == null || from.isBlank()) ? "noreply@uyirgene.com" : from;
     }
@@ -201,6 +255,24 @@ public class MailService {
         tpl = tpl.replace("{{marks}}", enrollment.getMarks() != null ? String.format("%.1f%%", enrollment.getMarks()) : "N/A");
         tpl = tpl.replace("{{certificateType}}", enrollment.getCertificateType() != null ? enrollment.getCertificateType().name() : "");
         tpl = tpl.replace("{{dashboardUrl}}", baseUrl + "/my-courses");
+        tpl = tpl.replace("{{appName}}", appName);
+        return tpl;
+    }
+
+    private String buildNewBlogHtml(BlogSubscription subscriber, Blog blog) {
+        String tpl = loadTemplate("new-blog-notification.html");
+        if (tpl == null) {
+            return buildFallbackNewBlogHtml(subscriber, blog);
+        }
+        tpl = tpl.replace("{{name}}", subscriber.getName() != null ? subscriber.getName() : "Subscriber");
+        tpl = tpl.replace("{{blogTitle}}", blog.getTitle() != null ? blog.getTitle() : "");
+        tpl = tpl.replace("{{blogDescription}}", blog.getShortDescription() != null ? blog.getShortDescription() :
+                (blog.getContent() != null ? truncate(blog.getContent(), 200) : ""));
+        tpl = tpl.replace("{{category}}", blog.getCategory() != null ? blog.getCategory() : "General");
+        tpl = tpl.replace("{{authorName}}", blog.getAuthorName() != null ? blog.getAuthorName() : "Editorial Team");
+        tpl = tpl.replace("{{readingTime}}", blog.getReadingTimeMinutes() != null ? String.valueOf(blog.getReadingTimeMinutes()) : "5");
+        tpl = tpl.replace("{{blogUrl}}", baseUrl + "/blog/" + (blog.getUrlSlug() != null ? blog.getUrlSlug() : blog.getId()));
+        tpl = tpl.replace("{{unsubscribeUrl}}", baseUrl + "/blog/unsubscribe/" + subscriber.getUnsubscribeToken());
         tpl = tpl.replace("{{appName}}", appName);
         return tpl;
     }
@@ -284,6 +356,37 @@ public class MailService {
             </html>
             """, user.getName() != null ? user.getName() : user.getEmail(),
             course.getTitle(), marksText, baseUrl + "/my-courses", appName);
+    }
+
+    private String buildFallbackNewBlogHtml(BlogSubscription subscriber, Blog blog) {
+        String blogUrl = baseUrl + "/blog/" + (blog.getUrlSlug() != null ? blog.getUrlSlug() : blog.getId());
+        String unsubscribeUrl = baseUrl + "/blog/unsubscribe/" + subscriber.getUnsubscribeToken();
+        return String.format("""
+            <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <h2 style="color: #8E44AD;">New Blog Post!</h2>
+                <p>Hi %s,</p>
+                <p>We've just published a new article that we think you'll enjoy!</p>
+                <h3 style="color: #8E44AD;">%s</h3>
+                <p>%s</p>
+                <p><strong>Category:</strong> %s | <strong>Author:</strong> %s</p>
+                <p><a href="%s" style="background-color: #8E44AD; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Read Article</a></p>
+                <p style="font-size: 12px; color: #999; margin-top: 30px;">
+                    You're receiving this because you subscribed to our blog.<br>
+                    <a href="%s" style="color: #8E44AD;">Unsubscribe</a>
+                </p>
+                <p>Best regards,<br>The %s Team</p>
+            </body>
+            </html>
+            """,
+            subscriber.getName() != null ? subscriber.getName() : "Subscriber",
+            blog.getTitle(),
+            blog.getShortDescription() != null ? blog.getShortDescription() : truncate(blog.getContent(), 200),
+            blog.getCategory() != null ? blog.getCategory() : "General",
+            blog.getAuthorName() != null ? blog.getAuthorName() : "Editorial Team",
+            blogUrl,
+            unsubscribeUrl,
+            appName);
     }
 
     private String truncate(String text, int maxLength) {
