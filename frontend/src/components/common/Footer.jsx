@@ -21,6 +21,7 @@ function Footer() {
       { label: 'Help Center', path: '/help' },
       { label: 'Contact Us', path: '/contact' },
       { label: 'FAQs', path: '/faq' },
+      { label: 'Verify Certificate', path: ROUTES.VERIFY_CERTIFICATE },
       { label: 'Community', path: '/community' },
     ],
     legal: [

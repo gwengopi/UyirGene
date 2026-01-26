@@ -58,7 +58,38 @@ function getEmbedUrl(url, type) {
       } else if (url.includes('embed/')) {
         videoId = url.split('embed/')[1]?.split('?')[0];
       }
-      return videoId ? `https://www.youtube.com/embed/${videoId}?enablejsapi=1&rel=0` : url;
+      // YouTube embed parameters to maximize privacy and minimize branding:
+      // - youtube-nocookie.com: Privacy-enhanced mode, no cookies until playback
+      // - rel=0: No related videos from other channels at end
+      // - modestbranding=1: Minimal YouTube branding
+      // - iv_load_policy=3: Hide video annotations
+      // - fs=0: Disable fullscreen button (we provide our own)
+      // - playsinline=1: Inline playback on mobile
+      // - controls=1: Show player controls (needed for playback)
+      // - showinfo=0: Hide video title (legacy, helps on some players)
+      // - cc_load_policy=0: Don't show closed captions by default
+      // - hl=en: Set interface language
+      // - loop=0: Don't loop the video
+      // - playlist=videoId: Required for some features
+      const params = new URLSearchParams({
+        enablejsapi: '1',
+        rel: '0',
+        modestbranding: '1',
+        iv_load_policy: '3',
+        fs: '0',
+        playsinline: '1',
+        controls: '1',
+        showinfo: '0',
+        cc_load_policy: '0',
+        disablekb: '0',
+        loop: '0',
+        origin: typeof window !== 'undefined' ? window.location.origin : '',
+      });
+      // Add playlist parameter for single video (helps with some edge cases)
+      if (videoId) {
+        params.set('playlist', videoId);
+      }
+      return videoId ? `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}` : url;
     }
 
     case 'googledrive': {
@@ -74,7 +105,20 @@ function getEmbedUrl(url, type) {
 
     case 'vimeo': {
       const videoId = url.split('vimeo.com/')[1]?.split('?')[0];
-      return videoId ? `https://player.vimeo.com/video/${videoId}` : url;
+      // Vimeo embed parameters to minimize branding:
+      // - title=0: Hide video title
+      // - byline=0: Hide author byline
+      // - portrait=0: Hide author portrait
+      // - badge=0: Hide Vimeo badge
+      // - dnt=1: Do not track
+      const params = new URLSearchParams({
+        title: '0',
+        byline: '0',
+        portrait: '0',
+        badge: '0',
+        dnt: '1',
+      });
+      return videoId ? `https://player.vimeo.com/video/${videoId}?${params.toString()}` : url;
     }
 
     default:
@@ -127,11 +171,19 @@ function EmbeddedPlayer({ src, title, onProgress, initialPosition = 0 }) {
   return (
     <Paper
       ref={containerRef}
+      onContextMenu={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
       sx={{
         position: 'relative',
         backgroundColor: 'black',
         borderRadius: 2,
         overflow: 'hidden',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        MozUserSelect: 'none',
+        msUserSelect: 'none',
+        // Prevent touch callout on mobile
+        WebkitTouchCallout: 'none',
       }}
     >
       <Box
@@ -155,6 +207,111 @@ function EmbeddedPlayer({ src, title, onProgress, initialPosition = 0 }) {
           }}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
           allowFullScreen
+        />
+
+        {/*
+          Comprehensive overlay system to block all YouTube branding and redirects.
+          Uses pointer-events to block clicks on branding areas while allowing video controls.
+        */}
+
+        {/* TOP SECTION: Full width overlay to block channel name, title, share, copy link */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '80px',
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 100%)',
+            zIndex: 10,
+            pointerEvents: 'auto',
+            cursor: 'default',
+          }}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        />
+
+        {/* RIGHT EDGE: Full height overlay to block YouTube watermark and any right-side buttons */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: '80px',
+            backgroundColor: 'transparent',
+            zIndex: 10,
+            pointerEvents: 'auto',
+            cursor: 'default',
+          }}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        />
+
+        {/* BOTTOM-RIGHT: Block YouTube logo in control bar */}
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: 0,
+            right: 0,
+            width: '200px',
+            height: '50px',
+            backgroundColor: 'transparent',
+            zIndex: 11,
+            pointerEvents: 'auto',
+            cursor: 'default',
+          }}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        />
+
+        {/* BOTTOM-LEFT: Block "Watch on YouTube" text in control bar */}
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            width: '60px',
+            height: '50px',
+            backgroundColor: 'transparent',
+            zIndex: 11,
+            pointerEvents: 'auto',
+            cursor: 'default',
+          }}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        />
+
+        {/* LEFT EDGE: Block any left-side overlays that might appear */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '80px', // Start below the top overlay
+            left: 0,
+            bottom: '50px', // End above the control bar
+            width: '60px',
+            backgroundColor: 'transparent',
+            zIndex: 10,
+            pointerEvents: 'auto',
+            cursor: 'default',
+          }}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        />
+
+        {/* CENTER AREA: Block "More videos" popup that appears after video ends */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '80px',
+            left: '60px',
+            right: '80px',
+            bottom: '50px',
+            backgroundColor: 'transparent',
+            zIndex: 5,
+            pointerEvents: 'none', // Allow clicks to pass through to play button
+            cursor: 'pointer',
+          }}
         />
       </Box>
 

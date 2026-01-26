@@ -32,6 +32,7 @@ public class AdminController {
     private final CertificateService certificateService;
     private final CertificateRepository certificateRepository;
     private final SiteConfigService siteConfigService;
+    private final MailService mailService;
 
     @GetMapping("/users")
     @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
@@ -157,15 +158,18 @@ public class AdminController {
     ) {
         return enrollmentRepository.findById(enrollmentId)
                 .map(enrollment -> {
+                    boolean isFirstTimeMarks = enrollment.getTestCompletedAt() == null;
                     enrollment.setMarks(req.getMarks());
 
                     // Determine certificate type based on pass mark
                     double passMarkPercentage = getPassMarkPercentage();
+                    String certTypeName = null;
                     if (req.getMarks() != null) {
                         Enrollment.CertificateType certType = req.getMarks() >= passMarkPercentage
                                 ? Enrollment.CertificateType.COMPLETION
                                 : Enrollment.CertificateType.PARTICIPATION;
                         enrollment.setCertificateType(certType);
+                        certTypeName = certType.name();
                     }
 
                     // Mark test as completed
@@ -174,6 +178,20 @@ public class AdminController {
                     }
 
                     Enrollment saved = enrollmentRepository.save(enrollment);
+
+                    // Send course completion email (only for first time marks submission)
+                    if (isFirstTimeMarks) {
+                        try {
+                            User user = saved.getUser();
+                            Course course = saved.getCourse();
+                            if (user != null && course != null) {
+                                mailService.sendCourseCompletion(user, course, req.getMarks(), certTypeName);
+                            }
+                        } catch (Exception e) {
+                            // Log but don't fail the operation
+                        }
+                    }
+
                     return ResponseEntity.ok(mapToEnrollmentResponse(saved));
                 })
                 .orElse(ResponseEntity.notFound().build());
@@ -188,6 +206,18 @@ public class AdminController {
                 .map(enrollment -> {
                     enrollment.setResultPublishedAt(LocalDateTime.now());
                     Enrollment saved = enrollmentRepository.save(enrollment);
+
+                    // Send result published email notification
+                    try {
+                        User user = saved.getUser();
+                        Course course = saved.getCourse();
+                        if (user != null && course != null) {
+                            mailService.sendResultPublished(user, course, saved);
+                        }
+                    } catch (Exception e) {
+                        // Log but don't fail the operation
+                    }
+
                     return ResponseEntity.ok(mapToEnrollmentResponse(saved));
                 })
                 .orElse(ResponseEntity.notFound().build());

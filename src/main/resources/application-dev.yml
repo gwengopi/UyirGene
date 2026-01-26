@@ -6,15 +6,50 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
-    show-sql: true
+    show-sql: false
   mail:
-    host: ${MAIL_HOST:smtp.mailtrap.io}
-    port: ${MAIL_PORT:2525}
+    # =======================================================================
+    # SMTP Configuration Options:
+    # =======================================================================
+    #
+    # Option 1: MailHog (Local Testing - No auth required)
+    #   host: localhost
+    #   port: 1025
+    #   Run: docker run -d -p 1025:1025 -p 8025:8025 mailhog/mailhog
+    #   View emails at: http://localhost:8025
+    #
+    # Option 2: Gmail SMTP
+    #   host: smtp.gmail.com
+    #   port: 587
+    #   username: your-email@gmail.com
+    #   password: your-app-password (generate at https://myaccount.google.com/apppasswords)
+    #
+    # Option 3: Outlook/Office365
+    #   host: smtp.office365.com
+    #   port: 587
+    #   username: your-email@outlook.com
+    #   password: your-password
+    #
+    # Option 4: Mailtrap (Testing)
+    #   host: smtp.mailtrap.io
+    #   port: 2525
+    #   username: your-mailtrap-username
+    #   password: your-mailtrap-password
+    #
+    # =======================================================================
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_AUTH:false}
+          starttls:
+            enable: ${MAIL_STARTTLS:false}
 
 cors:
-  allowed-origins: http://localhost:5173,http://localhost:3000
+  allowed-origins: http://localhost:*,http://localhost:5173,http://localhost:3000,http://localhost:5174
 
 payment:
   provider: mock

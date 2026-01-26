@@ -98,6 +98,7 @@ function AppContent() {
             <Route path={ROUTES.HOME} element={<Home />} />
             <Route path={ROUTES.COURSES} element={<Courses />} />
             <Route path="/courses/:id" element={<CourseDetail />} />
+            <Route path={ROUTES.VERIFY_CERTIFICATE} element={<CertificateVerify />} />
             <Route path="/certificate/:id" element={<CertificateVerify />} />
 
             {/* Auth routes - redirect if logged in */}

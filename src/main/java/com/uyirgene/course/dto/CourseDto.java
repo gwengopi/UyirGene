@@ -12,12 +12,15 @@ import lombok.NoArgsConstructor;
 @Builder
 public class CourseDto {
     private Long id;
+    private String courseCode;
     private String title;
+    private String shortDescription;
     private String description;
     private String category;
     private Integer durationHours;
     private Double price;
     private Boolean published;
+    private String trainerName;
 
     // Thumbnail image (for course list)
     private boolean hasThumbnailImage;
@@ -44,12 +47,15 @@ public class CourseDto {
 
         return CourseDto.builder()
                 .id(course.getId())
+                .courseCode(course.getCourseCode())
                 .title(course.getTitle())
+                .shortDescription(course.getShortDescription())
                 .description(course.getDescription())
                 .category(course.getCategory())
                 .durationHours(course.getDurationHours())
                 .price(course.getPrice())
                 .published(course.getPublished())
+                .trainerName(course.getTrainerName())
                 .hasThumbnailImage(hasThumbnail)
                 .thumbnailImageUrl(hasThumbnail ? "/api/courses/" + course.getId() + "/thumbnail" : null)
                 .hasDescriptionImage(hasDescImg)

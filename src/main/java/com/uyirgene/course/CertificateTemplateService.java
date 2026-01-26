@@ -59,17 +59,48 @@ public class CertificateTemplateService {
 
     /**
      * Find the appropriate template for a course and certificate type
-     * First checks for course-specific template, then falls back to global default
+     * Priority:
+     * 1. Course-specific template with matching type
+     * 2. Global default template with matching type (isDefault = true)
+     * 3. Any active global template with matching type (fallback)
      */
     public Optional<CertificateTemplate> findTemplateForCertificate(Course course, Certificate.CertificateType type) {
+        log.info("Looking for template for course {} and type {}", course.getId(), type);
+
         // First, try to find a course-specific template
         Optional<CertificateTemplate> courseTemplate = templateRepo.findByCourseAndTypeAndActiveTrue(course, type);
         if (courseTemplate.isPresent()) {
+            log.info("Found course-specific template: {} (hasTemplateFile={})",
+                courseTemplate.get().getName(),
+                courseTemplate.get().getTemplateFile() != null && courseTemplate.get().getTemplateFile().length > 0);
             return courseTemplate;
         }
+        log.info("No course-specific template found, checking for global default");
 
         // Fall back to global default template
-        return templateRepo.findByTypeAndIsDefaultTrueAndActiveTrue(type);
+        Optional<CertificateTemplate> globalTemplate = templateRepo.findByTypeAndIsDefaultTrueAndActiveTrue(type);
+        if (globalTemplate.isPresent()) {
+            log.info("Found global default template: {} (hasTemplateFile={})",
+                globalTemplate.get().getName(),
+                globalTemplate.get().getTemplateFile() != null && globalTemplate.get().getTemplateFile().length > 0);
+            return globalTemplate;
+        }
+        log.info("No global default template found, checking for any active global template");
+
+        // Fallback: Find any active global template (course = null) with matching type
+        List<CertificateTemplate> globalTemplates = templateRepo.findByCourseIsNullAndActiveTrue();
+        Optional<CertificateTemplate> anyGlobalTemplate = globalTemplates.stream()
+                .filter(t -> t.getType() == type)
+                .findFirst();
+        if (anyGlobalTemplate.isPresent()) {
+            log.info("Found fallback global template: {} (hasTemplateFile={})",
+                anyGlobalTemplate.get().getName(),
+                anyGlobalTemplate.get().getTemplateFile() != null && anyGlobalTemplate.get().getTemplateFile().length > 0);
+            return anyGlobalTemplate;
+        }
+
+        log.info("No template found for type {}", type);
+        return Optional.empty();
     }
 
     /**
@@ -82,6 +113,7 @@ public class CertificateTemplateService {
             Long courseId,
             String headerText,
             String bodyTemplate,
+            String templateConfig,
             Boolean isDefault,
             MultipartFile templateFile,
             MultipartFile backgroundImage
@@ -91,6 +123,7 @@ public class CertificateTemplateService {
                 .type(type)
                 .headerText(headerText)
                 .bodyTemplate(bodyTemplate)
+                .templateConfig(templateConfig)
                 .isDefault(isDefault != null ? isDefault : false)
                 .active(true)
                 .build();
@@ -104,8 +137,12 @@ public class CertificateTemplateService {
 
         // Handle template file upload
         if (templateFile != null && !templateFile.isEmpty()) {
-            template.setTemplateFile(templateFile.getBytes());
+            byte[] fileBytes = templateFile.getBytes();
+            template.setTemplateFile(fileBytes);
             template.setTemplateContentType(templateFile.getContentType());
+            log.info("Template PDF uploaded: {} bytes, contentType={}", fileBytes.length, templateFile.getContentType());
+        } else {
+            log.info("No template PDF file provided");
         }
 
         // Handle background image upload
@@ -133,6 +170,7 @@ public class CertificateTemplateService {
             Long courseId,
             String headerText,
             String bodyTemplate,
+            String templateConfig,
             Boolean isDefault,
             Boolean active,
             MultipartFile templateFile,
@@ -147,6 +185,7 @@ public class CertificateTemplateService {
         if (type != null) template.setType(type);
         if (headerText != null) template.setHeaderText(headerText);
         if (bodyTemplate != null) template.setBodyTemplate(bodyTemplate);
+        if (templateConfig != null) template.setTemplateConfig(templateConfig);
         if (active != null) template.setActive(active);
 
         // Update course association
@@ -158,11 +197,14 @@ public class CertificateTemplateService {
 
         // Handle template file
         if (Boolean.TRUE.equals(removeTemplateFile)) {
+            log.info("Removing template PDF file");
             template.setTemplateFile(null);
             template.setTemplateContentType(null);
         } else if (templateFile != null && !templateFile.isEmpty()) {
-            template.setTemplateFile(templateFile.getBytes());
+            byte[] fileBytes = templateFile.getBytes();
+            template.setTemplateFile(fileBytes);
             template.setTemplateContentType(templateFile.getContentType());
+            log.info("Template PDF updated: {} bytes, contentType={}", fileBytes.length, templateFile.getContentType());
         }
 
         // Handle background image

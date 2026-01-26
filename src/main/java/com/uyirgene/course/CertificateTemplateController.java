@@ -88,12 +88,13 @@ public class CertificateTemplateController {
             @RequestParam(value = "courseId", required = false) Long courseId,
             @RequestParam(value = "headerText", required = false) String headerText,
             @RequestParam(value = "bodyTemplate", required = false) String bodyTemplate,
+            @RequestParam(value = "templateConfig", required = false) String templateConfig,
             @RequestParam(value = "isDefault", defaultValue = "false") Boolean isDefault,
             @RequestParam(value = "templateFile", required = false) MultipartFile templateFile,
             @RequestParam(value = "backgroundImage", required = false) MultipartFile backgroundImage
     ) throws IOException {
         CertificateTemplate template = templateService.createTemplate(
-                name, type, courseId, headerText, bodyTemplate, isDefault, templateFile, backgroundImage
+                name, type, courseId, headerText, bodyTemplate, templateConfig, isDefault, templateFile, backgroundImage
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(template));
     }
@@ -112,6 +113,7 @@ public class CertificateTemplateController {
             @RequestParam(value = "courseId", required = false) Long courseId,
             @RequestParam(value = "headerText", required = false) String headerText,
             @RequestParam(value = "bodyTemplate", required = false) String bodyTemplate,
+            @RequestParam(value = "templateConfig", required = false) String templateConfig,
             @RequestParam(value = "isDefault", required = false) Boolean isDefault,
             @RequestParam(value = "active", required = false) Boolean active,
             @RequestParam(value = "templateFile", required = false) MultipartFile templateFile,
@@ -120,7 +122,7 @@ public class CertificateTemplateController {
             @RequestParam(value = "removeBackgroundImage", defaultValue = "false") Boolean removeBackgroundImage
     ) throws IOException {
         CertificateTemplate template = templateService.updateTemplate(
-                id, name, type, courseId, headerText, bodyTemplate, isDefault, active,
+                id, name, type, courseId, headerText, bodyTemplate, templateConfig, isDefault, active,
                 templateFile, backgroundImage, removeTemplateFile, removeBackgroundImage
         );
         return ResponseEntity.ok(toDto(template));
@@ -189,6 +191,7 @@ public class CertificateTemplateController {
                 .courseName(template.getCourse() != null ? template.getCourse().getTitle() : null)
                 .headerText(template.getHeaderText())
                 .bodyTemplate(template.getBodyTemplate())
+                .templateConfig(template.getTemplateConfig())
                 .hasTemplateFile(template.getTemplateFile() != null && template.getTemplateFile().length > 0)
                 .hasBackgroundImage(template.getBackgroundImage() != null && template.getBackgroundImage().length > 0)
                 .templateFileUrl(template.getTemplateFile() != null ? "/api/admin/certificate-templates/" + template.getId() + "/template-file" : null)
@@ -211,6 +214,7 @@ public class CertificateTemplateController {
         private String courseName;
         private String headerText;
         private String bodyTemplate;
+        private String templateConfig;
         private boolean hasTemplateFile;
         private boolean hasBackgroundImage;
         private String templateFileUrl;

@@ -20,6 +20,9 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
 
   const [formData, setFormData] = useState({
     title: '',
+    courseCode: '',
+    trainerName: '',
+    shortDescription: '',
     description: '',
     category: '',
     durationHours: '',
@@ -46,6 +49,9 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
     if (course) {
       setFormData({
         title: course.title || '',
+        courseCode: course.courseCode || '',
+        trainerName: course.trainerName || '',
+        shortDescription: course.shortDescription || '',
         description: course.description || '',
         category: course.category || '',
         durationHours: course.durationHours?.toString() || '',
@@ -185,6 +191,9 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
 
     const dataToSave = {
       title: formData.title,
+      courseCode: formData.courseCode || null,
+      trainerName: formData.trainerName || null,
+      shortDescription: formData.shortDescription || null,
       description: formData.description,
       category: formData.category,
       durationHours: formData.durationHours ? parseInt(formData.durationHours, 10) : null,
@@ -413,6 +422,42 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
             error={errors.title}
             required
             placeholder="Enter course title"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
+          <FormField
+            name="courseCode"
+            label="Course Code"
+            value={formData.courseCode}
+            onChange={handleChange}
+            placeholder="e.g., BIO-101, COURSE-001"
+            helperText="Unique course identifier (shown on certificate)"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
+          <FormField
+            name="trainerName"
+            label="Trainer / Instructor Name"
+            value={formData.trainerName}
+            onChange={handleChange}
+            placeholder="Enter trainer name"
+            helperText="Will be displayed on the certificate"
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <FormField
+            name="shortDescription"
+            label="Short Description"
+            value={formData.shortDescription}
+            onChange={handleChange}
+            placeholder="Brief description for certificate and previews"
+            helperText="Max 500 characters - displayed on certificate"
+            multiline
+            rows={2}
+            inputProps={{ maxLength: 500 }}
           />
         </Grid>
 

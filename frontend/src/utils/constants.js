@@ -76,6 +76,7 @@ export const ROUTES = {
   MY_COURSES: '/my-courses',
   DASHBOARD: '/dashboard',
   PROFILE: '/profile',
+  VERIFY_CERTIFICATE: '/verify-certificate',
   CERTIFICATE_VERIFY: (id) => `/certificate/${id}`,
   ADMIN: {
     HOME: '/admin',

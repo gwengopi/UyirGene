@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +19,7 @@ public class VideoController {
     private final VideoProgressService progressService;
 
     @GetMapping("/api/courses/{id}/videos")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "List videos for a course with encrypted URLs")
     @ApiResponse(responseCode = "200", description = "List of videos with encrypted URLs")
     public ResponseEntity<List<VideoDto>> listVideos(@PathVariable("id") Long id) {
@@ -25,6 +27,7 @@ public class VideoController {
     }
 
     @PostMapping("/api/videos/decrypt")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Decrypt video URL for playback (requires authentication)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "URL decrypted"),
@@ -40,6 +43,7 @@ public class VideoController {
     }
 
     @PostMapping("/api/videos/{id}/progress")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Update last played position for a video")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Progress updated"),
@@ -51,6 +55,7 @@ public class VideoController {
     }
 
     @GetMapping("/api/videos/{id}/progress")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Get last played position for a video")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Progress found"),

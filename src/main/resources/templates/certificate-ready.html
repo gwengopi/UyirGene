@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate Ready</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+        <!-- Header -->
+        <tr>
+            <td style="background: linear-gradient(135deg, #8E44AD 0%, #9B59B6 100%); padding: 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Your Certificate is Ready!</h1>
+            </td>
+        </tr>
+
+        <!-- Content -->
+        <tr>
+            <td style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px;">Hi <strong>{{name}}</strong>,</p>
+
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px;">
+                    Great news! Your certificate for the following course is now ready for download:
+                </p>
+
+                <!-- Certificate Card -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #f5f0ff 0%, #ebe0ff 100%); border: 2px solid #8E44AD; border-radius: 8px; margin: 20px 0;">
+                    <tr>
+                        <td style="padding: 25px; text-align: center;">
+                            <div style="font-size: 48px; margin-bottom: 10px;">🎓</div>
+                            <h2 style="color: #8E44AD; margin: 0 0 10px; font-size: 22px;">{{courseTitle}}</h2>
+                            <p style="color: #666; margin: 0 0 15px; font-size: 14px;">Course Code: {{courseCode}}</p>
+
+                            <table width="100%" cellpadding="10" cellspacing="0" style="margin-top: 15px;">
+                                <tr>
+                                    <td style="text-align: center; border-right: 1px solid #ddd;">
+                                        <span style="color: #999; font-size: 12px;">Certificate ID</span><br>
+                                        <strong style="color: #8E44AD; font-size: 14px;">{{certificateId}}</strong>
+                                    </td>
+                                    <td style="text-align: center; border-right: 1px solid #ddd;">
+                                        <span style="color: #999; font-size: 12px;">Type</span><br>
+                                        <strong style="color: #333; font-size: 14px;">{{certificateType}}</strong>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <span style="color: #999; font-size: 12px;">Issue Date</span><br>
+                                        <strong style="color: #333; font-size: 14px;">{{issuedDate}}</strong>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- CTA Buttons -->
+                <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td style="text-align: center; padding: 20px 0;">
+                            <a href="{{downloadUrl}}" style="display: inline-block; background-color: #8E44AD; color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 5px; font-size: 16px; font-weight: bold; margin-right: 10px;">Download Certificate</a>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Verification Info -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-radius: 8px; margin: 20px 0;">
+                    <tr>
+                        <td style="padding: 20px; text-align: center;">
+                            <p style="color: #666; margin: 0 0 10px; font-size: 14px;">
+                                <strong>Certificate Verification</strong>
+                            </p>
+                            <p style="color: #888; margin: 0; font-size: 13px;">
+                                Anyone can verify your certificate using the QR code on the certificate or by visiting:
+                            </p>
+                            <p style="margin: 10px 0 0;">
+                                <a href="{{verifyUrl}}" style="color: #8E44AD; font-size: 13px;">{{verifyUrl}}</a>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+
+                <p style="font-size: 14px; color: #666; margin: 20px 0 0;">
+                    Congratulations on your achievement!<br>
+                    <strong>The {{appName}} Team</strong>
+                </p>
+            </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+            <td style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #eee;">
+                <p style="font-size: 12px; color: #999; margin: 0;">
+                    &copy; 2024 {{appName}}. All rights reserved.<br>
+                    Professional Training Institute | ISO 9001 Certified
+                </p>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

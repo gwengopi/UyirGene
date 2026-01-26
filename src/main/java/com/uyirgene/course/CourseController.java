@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -26,6 +27,9 @@ public class CourseController {
 
     private final CourseRepository repo;
     private final VideoRepository videoRepo;
+    private final EnrollmentRepository enrollmentRepo;
+    private final CertificateRepository certificateRepo;
+    private final VideoProgressRepository videoProgressRepo;
 
     @GetMapping
     @Operation(summary = "List all courses with optional sorting")
@@ -76,12 +80,15 @@ public class CourseController {
             @ApiResponse(responseCode = "400", description = "Invalid request")
     })
     public ResponseEntity<CourseDto> create(
+            @RequestParam(value = "courseCode", required = false) String courseCode,
             @RequestParam("title") String title,
+            @RequestParam(value = "shortDescription", required = false) String shortDescription,
             @RequestParam("description") String description,
             @RequestParam(value = "category", required = false) String category,
             @RequestParam(value = "durationHours", required = false) Integer durationHours,
             @RequestParam(value = "price", required = false) Double price,
             @RequestParam(value = "published", defaultValue = "false") Boolean published,
+            @RequestParam(value = "trainerName", required = false) String trainerName,
             @RequestParam(value = "image", required = false) MultipartFile image,
             @RequestParam(value = "thumbnailImage", required = false) MultipartFile thumbnailImage,
             @RequestParam(value = "descriptionImage", required = false) MultipartFile descriptionImage,
@@ -89,12 +96,15 @@ public class CourseController {
             @RequestParam(value = "testDescription", required = false) String testDescription
     ) throws IOException {
         Course course = Course.builder()
+                .courseCode(courseCode)
                 .title(title)
+                .shortDescription(shortDescription)
                 .description(description)
                 .category(category)
                 .durationHours(durationHours)
                 .price(price)
                 .published(published)
+                .trainerName(trainerName)
                 .testLink(testLink)
                 .testDescription(testDescription)
                 .build();
@@ -153,12 +163,15 @@ public class CourseController {
     })
     public ResponseEntity<CourseDto> update(
             @PathVariable("id") Long id,
+            @RequestParam(value = "courseCode", required = false) String courseCode,
             @RequestParam("title") String title,
+            @RequestParam(value = "shortDescription", required = false) String shortDescription,
             @RequestParam("description") String description,
             @RequestParam(value = "category", required = false) String category,
             @RequestParam(value = "durationHours", required = false) Integer durationHours,
             @RequestParam(value = "price", required = false) Double price,
             @RequestParam(value = "published", defaultValue = "false") Boolean published,
+            @RequestParam(value = "trainerName", required = false) String trainerName,
             @RequestParam(value = "image", required = false) MultipartFile image,
             @RequestParam(value = "thumbnailImage", required = false) MultipartFile thumbnailImage,
             @RequestParam(value = "descriptionImage", required = false) MultipartFile descriptionImage,
@@ -169,9 +182,12 @@ public class CourseController {
             @RequestParam(value = "removeDescriptionImage", defaultValue = "false") Boolean removeDescriptionImage
     ) throws IOException {
         return repo.findById(id).map(existing -> {
+            existing.setCourseCode(courseCode);
             existing.setTitle(title);
+            existing.setShortDescription(shortDescription);
             existing.setDescription(description);
             existing.setCategory(category);
+            existing.setTrainerName(trainerName);
             existing.setDurationHours(durationHours);
             existing.setPrice(price);
             existing.setPublished(published);
@@ -331,11 +347,34 @@ public class CourseController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Delete a course")
-    @ApiResponse(responseCode = "204", description = "Course deleted")
+    @Operation(summary = "Delete a course and all associated data")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Course deleted"),
+            @ApiResponse(responseCode = "404", description = "Course not found")
+    })
+    @Transactional
     public ResponseEntity<?> delete(@PathVariable("id") Long id) {
-        repo.deleteById(id);
-        return ResponseEntity.noContent().build();
+        return repo.findById(id).map(course -> {
+            // 1. Delete video progress for all videos in this course
+            List<Video> videos = videoRepo.findByCourseOrderByOrderIndex(course);
+            for (Video video : videos) {
+                videoProgressRepo.deleteByVideo(video);
+            }
+
+            // 2. Delete all videos for this course
+            videoRepo.deleteByCourse(course);
+
+            // 3. Delete all certificates for this course
+            certificateRepo.deleteByCourse(course);
+
+            // 4. Delete all enrollments for this course
+            enrollmentRepo.deleteByCourse(course);
+
+            // 5. Finally delete the course
+            repo.delete(course);
+
+            return ResponseEntity.noContent().build();
+        }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PostMapping("/{id}/videos")

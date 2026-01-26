@@ -38,9 +38,14 @@ import ImageIcon from '@mui/icons-material/Image';
 import DescriptionIcon from '@mui/icons-material/Description';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import ClearIcon from '@mui/icons-material/Clear';
+import SettingsIcon from '@mui/icons-material/Settings';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import Accordion from '@mui/material/Accordion';
+import AccordionSummary from '@mui/material/AccordionSummary';
+import AccordionDetails from '@mui/material/AccordionDetails';
 import { LoadingSpinner } from '../common';
 import { useToast } from '../../store';
-import certificateTemplateService, { CERTIFICATE_TYPES } from '../../services/certificateTemplateService';
+import certificateTemplateService, { CERTIFICATE_TYPES, DEFAULT_TEMPLATE_CONFIG } from '../../services/certificateTemplateService';
 import { courseService } from '../../services';
 import { getApiBaseUrl } from '../../services/api';
 
@@ -61,6 +66,7 @@ function CertificateTemplateManager() {
     courseId: '',
     headerText: '',
     bodyTemplate: '',
+    templateConfig: null,
     isDefault: false,
     active: true,
     backgroundImage: null,
@@ -68,6 +74,9 @@ function CertificateTemplateManager() {
     removeBackgroundImage: false,
     removeTemplateFile: false,
   });
+
+  // Template config state (parsed from JSON)
+  const [templateConfig, setTemplateConfig] = useState(DEFAULT_TEMPLATE_CONFIG);
 
   // Preview state
   const [backgroundPreview, setBackgroundPreview] = useState(null);
@@ -105,6 +114,7 @@ function CertificateTemplateManager() {
       courseId: '',
       headerText: '',
       bodyTemplate: '',
+      templateConfig: null,
       isDefault: false,
       active: true,
       backgroundImage: null,
@@ -112,6 +122,7 @@ function CertificateTemplateManager() {
       removeBackgroundImage: false,
       removeTemplateFile: false,
     });
+    setTemplateConfig(DEFAULT_TEMPLATE_CONFIG);
     setBackgroundPreview(null);
     setSelectedTemplate(null);
   };
@@ -125,6 +136,7 @@ function CertificateTemplateManager() {
         courseId: template.courseId || '',
         headerText: template.headerText || '',
         bodyTemplate: template.bodyTemplate || '',
+        templateConfig: template.templateConfig || null,
         isDefault: template.isDefault || false,
         active: template.active !== false,
         backgroundImage: null,
@@ -132,6 +144,16 @@ function CertificateTemplateManager() {
         removeBackgroundImage: false,
         removeTemplateFile: false,
       });
+      // Parse template config if available
+      if (template.templateConfig) {
+        try {
+          setTemplateConfig(JSON.parse(template.templateConfig));
+        } catch {
+          setTemplateConfig(DEFAULT_TEMPLATE_CONFIG);
+        }
+      } else {
+        setTemplateConfig(DEFAULT_TEMPLATE_CONFIG);
+      }
       // Set preview if template has background image
       if (template.hasBackgroundImage) {
         setBackgroundPreview(`${getApiBaseUrl()}${template.backgroundImageUrl}`);
@@ -188,6 +210,125 @@ function CertificateTemplateManager() {
     }
   };
 
+  // Update a specific field in template config
+  const updateTemplateConfig = (elementKey, field, value) => {
+    setTemplateConfig((prev) => ({
+      ...prev,
+      [elementKey]: {
+        ...prev[elementKey],
+        [field]: value,
+      },
+    }));
+  };
+
+  // Render a text element configuration section
+  const renderTextElementConfig = (label, elementKey, config) => (
+    <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+        <Typography variant="subtitle2">{label}</Typography>
+        <FormControlLabel
+          control={
+            <Switch
+              size="small"
+              checked={config?.visible ?? true}
+              onChange={(e) => updateTemplateConfig(elementKey, 'visible', e.target.checked)}
+            />
+          }
+          label="Visible"
+        />
+      </Box>
+      {config?.visible !== false && (
+        <Grid container spacing={1}>
+          <Grid item xs={4}>
+            <TextField
+              size="small"
+              type="number"
+              label="Y Position"
+              value={config?.y ?? 0}
+              onChange={(e) => updateTemplateConfig(elementKey, 'y', parseFloat(e.target.value))}
+              fullWidth
+              helperText="From bottom"
+            />
+          </Grid>
+          <Grid item xs={4}>
+            <TextField
+              size="small"
+              type="number"
+              label="Font Size"
+              value={config?.fontSize ?? 12}
+              onChange={(e) => updateTemplateConfig(elementKey, 'fontSize', parseInt(e.target.value, 10))}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={4}>
+            <TextField
+              size="small"
+              type="color"
+              label="Color"
+              value={config?.fontColor ?? '#000000'}
+              onChange={(e) => updateTemplateConfig(elementKey, 'fontColor', e.target.value)}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+        </Grid>
+      )}
+    </Box>
+  );
+
+  // Render QR code configuration
+  const renderQRCodeConfig = (config) => (
+    <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+        <Typography variant="subtitle2">QR Code</Typography>
+        <FormControlLabel
+          control={
+            <Switch
+              size="small"
+              checked={config?.visible ?? true}
+              onChange={(e) => updateTemplateConfig('qrCode', 'visible', e.target.checked)}
+            />
+          }
+          label="Visible"
+        />
+      </Box>
+      {config?.visible !== false && (
+        <Grid container spacing={1}>
+          <Grid item xs={4}>
+            <TextField
+              size="small"
+              type="number"
+              label="X Position"
+              value={config?.x ?? 262.5}
+              onChange={(e) => updateTemplateConfig('qrCode', 'x', parseFloat(e.target.value))}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={4}>
+            <TextField
+              size="small"
+              type="number"
+              label="Y Position"
+              value={config?.y ?? 150}
+              onChange={(e) => updateTemplateConfig('qrCode', 'y', parseFloat(e.target.value))}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={4}>
+            <TextField
+              size="small"
+              type="number"
+              label="Size"
+              value={config?.size ?? 70}
+              onChange={(e) => updateTemplateConfig('qrCode', 'size', parseInt(e.target.value, 10))}
+              fullWidth
+            />
+          </Grid>
+        </Grid>
+      )}
+    </Box>
+  );
+
   const handleSubmit = async () => {
     if (!formData.name || !formData.type) {
       showError('Name and type are required');
@@ -196,7 +337,12 @@ function CertificateTemplateManager() {
 
     setSaving(true);
     try {
-      const submitData = certificateTemplateService.createTemplateFormData(formData);
+      // Include templateConfig as JSON string
+      const dataToSubmit = {
+        ...formData,
+        templateConfig: JSON.stringify(templateConfig),
+      };
+      const submitData = certificateTemplateService.createTemplateFormData(dataToSubmit);
 
       if (selectedTemplate) {
         await certificateTemplateService.updateTemplate(selectedTemplate.id, submitData);
@@ -584,6 +730,47 @@ function CertificateTemplateManager() {
                   />
                 </Button>
               </Card>
+            </Grid>
+
+            {/* Template Configuration Section */}
+            <Grid item xs={12}>
+              <Accordion>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <SettingsIcon color="primary" />
+                    <Typography variant="subtitle1">Text Position Configuration</Typography>
+                  </Box>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    Configure where text elements appear on the PDF template.
+                    Coordinates are in PDF points (A4: 595 x 842 points).
+                    Y position is from the bottom of the page.
+                  </Alert>
+
+                  {renderTextElementConfig('Certify Text ("This is to certify that")', 'certifyText', templateConfig.certifyText)}
+                  {renderTextElementConfig('Student Name', 'studentName', templateConfig.studentName)}
+                  {renderTextElementConfig('Completed Text', 'completedText', templateConfig.completedText)}
+                  {renderTextElementConfig('Course Title', 'courseTitle', templateConfig.courseTitle)}
+                  {renderTextElementConfig('Course Code', 'courseCode', templateConfig.courseCode)}
+                  {renderTextElementConfig('Trainer Name', 'trainerName', templateConfig.trainerName)}
+                  {renderTextElementConfig('Short Description', 'shortDescription', templateConfig.shortDescription)}
+                  {renderTextElementConfig('Score/Marks', 'marks', templateConfig.marks)}
+                  {renderTextElementConfig('Issue Date', 'issueDate', templateConfig.issueDate)}
+                  {renderTextElementConfig('Certificate ID', 'certificateId', templateConfig.certificateId)}
+                  {renderQRCodeConfig(templateConfig.qrCode)}
+                  {renderTextElementConfig('Scan to Verify Text', 'scanText', templateConfig.scanText)}
+
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => setTemplateConfig(DEFAULT_TEMPLATE_CONFIG)}
+                    sx={{ mt: 1 }}
+                  >
+                    Reset to Defaults
+                  </Button>
+                </AccordionDetails>
+              </Accordion>
             </Grid>
           </Grid>
         </DialogContent>

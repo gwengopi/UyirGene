@@ -10,7 +10,16 @@ import org.hibernate.type.SqlTypes;
 public class Course {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    // Custom course identifier (e.g., "COURSE-001", "BIO-101")
+    @Column(unique = true)
+    private String courseCode;
+
     private String title;
+
+    // Short description for certificate and previews
+    @Column(length = 500)
+    private String shortDescription;
 
     @Column(columnDefinition = "TEXT")
     private String description;
@@ -19,6 +28,9 @@ public class Course {
     private Integer durationHours;
     private Double price;
     private Boolean published;
+
+    // Course trainer/instructor name
+    private String trainerName;
 
     // Thumbnail image - displayed in courses list
     @JdbcTypeCode(SqlTypes.BINARY)

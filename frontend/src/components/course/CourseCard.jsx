@@ -54,7 +54,7 @@ const CourseCard = memo(function CourseCard({
 
   const handleEnrollClick = (e) => {
     e.stopPropagation();
-    onEnroll?.(course.id);
+    navigate(ROUTES.COURSE_DETAIL(course.id));
   };
 
   const isFree = !course.price || course.price === 0;
@@ -183,26 +183,15 @@ const CourseCard = memo(function CourseCard({
         <Typography variant="h6" color="primary" fontWeight={600}>
           {formatCurrency(course.price)}
         </Typography>
-        {isEnrolled ? (
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={<PlayCircleOutlineIcon />}
-            onClick={handleCardClick}
-          >
-            {isCompleted ? 'Review' : 'Continue'}
-          </Button>
-        ) : (
-          <Button
-            variant="contained"
-            size="small"
-            onClick={handleEnrollClick}
-            disabled={enrolling}
-            aria-busy={enrolling}
-          >
-            {enrolling ? 'Enrolling...' : isFree ? 'Enroll Free' : 'Enroll Now'}
-          </Button>
-        )}
+        <Button
+          variant="contained"
+          size="small"
+          onClick={handleEnrollClick}
+          disabled={enrolling || isEnrolled}
+          aria-busy={enrolling}
+        >
+          {isEnrolled ? 'Already Enrolled' : (enrolling ? 'Enrolling...' : isFree ? 'Enroll Free' : 'Enroll Now')}
+        </Button>
       </CardActions>
     </Card>
   );

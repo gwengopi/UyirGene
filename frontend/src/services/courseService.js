@@ -70,6 +70,9 @@ export async function createCourse(courseData, imageOptions = {}) {
 
   const formData = new FormData();
   formData.append('title', courseOnly.title);
+  if (courseOnly.courseCode) formData.append('courseCode', courseOnly.courseCode);
+  if (courseOnly.trainerName) formData.append('trainerName', courseOnly.trainerName);
+  if (courseOnly.shortDescription) formData.append('shortDescription', courseOnly.shortDescription);
   formData.append('description', courseOnly.description);
   if (courseOnly.category) formData.append('category', courseOnly.category);
   if (courseOnly.durationHours) formData.append('durationHours', courseOnly.durationHours);
@@ -126,6 +129,9 @@ export async function updateCourse(id, courseData, imageOptions = {}) {
 
   const formData = new FormData();
   formData.append('title', courseOnly.title);
+  if (courseOnly.courseCode !== undefined) formData.append('courseCode', courseOnly.courseCode || '');
+  if (courseOnly.trainerName !== undefined) formData.append('trainerName', courseOnly.trainerName || '');
+  if (courseOnly.shortDescription !== undefined) formData.append('shortDescription', courseOnly.shortDescription || '');
   formData.append('description', courseOnly.description);
   if (courseOnly.category) formData.append('category', courseOnly.category);
   if (courseOnly.durationHours) formData.append('durationHours', courseOnly.durationHours);

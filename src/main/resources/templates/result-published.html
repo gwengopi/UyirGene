@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enrollment Successful</title>
+    <title>Results Published</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
         <!-- Header -->
         <tr>
-            <td style="background: linear-gradient(135deg, #2980B9 0%, #3498DB 100%); padding: 30px; text-align: center;">
-                <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Welcome to {{appName}}!</h1>
+            <td style="background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%); padding: 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Results Published!</h1>
+                <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 16px;">Your results are now available</p>
             </td>
         </tr>
 
@@ -20,24 +21,24 @@
                 <p style="font-size: 16px; color: #333; margin: 0 0 20px;">Hi <strong>{{name}}</strong>,</p>
 
                 <p style="font-size: 16px; color: #333; margin: 0 0 20px;">
-                    Congratulations! You have successfully enrolled in:
+                    The results for your course have been published. Here are your details:
                 </p>
 
-                <!-- Course Card -->
-                <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-radius: 8px; margin: 20px 0;">
+                <!-- Results Card -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fff5f5; border: 2px solid #E74C3C; border-radius: 8px; margin: 20px 0;">
                     <tr>
                         <td style="padding: 25px;">
-                            <h2 style="color: #2980B9; margin: 0 0 10px; font-size: 22px;">{{courseTitle}}</h2>
-                            <p style="color: #666; margin: 0 0 15px; font-size: 14px;">{{courseDescription}}</p>
-                            <table cellpadding="0" cellspacing="0">
+                            <h2 style="color: #E74C3C; margin: 0 0 10px; font-size: 22px;">{{courseTitle}}</h2>
+                            <p style="color: #666; margin: 0 0 20px; font-size: 14px;">Course Code: {{courseCode}}</p>
+
+                            <table width="100%" cellpadding="0" cellspacing="0">
                                 <tr>
-                                    <td style="padding-right: 20px;">
-                                        <span style="color: #999; font-size: 12px;">Course Code</span><br>
-                                        <strong style="color: #333;">{{courseCode}}</strong>
-                                    </td>
-                                    <td>
-                                        <span style="color: #999; font-size: 12px;">Instructor</span><br>
-                                        <strong style="color: #333;">{{trainerName}}</strong>
+                                    <td style="text-align: center; padding: 15px; background-color: #ffffff; border-radius: 8px;">
+                                        <p style="color: #666; margin: 0 0 5px; font-size: 14px;">Your Score</p>
+                                        <p style="color: #E74C3C; margin: 0; font-size: 42px; font-weight: bold;">{{marks}}</p>
+                                        <p style="color: #27AE60; margin: 10px 0 0; font-size: 14px; font-weight: bold;">
+                                            Certificate: {{certificateType}}
+                                        </p>
                                     </td>
                                 </tr>
                             </table>
@@ -46,20 +47,20 @@
                 </table>
 
                 <p style="font-size: 16px; color: #333; margin: 20px 0;">
-                    You can start learning right away! Click the button below to access your course.
+                    You can now download your certificate from your dashboard. Click the button below to view your results and download your certificate.
                 </p>
 
                 <!-- CTA Button -->
                 <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                         <td style="text-align: center; padding: 20px 0;">
-                            <a href="{{courseUrl}}" style="display: inline-block; background-color: #2980B9; color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 5px; font-size: 16px; font-weight: bold;">Start Learning</a>
+                            <a href="{{dashboardUrl}}" style="display: inline-block; background-color: #E74C3C; color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 5px; font-size: 16px; font-weight: bold;">View Results & Download Certificate</a>
                         </td>
                     </tr>
                 </table>
 
                 <p style="font-size: 14px; color: #666; margin: 20px 0 0;">
-                    Happy learning!<br>
+                    Thank you for learning with us!<br>
                     <strong>The {{appName}} Team</strong>
                 </p>
             </td>

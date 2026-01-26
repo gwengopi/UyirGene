@@ -2,7 +2,20 @@ import api from './api';
 
 const VIDEO_ENDPOINTS = {
   PROGRESS: (videoId) => `/api/videos/${videoId}/progress`,
+  DECRYPT: '/api/videos/decrypt',
 };
+
+/**
+ * Decrypt an encrypted video URL
+ * @param {string} encryptedUrl - Encrypted video URL
+ * @returns {Promise<string>} Decrypted video URL
+ */
+export async function decryptUrl(encryptedUrl) {
+  const response = await api.post(VIDEO_ENDPOINTS.DECRYPT, {
+    encryptedUrl,
+  });
+  return response.data.url;
+}
 
 /**
  * Update video progress
@@ -87,6 +100,7 @@ export function formatDuration(seconds) {
 }
 
 export default {
+  decryptUrl,
   updateProgress,
   getProgress,
   getMultipleProgress,

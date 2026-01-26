@@ -15,11 +15,18 @@ spring:
         format_sql: true
         ddl-auto: update
   mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:your-email@gmail.com}
+    password: ${MAIL_PASSWORD:your-app-password}
     properties:
       mail:
         smtp:
           auth: true
           starttls.enable: true
+          starttls.required: true
+          socketFactory.fallback: false
+          ssl.protocols: TLSv1.2
   flyway:
     enabled: true
     baseline-on-migrate: true

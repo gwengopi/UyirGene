@@ -48,7 +48,8 @@ function AdminCourses() {
     }
   };
 
-  const handleDelete = async (courseId) => {
+  const handleDelete = async (course) => {
+    const courseId = course?.id || course;
     if (!window.confirm('Are you sure you want to delete this course?')) {
       return;
     }
@@ -60,6 +61,24 @@ function AdminCourses() {
     } catch (error) {
       showError('Failed to delete course');
     }
+  };
+
+  const handleTogglePublish = async (course) => {
+    try {
+      await courseService.updateCourse(course.id, {
+        ...course,
+        published: !course.published,
+      });
+      showSuccess(course.published ? 'Course unpublished' : 'Course published');
+      loadCourses();
+    } catch (error) {
+      showError('Failed to update course');
+    }
+  };
+
+  const handleManageVideos = (course) => {
+    // Open edit form with videos tab or navigate to videos management
+    handleEdit(course);
   };
 
   const handleSave = async (courseData, imageOptions = {}) => {
@@ -118,8 +137,11 @@ function AdminCourses() {
 
         <CourseManager
           courses={courses}
+          onAdd={handleCreate}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onTogglePublish={handleTogglePublish}
+          onManageVideos={handleManageVideos}
         />
 
         <Modal

@@ -154,6 +154,7 @@ export function createTemplateFormData(data) {
   if (data.courseId) formData.append('courseId', data.courseId);
   if (data.headerText) formData.append('headerText', data.headerText);
   if (data.bodyTemplate) formData.append('bodyTemplate', data.bodyTemplate);
+  if (data.templateConfig) formData.append('templateConfig', data.templateConfig);
   if (data.isDefault !== undefined) formData.append('isDefault', data.isDefault);
   if (data.active !== undefined) formData.append('active', data.active);
   if (data.templateFile) formData.append('templateFile', data.templateFile);
@@ -163,6 +164,110 @@ export function createTemplateFormData(data) {
 
   return formData;
 }
+
+/**
+ * Default template configuration for PDF certificates
+ * Coordinates are in PDF points (1 point = 1/72 inch)
+ * Origin (0,0) is at bottom-left of the page
+ * A4 page size: 595 x 842 points
+ */
+export const DEFAULT_TEMPLATE_CONFIG = {
+  studentName: {
+    x: 297.5,
+    y: 500,
+    fontSize: 24,
+    fontColor: '#2980B9',
+    centered: true,
+    visible: true,
+  },
+  courseTitle: {
+    x: 297.5,
+    y: 420,
+    fontSize: 20,
+    fontColor: '#2C3E50',
+    centered: true,
+    visible: true,
+  },
+  courseCode: {
+    x: 297.5,
+    y: 395,
+    fontSize: 10,
+    fontColor: '#969696',
+    centered: true,
+    visible: true,
+  },
+  trainerName: {
+    x: 297.5,
+    y: 280,
+    fontSize: 12,
+    fontColor: '#636363',
+    centered: true,
+    visible: true,
+  },
+  shortDescription: {
+    x: 297.5,
+    y: 260,
+    fontSize: 10,
+    fontColor: '#636363',
+    centered: true,
+    visible: false, // Disabled by default as it may be long
+  },
+  issueDate: {
+    x: 297.5,
+    y: 350,
+    fontSize: 12,
+    fontColor: '#636363',
+    centered: true,
+    visible: true,
+  },
+  certificateId: {
+    x: 297.5,
+    y: 320,
+    fontSize: 10,
+    fontColor: '#969696',
+    centered: true,
+    visible: true,
+  },
+  marks: {
+    x: 297.5,
+    y: 380,
+    fontSize: 12,
+    fontColor: '#636363',
+    centered: true,
+    visible: true,
+  },
+  qrCode: {
+    x: 262.5,
+    y: 150,
+    size: 70,
+    visible: true,
+  },
+  scanText: {
+    x: 297.5,
+    y: 135,
+    fontSize: 8,
+    fontColor: '#969696',
+    centered: true,
+    visible: true,
+  },
+  certifyText: {
+    x: 297.5,
+    y: 540,
+    fontSize: 14,
+    fontColor: '#636363',
+    centered: true,
+    visible: true,
+    text: 'This is to certify that',
+  },
+  completedText: {
+    x: 297.5,
+    y: 460,
+    fontSize: 14,
+    fontColor: '#636363',
+    centered: true,
+    visible: true,
+  },
+};
 
 export default {
   getAllTemplates,
@@ -179,4 +284,5 @@ export default {
   downloadTemplateFile,
   createTemplateFormData,
   CERTIFICATE_TYPES,
+  DEFAULT_TEMPLATE_CONFIG,
 };

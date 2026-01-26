@@ -18,6 +18,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CategoryIcon from '@mui/icons-material/Category';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 import { Button, Breadcrumb, LoadingSpinner } from '../components/common';
 import { VideoPlayer, VideoList } from '../components/course';
 import { ProgressTracker } from '../components/user';
@@ -36,12 +37,17 @@ function CourseDetail() {
   const [videos, setVideos] = useState([]);
   const [progressMap, setProgressMap] = useState({});
   const [currentVideo, setCurrentVideo] = useState(null);
+  const [currentVideoUrl, setCurrentVideoUrl] = useState(null);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [enrollmentStatus, setEnrollmentStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [unenrollDialogOpen, setUnenrollDialogOpen] = useState(false);
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
+  const [certificateErrorOpen, setCertificateErrorOpen] = useState(false);
+  const [certificateError, setCertificateError] = useState('');
+  const [enrollmentErrorOpen, setEnrollmentErrorOpen] = useState(false);
+  const [enrollmentError, setEnrollmentError] = useState('');
 
   // Load course data
   useEffect(() => {
@@ -99,10 +105,38 @@ function CourseDetail() {
     loadCourse();
   }, [id, isAuthenticated, showError]);
 
+  // Decrypt video URL when current video changes
+  useEffect(() => {
+    const decryptVideoUrl = async () => {
+      if (!currentVideo?.encryptedUrl) {
+        setCurrentVideoUrl(null);
+        return;
+      }
+
+      try {
+        const decryptedUrl = await videoService.decryptUrl(currentVideo.encryptedUrl);
+        setCurrentVideoUrl(decryptedUrl);
+      } catch (error) {
+        console.error('Failed to decrypt video URL:', error);
+        showError('Failed to load video');
+        setCurrentVideoUrl(null);
+      }
+    };
+
+    decryptVideoUrl();
+  }, [currentVideo, showError]);
+
   // Handle enrollment
   const handleEnroll = async () => {
     if (!isAuthenticated()) {
       navigate(ROUTES.REGISTER);
+      return;
+    }
+
+    // Check if already enrolled
+    if (isEnrolled) {
+      setEnrollmentError('You are already enrolled in this course');
+      setEnrollmentErrorOpen(true);
       return;
     }
 
@@ -133,7 +167,8 @@ function CourseDetail() {
       setCurrentVideo(videosData[0]);
     } catch (error) {
       if (error.message !== 'Payment cancelled') {
-        showError(error.message || 'Failed to enroll');
+        setEnrollmentError(error.message || 'Failed to enroll');
+        setEnrollmentErrorOpen(true);
       }
     } finally {
       setEnrolling(false);
@@ -189,12 +224,13 @@ function CourseDetail() {
     } catch (error) {
       // Check if it's a result not published error
       if (error.response?.status === 403) {
-        showError('Results not yet published. Certificate download will be available after results are published.');
+        setCertificateError('Results not yet published. Certificate download will be available after 48 hours of exam completion.');
       } else if (error.response?.status === 404) {
-        showError('Certificate not found. Please wait for admin to generate your certificate.');
+        setCertificateError('Certificate not found. Please wait for admin to generate your certificate.');
       } else {
-        showError(error.message || 'Certificate not available yet');
+        setCertificateError(error.message || 'Certificate not available yet');
       }
+      setCertificateErrorOpen(true);
     }
   };
 
@@ -256,10 +292,10 @@ function CourseDetail() {
       <Grid container spacing={4}>
         {/* Main content */}
         <Grid item xs={12} md={8}>
-          {isEnrolled && currentVideo ? (
+          {isEnrolled && currentVideo && currentVideoUrl ? (
             <>
               <VideoPlayer
-                src={currentVideo.url}
+                src={currentVideoUrl}
                 title={currentVideo.title}
                 initialPosition={progressMap[currentVideo.id]?.lastPositionSeconds || 0}
                 onProgress={handleVideoProgress}
@@ -269,6 +305,10 @@ function CourseDetail() {
                 {currentVideo.title}
               </Typography>
             </>
+          ) : isEnrolled && currentVideo && !currentVideoUrl ? (
+            <Paper sx={{ p: 4, textAlign: 'center' }}>
+              <Typography color="text.secondary">Loading video...</Typography>
+            </Paper>
           ) : (
             <Paper sx={{ p: 4, textAlign: 'center' }}>
               <Typography variant="h6" gutterBottom>
@@ -311,11 +351,15 @@ function CourseDetail() {
               <Typography variant="h5" color="primary" fontWeight={600}>
                 {formatCurrency(course.price)}
               </Typography>
-              {!isEnrolled && (
-                <Button variant="contained" fullWidth onClick={handleEnroll} loading={enrolling}>
-                  {course.price ? 'Enroll Now' : 'Enroll Free'}
-                </Button>
-              )}
+              <Button 
+                variant="contained" 
+                fullWidth 
+                onClick={handleEnroll} 
+                loading={enrolling}
+                disabled={isEnrolled}
+              >
+                {isEnrolled ? 'Already Enrolled' : (course.price ? 'Enroll Now' : 'Enroll Free')}
+              </Button>
             </Box>
           </Paper>
 
@@ -343,6 +387,7 @@ function CourseDetail() {
                   >
                     Download Certificate
                   </Button>
+
                 )}
 
                 {/* Course Actions */}
@@ -369,6 +414,33 @@ function CourseDetail() {
                   </Button>
                 </Box>
               </Paper>
+
+              {/* Test/Assessment Link */}
+              {course.testLink && (
+                <Paper sx={{ p: 3, mb: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AssignmentIcon color="primary" />
+                      Course Assessment
+                    </Box>
+                  </Typography>
+                  {course.testDescription && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      {course.testDescription}
+                    </Typography>
+                  )}
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    href={course.testLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    startIcon={<AssignmentIcon />}
+                  >
+                    Take Assessment
+                  </Button>
+                </Paper>
+              )}
 
               {/* Video list */}
               <Paper>
@@ -424,6 +496,44 @@ function CourseDetail() {
           <Button onClick={() => setCompleteDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleMarkComplete} color="success" variant="contained">
             Mark Complete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Certificate Error Dialog */}
+      <Dialog
+        open={certificateErrorOpen}
+        onClose={() => setCertificateErrorOpen(false)}
+        aria-labelledby="certificate-error-title"
+      >
+        <DialogTitle id="certificate-error-title">Certificate Download</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {certificateError}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCertificateErrorOpen(false)} variant="contained">
+            OK
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Enrollment Error Dialog */}
+      <Dialog
+        open={enrollmentErrorOpen}
+        onClose={() => setEnrollmentErrorOpen(false)}
+        aria-labelledby="enrollment-error-title"
+      >
+        <DialogTitle id="enrollment-error-title">Enrollment Error</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {enrollmentError}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEnrollmentErrorOpen(false)} variant="contained">
+            OK
           </Button>
         </DialogActions>
       </Dialog>

@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface CertificateRepository extends JpaRepository<Certificate, Long> {
     Optional<Certificate> findByUserAndCourse(User user, Course course);
     Optional<Certificate> findByCertificateId(String certificateId);
+    void deleteByCourse(Course course);
 }
