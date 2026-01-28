@@ -1,14 +1,27 @@
-import React, { useState } from 'react';
-import { Container, Typography, Box, Grid, Paper, TextField, Alert } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Container, Typography, Box, Grid, Paper, TextField, Alert, Divider } from '@mui/material';
 import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import LanguageIcon from '@mui/icons-material/Language';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+import SendIcon from '@mui/icons-material/Send';
 import { Breadcrumb, Button } from '../components/common';
 import { useToast } from '../store';
+import { configService } from '../services';
+
+// Default contact info (fallback if config not loaded)
+const DEFAULT_CONTACT = {
+  phone: '+91 99437 12383',
+  whatsapp: '919943712383',
+  email: 'info@uyirgene.com',
+  emailAlt: 'uyirgene@gmail.com',
+  website: 'www.uyirgene.com',
+  address: 'Uyir-Tech International Testing Laboratory, Research and Training Institute, Bharathi Nagar, NGO Colony, Sattur, Tamil Nadu, India',
+};
 
 function Contact() {
-  const { showSuccess } = useToast();
+  const { showSuccess, showError } = useToast();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -17,6 +30,37 @@ function Contact() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [contactConfig, setContactConfig] = useState(DEFAULT_CONTACT);
+  const [loading, setLoading] = useState(true);
+
+  // Load contact configuration
+  useEffect(() => {
+    const loadContactConfig = async () => {
+      try {
+        const configs = await configService.getByCategory('CONTACT');
+        const configMap = {};
+        configs.forEach((config) => {
+          configMap[config.key] = config.value;
+        });
+
+        setContactConfig({
+          phone: configMap.CONTACT_PHONE || DEFAULT_CONTACT.phone,
+          whatsapp: configMap.CONTACT_WHATSAPP || DEFAULT_CONTACT.whatsapp,
+          email: configMap.CONTACT_EMAIL || DEFAULT_CONTACT.email,
+          emailAlt: configMap.CONTACT_EMAIL_ALT || DEFAULT_CONTACT.emailAlt,
+          website: configMap.CONTACT_WEBSITE || DEFAULT_CONTACT.website,
+          address: configMap.CONTACT_ADDRESS || DEFAULT_CONTACT.address,
+        });
+      } catch (error) {
+        console.error('Failed to load contact config:', error);
+        // Keep default values
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadContactConfig();
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -35,29 +79,44 @@ function Contact() {
     setFormData({ name: '', email: '', subject: '', message: '' });
   };
 
+  const handleWhatsAppClick = () => {
+    const message = encodeURIComponent('Hello! I would like to inquire about your courses.');
+    window.open(`https://wa.me/${contactConfig.whatsapp}?text=${message}`, '_blank');
+  };
+
+  const handleEmailClick = () => {
+    window.location.href = `mailto:${contactConfig.email}?subject=Inquiry from Website`;
+  };
+
   const contactInfo = [
+    {
+      icon: PhoneIcon,
+      title: 'Phone',
+      content: contactConfig.phone,
+      link: `tel:${contactConfig.phone.replace(/\s/g, '')}`,
+    },
     {
       icon: EmailIcon,
       title: 'Email',
-      content: 'admin@uyirgene.com',
-      link: 'mailto:admin@uyirgene.com',
+      content: contactConfig.email,
+      link: `mailto:${contactConfig.email}`,
     },
     {
       icon: EmailIcon,
       title: 'Alternate Email',
-      content: 'uyirgene@gmail.com',
-      link: 'mailto:uyirgene@gmail.com',
+      content: contactConfig.emailAlt,
+      link: `mailto:${contactConfig.emailAlt}`,
     },
     {
       icon: LanguageIcon,
       title: 'Website',
-      content: 'www.uyirgene.com',
-      link: 'https://www.uyirgene.com',
+      content: contactConfig.website,
+      link: `https://${contactConfig.website}`,
     },
     {
       icon: LocationOnIcon,
       title: 'Address',
-      content: 'Uyir-Tech International Testing Laboratory, Research and Training Institute, Bharathi Nagar, NGO Colony, Sattur, Tamil Nadu, India',
+      content: contactConfig.address,
       link: null,
     },
   ];
@@ -74,6 +133,40 @@ function Contact() {
           We'd love to hear from you. Get in touch with us.
         </Typography>
       </Box>
+
+      {/* Quick Contact Buttons */}
+      <Paper sx={{ p: 3, mb: 4, textAlign: 'center' }}>
+        <Typography variant="h6" gutterBottom fontWeight={600}>
+          Get in Touch Instantly
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Choose your preferred way to connect with us
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<WhatsAppIcon />}
+            onClick={handleWhatsAppClick}
+            sx={{
+              backgroundColor: '#25D366',
+              '&:hover': { backgroundColor: '#128C7E' },
+              px: 4,
+            }}
+          >
+            Chat on WhatsApp
+          </Button>
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<EmailIcon />}
+            onClick={handleEmailClick}
+            sx={{ px: 4 }}
+          >
+            Send us an Email
+          </Button>
+        </Box>
+      </Paper>
 
       <Grid container spacing={4}>
         {/* Contact Form */}
@@ -141,6 +234,7 @@ function Contact() {
                     size="large"
                     loading={submitting}
                     fullWidth
+                    endIcon={<SendIcon />}
                   >
                     Send Message
                   </Button>
@@ -195,7 +289,9 @@ function Contact() {
               </Box>
             ))}
 
-            <Box sx={{ mt: 4, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
+            <Divider sx={{ my: 3 }} />
+
+            <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
               <Typography variant="subtitle2" fontWeight={600} gutterBottom>
                 Uyirgene International
               </Typography>

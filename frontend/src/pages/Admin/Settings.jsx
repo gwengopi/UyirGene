@@ -3,7 +3,9 @@ import { Box, Tabs, Tab, Typography, Container } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ImageIcon from '@mui/icons-material/Image';
 import ListIcon from '@mui/icons-material/List';
-import { AdminLayout, SiteConfigManager, MasterDataManager } from '../../components/admin';
+import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
+import WebAssetIcon from '@mui/icons-material/WebAsset';
+import { AdminLayout, SiteConfigManager, MasterDataManager, FaqManager, FooterConfigManager } from '../../components/admin';
 
 function TabPanel({ children, value, index, ...props }) {
   return (
@@ -61,6 +63,20 @@ function Settings() {
               id="settings-tab-1"
               aria-controls="settings-tabpanel-1"
             />
+            <Tab
+              icon={<QuestionAnswerIcon />}
+              iconPosition="start"
+              label="FAQ Management"
+              id="settings-tab-2"
+              aria-controls="settings-tabpanel-2"
+            />
+            <Tab
+              icon={<WebAssetIcon />}
+              iconPosition="start"
+              label="Footer Configuration"
+              id="settings-tab-3"
+              aria-controls="settings-tabpanel-3"
+            />
           </Tabs>
         </Box>
 
@@ -70,6 +86,14 @@ function Settings() {
 
         <TabPanel value={activeTab} index={1}>
           <MasterDataManager />
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={2}>
+          <FaqManager />
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={3}>
+          <FooterConfigManager />
         </TabPanel>
       </Container>
     </AdminLayout>

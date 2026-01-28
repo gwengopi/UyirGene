@@ -10,3 +10,4 @@ export { default as blogService } from './blogService';
 export { default as adminService } from './adminService';
 export { default as configService } from './configService';
 export { default as masterDataService, DATA_TYPES } from './masterDataService';
+export { default as faqService } from './faqService';

@@ -12,3 +12,5 @@ export { default as SiteConfigManager } from './SiteConfigManager';
 export { default as MasterDataManager } from './MasterDataManager';
 export { default as UserEnrollmentsDialog } from './UserEnrollmentsDialog';
 export { default as CertificateTemplateManager } from './CertificateTemplateManager';
+export { default as FaqManager } from './FaqManager';
+export { default as FooterConfigManager } from './FooterConfigManager';

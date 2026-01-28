@@ -162,12 +162,33 @@ public class SiteConfigService {
 
         // Contact and Communication
         createIfNotExists("TALK_TO_EXPERT_URL", "https://api.whatsapp.com/send/?phone=919943712383&text&type=phone_number&app_absent=0", "URL", "CONTACT", "Talk to Expert WhatsApp URL");
-        createIfNotExists("CONTACT_PHONE", "+919943712383", "TEXT", "CONTACT", "Contact phone number");
-        createIfNotExists("CONTACT_EMAIL", "info@uyirgene.com", "TEXT", "CONTACT", "Contact email");
+        createIfNotExists("CONTACT_PHONE", "+91 99437 12383", "TEXT", "CONTACT", "Contact phone number for display");
+        createIfNotExists("CONTACT_WHATSAPP", "919943712383", "TEXT", "CONTACT", "WhatsApp number (country code, no +)");
+        createIfNotExists("CONTACT_EMAIL", "info@uyirgene.com", "TEXT", "CONTACT", "Primary contact email");
+        createIfNotExists("CONTACT_EMAIL_ALT", "uyirgene@gmail.com", "TEXT", "CONTACT", "Alternate contact email");
+        createIfNotExists("CONTACT_WEBSITE", "www.uyirgene.com", "TEXT", "CONTACT", "Website URL");
+        createIfNotExists("CONTACT_ADDRESS", "Uyir-Tech International Testing Laboratory, Research and Training Institute, Bharathi Nagar, NGO Colony, Sattur, Tamil Nadu, India", "TEXT", "CONTACT", "Office address");
 
         // Certification Settings
         createIfNotExists("PASS_MARK_PERCENTAGE", "60", "TEXT", "SETTINGS", "Pass mark percentage for course completion certificate");
         createIfNotExists("RESULT_DELAY_HOURS", "48", "TEXT", "SETTINGS", "Hours to wait before publishing test results");
+
+        // Footer Configuration
+        createIfNotExists("FOOTER_TAGLINE", "Professional Training Institute | ISO 9001 Certified | Training Partner of Skill India Digital Hub (Govt of India)", "TEXT", "FOOTER", "Footer tagline/description");
+        createIfNotExists("FOOTER_COPYRIGHT", "Uyirgene International. All rights reserved.", "TEXT", "FOOTER", "Copyright text (year is added automatically)");
+        createIfNotExists("FOOTER_BOTTOM_TEXT", "Excellence in Food Safety & Quality Training", "TEXT", "FOOTER", "Text shown at bottom of footer");
+
+        // Footer Social Links (JSON array)
+        createIfNotExists("FOOTER_SOCIAL_LINKS", "[{\"name\":\"Facebook\",\"url\":\"https://facebook.com/uyirgene\",\"icon\":\"facebook\"},{\"name\":\"Twitter\",\"url\":\"https://twitter.com/uyirgene\",\"icon\":\"twitter\"},{\"name\":\"LinkedIn\",\"url\":\"https://linkedin.com/company/uyirgene\",\"icon\":\"linkedin\"},{\"name\":\"YouTube\",\"url\":\"https://youtube.com/@uyirgene\",\"icon\":\"youtube\"},{\"name\":\"WhatsApp\",\"url\":\"https://wa.me/919943712383\",\"icon\":\"whatsapp\"},{\"name\":\"Instagram\",\"url\":\"https://instagram.com/uyirgene\",\"icon\":\"instagram\"}]", "JSON", "FOOTER", "Social media links (JSON array with name, url, icon)");
+
+        // Footer Platform Links (JSON array)
+        createIfNotExists("FOOTER_PLATFORM_LINKS", "[{\"label\":\"Courses\",\"path\":\"/courses\"},{\"label\":\"About Us\",\"path\":\"/about\"},{\"label\":\"Blog\",\"path\":\"/blogs\"},{\"label\":\"Careers\",\"path\":\"/careers\"}]", "JSON", "FOOTER", "Platform section links (JSON array with label, path)");
+
+        // Footer Support Links (JSON array)
+        createIfNotExists("FOOTER_SUPPORT_LINKS", "[{\"label\":\"Help Center\",\"path\":\"/help\"},{\"label\":\"Contact Us\",\"path\":\"/contact\"},{\"label\":\"FAQs\",\"path\":\"/faq\"},{\"label\":\"Verify Certificate\",\"path\":\"/verify-certificate\"},{\"label\":\"Community\",\"path\":\"/community\"}]", "JSON", "FOOTER", "Support section links (JSON array with label, path)");
+
+        // Footer Legal Links (JSON array)
+        createIfNotExists("FOOTER_LEGAL_LINKS", "[{\"label\":\"Terms of Service\",\"path\":\"/terms\"},{\"label\":\"Privacy Policy\",\"path\":\"/privacy\"},{\"label\":\"Cookie Policy\",\"path\":\"/cookies\"},{\"label\":\"Refund Policy\",\"path\":\"/refund\"},{\"label\":\"Accessibility\",\"path\":\"/accessibility\"}]", "JSON", "FOOTER", "Legal section links (JSON array with label, path)");
     }
 
     private void createIfNotExists(String key, String value, String type, String category, String description) {
