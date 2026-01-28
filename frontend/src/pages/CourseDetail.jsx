@@ -30,7 +30,7 @@ import { ROUTES, IMAGES } from '../utils/constants';
 function CourseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { showSuccess, showError } = useToast();
 
   const [course, setCourse] = useState(null);
@@ -300,6 +300,7 @@ function CourseDetail() {
                 initialPosition={progressMap[currentVideo.id]?.lastPositionSeconds || 0}
                 onProgress={handleVideoProgress}
                 onComplete={handleVideoComplete}
+                userEmail={user?.email}
               />
               <Typography variant="h5" sx={{ mt: 2, mb: 1 }} fontWeight={600}>
                 {currentVideo.title}
