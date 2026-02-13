@@ -1,7 +1,9 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { ThemeProvider, CssBaseline, Box } from '@mui/material';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { darkTheme, lightTheme } from './styles/theme';
+import { GOOGLE_CLIENT_ID } from './utils/constants';
 import './styles/global.css';
 
 // Store providers
@@ -14,6 +16,7 @@ import {
   SkipLink,
   ErrorBoundary,
   LoadingSpinner,
+  TalkToExpert,
 } from './components/common';
 
 // Route protection
@@ -56,6 +59,14 @@ const Privacy = lazy(() => import('./pages/Privacy'));
 const Cookies = lazy(() => import('./pages/Cookies'));
 const Accessibility = lazy(() => import('./pages/Accessibility'));
 const Refund = lazy(() => import('./pages/Refund'));
+const Services = lazy(() => import('./pages/Services'));
+const MicrobiologyResearch = lazy(() => import('./pages/services/MicrobiologyResearch'));
+const CertificationService = lazy(() => import('./pages/services/Certification'));
+const CertificationDetail = lazy(() => import('./pages/services/CertificationDetail'));
+const Testing = lazy(() => import('./pages/services/Testing'));
+const TestingDetail = lazy(() => import('./pages/services/TestingDetail'));
+const ClinicalResearch = lazy(() => import('./pages/services/ClinicalDiagnostics'));
+const Auditing = lazy(() => import('./pages/services/Auditing'));
 
 // Loading fallback component
 function PageLoader() {
@@ -79,6 +90,19 @@ function ThemedApp({ children }) {
 function AppContent() {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
+
+  // Restore body scroll on route change (cleanup after modals/payment flows)
+  useEffect(() => {
+    // Reset any scroll locks that might have been left by modals or Razorpay
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+    document.body.style.height = '';
+    document.documentElement.style.overflow = '';
+
+    // Scroll to top on route change
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   return (
     <Box
@@ -217,6 +241,14 @@ function AppContent() {
             />
 
             {/* Static pages */}
+            <Route path="/services" element={<Services />} />
+            <Route path="/services/microbiology-research" element={<MicrobiologyResearch />} />
+            <Route path="/services/certification" element={<CertificationService />} />
+            <Route path="/services/certification/:id" element={<CertificationDetail />} />
+            <Route path="/services/testing" element={<Testing />} />
+            <Route path="/services/testing/:id" element={<TestingDetail />} />
+            <Route path="/services/clinical-research" element={<ClinicalResearch />} />
+            <Route path="/services/auditing" element={<Auditing />} />
             <Route path="/about" element={<About />} />
             <Route path="/blog" element={<Blog />} />
             <Route path="/blog/:slug" element={<BlogDetail />} />
@@ -239,25 +271,28 @@ function AppContent() {
         </Suspense>
       </Box>
       {!isAdminRoute && <Footer />}
+      {!isAdminRoute && <TalkToExpert />}
     </Box>
   );
 }
 
 export default function App() {
   return (
-    <UIProvider>
-      <ThemedApp>
-        <ErrorBoundary>
-          <AuthProvider>
-            <ToastProvider>
-              <ConfigProvider>
-                <SkipLink />
-                <AppContent />
-              </ConfigProvider>
-            </ToastProvider>
-          </AuthProvider>
-        </ErrorBoundary>
-      </ThemedApp>
-    </UIProvider>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <UIProvider>
+        <ThemedApp>
+          <ErrorBoundary>
+            <AuthProvider>
+              <ToastProvider>
+                <ConfigProvider>
+                  <SkipLink />
+                  <AppContent />
+                </ConfigProvider>
+              </ToastProvider>
+            </AuthProvider>
+          </ErrorBoundary>
+        </ThemedApp>
+      </UIProvider>
+    </GoogleOAuthProvider>
   );
 }

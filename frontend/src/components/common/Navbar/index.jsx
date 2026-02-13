@@ -18,6 +18,7 @@ import {
   Avatar,
   Menu,
   MenuItem,
+  Collapse,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
@@ -31,8 +32,30 @@ import LoginIcon from '@mui/icons-material/Login';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LightModeIcon from '@mui/icons-material/LightMode';
+import MiscellaneousServicesIcon from '@mui/icons-material/MiscellaneousServices';
+import BiotechIcon from '@mui/icons-material/Biotech';
+import VerifiedIcon from '@mui/icons-material/Verified';
+import ScienceIcon from '@mui/icons-material/Science';
+import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import FactCheckIcon from '@mui/icons-material/FactCheck';
 import { useAuth, useUI } from '../../../store';
 import { ROUTES, ROLES, IMAGES } from '../../../utils/constants';
+
+// Services sub-menu items
+const servicesSubItems = [
+  { label: 'All Services', path: ROUTES.SERVICES, icon: <MiscellaneousServicesIcon fontSize="small" /> },
+  { label: 'Microbiology Research', path: ROUTES.SERVICES_MICROBIOLOGY, icon: <BiotechIcon fontSize="small" /> },
+  { label: 'Certification', path: ROUTES.SERVICES_CERTIFICATION, icon: <VerifiedIcon fontSize="small" /> },
+  { label: 'Testing', path: ROUTES.SERVICES_TESTING, icon: <ScienceIcon fontSize="small" /> },
+  { label: 'Clinical Research', path: ROUTES.SERVICES_CLINICAL_RESEARCH, icon: <LocalHospitalIcon fontSize="small" /> },
+  { label: 'Learning', path: ROUTES.SERVICES_LEARNING, icon: <MenuBookIcon fontSize="small" /> },
+  { label: 'Auditing', path: ROUTES.SERVICES_AUDITING, icon: <FactCheckIcon fontSize="small" /> },
+];
 
 function Navbar() {
   const theme = useTheme();
@@ -44,6 +67,8 @@ function Navbar() {
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [servicesAnchorEl, setServicesAnchorEl] = useState(null);
+  const [mobileServicesOpen, setMobileServicesOpen] = useState(false);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -57,6 +82,14 @@ function Navbar() {
     setAnchorEl(null);
   };
 
+  const handleServicesMenuOpen = (event) => {
+    setServicesAnchorEl(event.currentTarget);
+  };
+
+  const handleServicesMenuClose = () => {
+    setServicesAnchorEl(null);
+  };
+
   const handleLogout = () => {
     logout();
     handleMenuClose();
@@ -67,14 +100,17 @@ function Navbar() {
     navigate(path);
     setMobileOpen(false);
     handleMenuClose();
+    handleServicesMenuClose();
   };
 
   const isActive = (path) => location.pathname === path;
+  const isServicesActive = location.pathname.startsWith('/services');
 
-  // Navigation items for public users
+  // Navigation items for public users (excluding Services which is handled separately)
   const publicNavItems = [
     { label: 'Home', path: ROUTES.HOME, icon: <HomeIcon /> },
     { label: 'Courses', path: ROUTES.COURSES, icon: <SchoolIcon /> },
+    { label: 'Verify Certificate', path: ROUTES.VERIFY_CERTIFICATE, icon: <VerifiedUserIcon /> },
   ];
 
   // Navigation items for authenticated users
@@ -92,7 +128,6 @@ function Navbar() {
     let items = [...publicNavItems];
     if (isAuthenticated()) {
       items = [...items, ...authNavItems];
-      // Show admin menu for both ADMIN and INSTRUCTOR roles
       if (isAdmin() || isInstructor()) {
         items = [...items, ...adminNavItems];
       }
@@ -122,7 +157,44 @@ function Navbar() {
       </Box>
       <Divider />
       <List>
-        {navItems.map((item) => (
+        {/* Home */}
+        <ListItemButton
+          onClick={() => handleNavigation(ROUTES.HOME)}
+          selected={isActive(ROUTES.HOME)}
+          aria-current={isActive(ROUTES.HOME) ? 'page' : undefined}
+        >
+          <ListItemIcon><HomeIcon /></ListItemIcon>
+          <ListItemText primary="Home" />
+        </ListItemButton>
+
+        {/* Services with expandable sub-menu */}
+        <ListItemButton
+          onClick={() => setMobileServicesOpen(!mobileServicesOpen)}
+          selected={isServicesActive}
+        >
+          <ListItemIcon><MiscellaneousServicesIcon /></ListItemIcon>
+          <ListItemText primary="Services" />
+          {mobileServicesOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+        </ListItemButton>
+        <Collapse in={mobileServicesOpen} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            {servicesSubItems.map((item) => (
+              <ListItemButton
+                key={item.path}
+                sx={{ pl: 4 }}
+                onClick={() => handleNavigation(item.path)}
+                selected={isActive(item.path)}
+                aria-current={isActive(item.path) ? 'page' : undefined}
+              >
+                <ListItemIcon>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.label} primaryTypographyProps={{ variant: 'body2' }} />
+              </ListItemButton>
+            ))}
+          </List>
+        </Collapse>
+
+        {/* Remaining nav items (Courses, My Courses, Dashboard, Admin) */}
+        {navItems.filter((item) => item.path !== ROUTES.HOME).map((item) => (
           <ListItemButton
             key={item.path}
             onClick={() => handleNavigation(item.path)}
@@ -181,7 +253,7 @@ function Navbar() {
 
   return (
     <>
-      <AppBar position="sticky" component="nav">
+      <AppBar position="fixed" component="nav">
         <Toolbar>
           {isMobile && (
             <IconButton
@@ -219,7 +291,56 @@ function Navbar() {
 
           {!isMobile && (
             <Box sx={{ display: 'flex', gap: 1, flexGrow: 1 }} role="navigation" aria-label="Main navigation">
-              {navItems.map((item) => (
+              {/* Home link */}
+              <Button
+                component={RouterLink}
+                to={ROUTES.HOME}
+                color="inherit"
+                startIcon={<HomeIcon />}
+                aria-current={isActive(ROUTES.HOME) ? 'page' : undefined}
+                sx={{
+                  backgroundColor: isActive(ROUTES.HOME) ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                }}
+              >
+                Home
+              </Button>
+
+              {/* Services dropdown button */}
+              <Button
+                color="inherit"
+                startIcon={<MiscellaneousServicesIcon />}
+                endIcon={<ArrowDropDownIcon />}
+                onClick={handleServicesMenuOpen}
+                aria-haspopup="true"
+                aria-expanded={Boolean(servicesAnchorEl)}
+                sx={{
+                  backgroundColor: isServicesActive ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                }}
+              >
+                Services
+              </Button>
+              <Menu
+                anchorEl={servicesAnchorEl}
+                open={Boolean(servicesAnchorEl)}
+                onClose={handleServicesMenuClose}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                MenuListProps={{ sx: { minWidth: 220 } }}
+              >
+                {servicesSubItems.map((item) => (
+                  <MenuItem
+                    key={item.path}
+                    onClick={() => handleNavigation(item.path)}
+                    selected={isActive(item.path)}
+                  >
+                    <ListItemIcon>{item.icon}</ListItemIcon>
+                    <ListItemText primary={item.label} />
+                  </MenuItem>
+                ))}
+              </Menu>
+
+              {/* Remaining nav items (Courses, My Courses, Dashboard, Admin) */}
+              {navItems.filter((item) => item.path !== ROUTES.HOME).map((item) => (
                 <Button
                   key={item.path}
                   component={RouterLink}
@@ -296,7 +417,14 @@ function Navbar() {
                     to={ROUTES.LOGIN}
                     color="inherit"
                     variant="outlined"
-                    sx={{ borderColor: 'rgba(255, 255, 255, 0.3)' }}
+                    sx={{
+                      color: '#fff',
+                      borderColor: 'rgba(255, 255, 255, 0.3)',
+                      '&:hover': {
+                        borderColor: 'rgba(255, 255, 255, 0.6)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                      },
+                    }}
                   >
                     Login
                   </Button>
@@ -305,7 +433,13 @@ function Navbar() {
                     to={ROUTES.REGISTER}
                     color="inherit"
                     variant="contained"
-                    sx={{ bgcolor: 'primary.dark' }}
+                    sx={{
+                      color: '#fff',
+                      bgcolor: 'primary.dark',
+                      '&:hover': {
+                        bgcolor: 'primary.main',
+                      },
+                    }}
                   >
                     Register
                   </Button>
@@ -315,6 +449,7 @@ function Navbar() {
           )}
         </Toolbar>
       </AppBar>
+      <Toolbar />
 
       <Drawer
         variant="temporary"

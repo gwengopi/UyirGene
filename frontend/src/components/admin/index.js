@@ -14,3 +14,8 @@ export { default as UserEnrollmentsDialog } from './UserEnrollmentsDialog';
 export { default as CertificateTemplateManager } from './CertificateTemplateManager';
 export { default as FaqManager } from './FaqManager';
 export { default as FooterConfigManager } from './FooterConfigManager';
+export { default as GoogleReviewManager } from './GoogleReviewManager';
+export { default as ServiceCertificationManager } from './ServiceCertificationManager';
+export { default as ServiceTestingManager } from './ServiceTestingManager';
+export { default as ServiceDiagnosticsManager } from './ServiceDiagnosticsManager';
+export { default as CareerManager } from './CareerManager';

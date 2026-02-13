@@ -11,3 +11,8 @@ export { default as adminService } from './adminService';
 export { default as configService } from './configService';
 export { default as masterDataService, DATA_TYPES } from './masterDataService';
 export { default as faqService } from './faqService';
+export { default as reviewService } from './reviewService';
+export { default as serviceCertificationService } from './serviceCertificationService';
+export { default as serviceTestingService } from './serviceTestingService';
+export { default as serviceDiagnosticsService } from './serviceDiagnosticsService';
+export { default as careerService } from './careerService';

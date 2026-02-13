@@ -5,7 +5,12 @@ import ImageIcon from '@mui/icons-material/Image';
 import ListIcon from '@mui/icons-material/List';
 import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
 import WebAssetIcon from '@mui/icons-material/WebAsset';
-import { AdminLayout, SiteConfigManager, MasterDataManager, FaqManager, FooterConfigManager } from '../../components/admin';
+import RateReviewIcon from '@mui/icons-material/RateReview';
+import VerifiedIcon from '@mui/icons-material/Verified';
+import ScienceIcon from '@mui/icons-material/Science';
+import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
+import WorkIcon from '@mui/icons-material/Work';
+import { AdminLayout, SiteConfigManager, MasterDataManager, FaqManager, FooterConfigManager, GoogleReviewManager, ServiceCertificationManager, ServiceTestingManager, ServiceDiagnosticsManager, CareerManager } from '../../components/admin';
 
 function TabPanel({ children, value, index, ...props }) {
   return (
@@ -48,6 +53,9 @@ function Settings() {
             value={activeTab}
             onChange={handleTabChange}
             aria-label="settings tabs"
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
           >
             <Tab
               icon={<ImageIcon />}
@@ -77,6 +85,41 @@ function Settings() {
               id="settings-tab-3"
               aria-controls="settings-tabpanel-3"
             />
+            <Tab
+              icon={<RateReviewIcon />}
+              iconPosition="start"
+              label="Google Reviews"
+              id="settings-tab-4"
+              aria-controls="settings-tabpanel-4"
+            />
+            <Tab
+              icon={<VerifiedIcon />}
+              iconPosition="start"
+              label="Service Certifications"
+              id="settings-tab-5"
+              aria-controls="settings-tabpanel-5"
+            />
+            <Tab
+              icon={<ScienceIcon />}
+              iconPosition="start"
+              label="Service Testings"
+              id="settings-tab-6"
+              aria-controls="settings-tabpanel-6"
+            />
+            <Tab
+              icon={<LocalHospitalIcon />}
+              iconPosition="start"
+              label="Clinical Research"
+              id="settings-tab-7"
+              aria-controls="settings-tabpanel-7"
+            />
+            <Tab
+              icon={<WorkIcon />}
+              iconPosition="start"
+              label="Careers"
+              id="settings-tab-8"
+              aria-controls="settings-tabpanel-8"
+            />
           </Tabs>
         </Box>
 
@@ -94,6 +137,26 @@ function Settings() {
 
         <TabPanel value={activeTab} index={3}>
           <FooterConfigManager />
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={4}>
+          <GoogleReviewManager />
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={5}>
+          <ServiceCertificationManager />
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={6}>
+          <ServiceTestingManager />
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={7}>
+          <ServiceDiagnosticsManager />
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={8}>
+          <CareerManager />
         </TabPanel>
       </Container>
     </AdminLayout>

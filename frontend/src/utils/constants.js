@@ -1,3 +1,6 @@
+// Google OAuth
+export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+
 // User roles
 export const ROLES = {
   ADMIN: 'ADMIN',
@@ -71,6 +74,13 @@ export const ROUTES = {
   HOME: '/',
   LOGIN: '/login',
   REGISTER: '/register',
+  SERVICES: '/services',
+  SERVICES_MICROBIOLOGY: '/services/microbiology-research',
+  SERVICES_CERTIFICATION: '/services/certification',
+  SERVICES_TESTING: '/services/testing',
+  SERVICES_CLINICAL_RESEARCH: '/services/clinical-research',
+  SERVICES_LEARNING: '/courses',
+  SERVICES_AUDITING: '/services/auditing',
   COURSES: '/courses',
   COURSE_DETAIL: (id) => `/courses/${id}`,
   MY_COURSES: '/my-courses',
@@ -159,6 +169,14 @@ export const IMAGES = {
   COURSE_TRAINERS: 'https://img1.wsimg.com/isteam/getty/2156390491/:/rs=w:600,h:400,cg:true,m/qt=q:90',
   COURSE_PRACTICAL: 'https://img1.wsimg.com/isteam/getty/1938554573/:/rs=w:600,h:400,cg:true,m/qt=q:90',
   COURSE_CERTIFICATION: 'https://img1.wsimg.com/isteam/getty/1341288264/:/rs=w:600,h:400,cg:true,m/qt=q:90',
+
+  // Service images (configurable via admin)
+  SERVICE_MICROBIOLOGY: 'https://images.unsplash.com/photo-1576086213369-97a306d36557?w=600&h=400&fit=crop&q=80',
+  SERVICE_CERTIFICATION: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&h=400&fit=crop&q=80',
+  SERVICE_GMO_TESTING: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=600&h=400&fit=crop&q=80',
+  SERVICE_CLINICAL_DIAGNOSTICS: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=600&h=400&fit=crop&q=80',
+  SERVICE_LEARNING: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600&h=400&fit=crop&q=80',
+  SERVICE_AUDITING: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&h=400&fit=crop&q=80',
 
   // About section images
   ABOUT_TEAM: 'https://img1.wsimg.com/isteam/getty/1754192862/:/rs=w:800,h:600,cg:true,m/qt=q:90',
