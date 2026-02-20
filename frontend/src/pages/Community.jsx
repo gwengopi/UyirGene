@@ -4,7 +4,7 @@ import ForumIcon from '@mui/icons-material/Forum';
 import GroupsIcon from '@mui/icons-material/Groups';
 import EventIcon from '@mui/icons-material/Event';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
-import { Breadcrumb, Button } from '../components/common';
+import { Breadcrumb, Button, SEO } from '../components/common';
 
 function Community() {
   const features = [
@@ -39,6 +39,7 @@ function Community() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <SEO title="Community" description="Join the Uyirgene International community. Connect with fellow professionals in food safety, quality management and microbiology." path="/community" />
       <Breadcrumb items={[{ label: 'Community', path: '/community' }]} />
 
       {/* Hero Section */}
@@ -115,14 +116,14 @@ function Community() {
       </Paper>
 
       {/* CTA */}
-      <Paper sx={{ p: 4, textAlign: 'center', bgcolor: 'primary.main' }}>
-        <Typography variant="h5" gutterBottom fontWeight={600}>
+      <Paper sx={{ p: 4, textAlign: 'center', bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+        <Typography variant="h5" gutterBottom fontWeight={600} color="inherit">
           Ready to Connect?
         </Typography>
-        <Typography variant="body1" sx={{ mb: 3, opacity: 0.9 }}>
+        <Typography variant="body1" color="inherit" sx={{ mb: 3, opacity: 0.9 }}>
           Join our community today and start learning with others.
         </Typography>
-        <Button variant="contained" sx={{ bgcolor: 'white', color: 'primary.main', '&:hover': { bgcolor: 'grey.100' } }}>
+        <Button variant="contained" sx={{ bgcolor: 'white', color: 'primary.main', '&:hover': { bgcolor: 'rgba(255,255,255,0.85)' } }}>
           Get Started
         </Button>
       </Paper>

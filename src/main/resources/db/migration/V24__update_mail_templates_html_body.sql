@@ -1,0 +1,1 @@
+ALTER TABLE mail_template ADD COLUMN IF NOT EXISTS html_body TEXT;

@@ -3,10 +3,14 @@ spring:
     active: dev
   application:
     name: uyirgene-backend
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 15MB
   datasource:
-    url: jdbc:postgresql://localhost:5432/UyirGene
-    username: postgres
-    password: admin
+    url: jdbc:postgresql://localhost:1234/UyirGene
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:changeme}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -18,8 +22,8 @@ spring:
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:your-email@gmail.com}
-    password: ${MAIL_PASSWORD:your-app-password}
+    username: ${MAIL_USERNAME:lavanyapdb22@gmail.com}
+    password: ${MAIL_PASSWORD:krishnar}
     properties:
       mail:
         smtp:
@@ -36,8 +40,8 @@ spring:
 server:
   port: 8080
   error:
-    include-message: always
-    include-binding-errors: always
+    include-message: never
+    include-binding-errors: never
 
 management:
   endpoints:
@@ -53,10 +57,19 @@ logging:
     com.uyirgene: INFO
     org.springframework.web: INFO
 
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 86400000
+
+google:
+  client-id: ${GOOGLE_CLIENT_ID:}
+
 app:
-  base-url: http://localhost:8080
+  base-url: ${APP_BASE_URL:http://localhost:8080}
+  mail:
+    from: ${MAIL_FROM:${MAIL_USERNAME:UyirGene}}
   certificate:
     folder: uploads/certificates
     logo-path: static/images/logo.png
   video:
-    encryption-key: ${VIDEO_ENCRYPTION_KEY:UyirGene2024SecretKey123456789}
+    encryption-key: ${VIDEO_ENCRYPTION_KEY}

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import DOMPurify from 'dompurify';
 import {
   Container,
   Typography,
@@ -17,7 +18,8 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { Breadcrumb, LoadingSpinner, Button } from '../components/common';
+import { Breadcrumb, LoadingSpinner, Button, SEO } from '../components/common';
+import { articleSchema } from '../components/common/SEO';
 import { blogService } from '../services';
 import { formatDate } from '../utils/formatters';
 import { getApiBaseUrl } from '../services/api';
@@ -62,7 +64,7 @@ function BlogDetail() {
   }, [slug]);
 
   const getBlogImage = (blogItem) => {
-    if (blogItem?.id) {
+    if (blogItem?.featuredImage) {
       return `${getApiBaseUrl()}/api/blogs/${blogItem.id}/image`;
     }
     if (blogItem?.imageUrl) {
@@ -102,6 +104,22 @@ function BlogDetail() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      {blog && (
+        <SEO
+          title={blog.title}
+          description={blog.shortDescription || blog.content?.replace(/<[^>]*>/g, '').substring(0, 160)}
+          path={`/blog/${slug}`}
+          type="article"
+          image={blog.featuredImage ? `${getApiBaseUrl()}/api/blogs/${blog.id}/image` : undefined}
+          article={{
+            publishedTime: blog.publishDate,
+            modifiedTime: blog.updatedAt,
+            author: blog.authorName,
+            tags: blog.tags?.split(',').map((t) => t.trim()),
+          }}
+          structuredData={articleSchema(blog, `/blog/${slug}`)}
+        />
+      )}
       <Breadcrumb items={breadcrumbItems} />
 
       <Button
@@ -200,7 +218,7 @@ function BlogDetail() {
 
           <Divider sx={{ mb: 4 }} />
 
-          {/* Blog Content */}
+          {/* Blog Content - sanitized to prevent XSS */}
           <Box
             sx={{
               '& p': { mb: 2, lineHeight: 1.8 },
@@ -218,7 +236,20 @@ function BlogDetail() {
                 bgcolor: 'background.paper',
               },
             }}
-            dangerouslySetInnerHTML={{ __html: blog.content }}
+            dangerouslySetInnerHTML={{ __html: (() => {
+              const clean = DOMPurify.sanitize(blog.content, {
+                ADD_TAGS: ['iframe'],
+                ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'sandbox'],
+              });
+              // Strip iframes that don't point to whitelisted domains
+              const ALLOWED_IFRAME_HOSTS = ['www.youtube.com', 'player.vimeo.com', 'drive.google.com', 'docs.google.com'];
+              return clean.replace(/<iframe[^>]*src=["']([^"']*)["'][^>]*>.*?<\/iframe>/gi, (match, src) => {
+                try {
+                  const url = new URL(src);
+                  return ALLOWED_IFRAME_HOSTS.includes(url.hostname) ? match : '';
+                } catch { return ''; }
+              });
+            })() }}
           />
 
           <Divider sx={{ my: 4 }} />

@@ -48,6 +48,7 @@ import { useToast } from '../../store';
 import certificateTemplateService, { CERTIFICATE_TYPES, DEFAULT_TEMPLATE_CONFIG } from '../../services/certificateTemplateService';
 import { courseService } from '../../services';
 import { getApiBaseUrl } from '../../services/api';
+import CertificatePreview from './CertificatePreview';
 
 function CertificateTemplateManager() {
   const { showSuccess, showError } = useToast();
@@ -80,6 +81,7 @@ function CertificateTemplateManager() {
 
   // Preview state
   const [backgroundPreview, setBackgroundPreview] = useState(null);
+  const [templatePdfData, setTemplatePdfData] = useState(null); // ArrayBuffer for PDF preview
 
   const loadTemplates = useCallback(async () => {
     try {
@@ -124,6 +126,7 @@ function CertificateTemplateManager() {
     });
     setTemplateConfig(DEFAULT_TEMPLATE_CONFIG);
     setBackgroundPreview(null);
+    setTemplatePdfData(null);
     setSelectedTemplate(null);
   };
 
@@ -144,10 +147,20 @@ function CertificateTemplateManager() {
         removeBackgroundImage: false,
         removeTemplateFile: false,
       });
-      // Parse template config if available
+      // Parse template config if available, merge with defaults for any missing fields
       if (template.templateConfig) {
         try {
-          setTemplateConfig(JSON.parse(template.templateConfig));
+          const parsed = JSON.parse(template.templateConfig);
+          // Merge each element with its default so new fields get default values
+          const merged = { ...DEFAULT_TEMPLATE_CONFIG };
+          Object.keys(parsed).forEach((key) => {
+            if (DEFAULT_TEMPLATE_CONFIG[key] && typeof parsed[key] === 'object' && parsed[key] !== null) {
+              merged[key] = { ...DEFAULT_TEMPLATE_CONFIG[key], ...parsed[key] };
+            } else {
+              merged[key] = parsed[key];
+            }
+          });
+          setTemplateConfig(merged);
         } catch {
           setTemplateConfig(DEFAULT_TEMPLATE_CONFIG);
         }
@@ -159,6 +172,15 @@ function CertificateTemplateManager() {
         setBackgroundPreview(`${getApiBaseUrl()}${template.backgroundImageUrl}`);
       } else {
         setBackgroundPreview(null);
+      }
+      // Fetch template PDF for preview if available
+      if (template.hasTemplateFile) {
+        certificateTemplateService.downloadTemplateFile(template.id)
+          .then((blob) => blob.arrayBuffer())
+          .then((buffer) => setTemplatePdfData(buffer))
+          .catch(() => setTemplatePdfData(null));
+      } else {
+        setTemplatePdfData(null);
       }
     } else {
       resetForm();
@@ -196,6 +218,15 @@ function CertificateTemplateManager() {
         };
         reader.readAsDataURL(file);
       }
+
+      // Read template PDF for preview
+      if (field === 'templateFile') {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setTemplatePdfData(reader.result);
+        };
+        reader.readAsArrayBuffer(file);
+      }
     }
   };
 
@@ -207,6 +238,9 @@ function CertificateTemplateManager() {
     }));
     if (field === 'backgroundImage') {
       setBackgroundPreview(null);
+    }
+    if (field === 'templateFile') {
+      setTemplatePdfData(null);
     }
   };
 
@@ -223,7 +257,7 @@ function CertificateTemplateManager() {
 
   // Render a text element configuration section
   const renderTextElementConfig = (label, elementKey, config) => (
-    <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+    <Box sx={{ mb: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
         <Typography variant="subtitle2">{label}</Typography>
         <FormControlLabel
@@ -238,8 +272,19 @@ function CertificateTemplateManager() {
         />
       </Box>
       {config?.visible !== false && (
-        <Grid container spacing={1}>
-          <Grid item xs={4}>
+        <Grid container spacing={1} alignItems="flex-end">
+          <Grid item xs={6} sm={2}>
+            <TextField
+              size="small"
+              type="number"
+              label="X Position"
+              value={config?.x ?? 297.5}
+              onChange={(e) => updateTemplateConfig(elementKey, 'x', parseFloat(e.target.value))}
+              fullWidth
+              helperText="From left"
+            />
+          </Grid>
+          <Grid item xs={6} sm={2}>
             <TextField
               size="small"
               type="number"
@@ -250,25 +295,94 @@ function CertificateTemplateManager() {
               helperText="From bottom"
             />
           </Grid>
-          <Grid item xs={4}>
+          <Grid item xs={4} sm={1}>
             <TextField
               size="small"
               type="number"
-              label="Font Size"
+              label="Size"
               value={config?.fontSize ?? 12}
               onChange={(e) => updateTemplateConfig(elementKey, 'fontSize', parseInt(e.target.value, 10))}
               fullWidth
             />
           </Grid>
-          <Grid item xs={4}>
-            <TextField
-              size="small"
-              type="color"
-              label="Color"
-              value={config?.fontColor ?? '#000000'}
-              onChange={(e) => updateTemplateConfig(elementKey, 'fontColor', e.target.value)}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
+          <Grid item xs={4} sm={2}>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Font</InputLabel>
+              <Select
+                value={config?.fontFamily ?? 'oswald'}
+                onChange={(e) => updateTemplateConfig(elementKey, 'fontFamily', e.target.value)}
+                label="Font"
+              >
+                <MenuItem disabled sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>— Modern Sans-Serif —</MenuItem>
+                <MenuItem value="anton">Anton</MenuItem>
+                <MenuItem value="oswald">Oswald</MenuItem>
+                <MenuItem value="montserrat">Montserrat</MenuItem>
+                <MenuItem value="raleway">Raleway</MenuItem>
+                <MenuItem value="lato">Lato</MenuItem>
+                <MenuItem value="roboto">Roboto</MenuItem>
+                <MenuItem disabled sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>— Elegant / Formal —</MenuItem>
+                <MenuItem value="playfair">Playfair Display</MenuItem>
+                <MenuItem value="cinzel">Cinzel</MenuItem>
+                <MenuItem value="garamond">EB Garamond</MenuItem>
+                <MenuItem value="merriweather">Merriweather</MenuItem>
+                <MenuItem disabled sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>— Classic (Built-in) —</MenuItem>
+                <MenuItem value="helvetica">Helvetica</MenuItem>
+                <MenuItem value="times">Times Roman</MenuItem>
+                <MenuItem value="courier">Courier</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={4} sm={2}>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Style</InputLabel>
+              <Select
+                value={config?.fontStyle ?? 'normal'}
+                onChange={(e) => updateTemplateConfig(elementKey, 'fontStyle', e.target.value)}
+                label="Style"
+              >
+                <MenuItem value="normal">Normal</MenuItem>
+                <MenuItem value="bold">Bold</MenuItem>
+                <MenuItem value="italic">Italic</MenuItem>
+                <MenuItem value="bold-italic">Bold Italic</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={4} sm={1}>
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                Color
+              </Typography>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 1,
+                  p: 0.5,
+                  height: 40,
+                }}
+              >
+                <input
+                  type="color"
+                  value={config?.fontColor ?? '#000000'}
+                  onChange={(e) => updateTemplateConfig(elementKey, 'fontColor', e.target.value)}
+                  style={{ width: 28, height: 28, border: 'none', padding: 0, cursor: 'pointer', background: 'none' }}
+                />
+              </Box>
+            </Box>
+          </Grid>
+          <Grid item xs={4} sm={2}>
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={config?.centered ?? true}
+                  onChange={(e) => updateTemplateConfig(elementKey, 'centered', e.target.checked)}
+                />
+              }
+              label={<Typography variant="caption">Center</Typography>}
+              sx={{ mt: 1 }}
             />
           </Grid>
         </Grid>
@@ -278,7 +392,7 @@ function CertificateTemplateManager() {
 
   // Render QR code configuration
   const renderQRCodeConfig = (config) => (
-    <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+    <Box sx={{ mb: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
         <Typography variant="subtitle2">QR Code</Typography>
         <FormControlLabel
@@ -302,6 +416,7 @@ function CertificateTemplateManager() {
               value={config?.x ?? 262.5}
               onChange={(e) => updateTemplateConfig('qrCode', 'x', parseFloat(e.target.value))}
               fullWidth
+              helperText="From left"
             />
           </Grid>
           <Grid item xs={4}>
@@ -312,16 +427,18 @@ function CertificateTemplateManager() {
               value={config?.y ?? 150}
               onChange={(e) => updateTemplateConfig('qrCode', 'y', parseFloat(e.target.value))}
               fullWidth
+              helperText="From bottom"
             />
           </Grid>
           <Grid item xs={4}>
             <TextField
               size="small"
               type="number"
-              label="Size"
+              label="Size (px)"
               value={config?.size ?? 70}
               onChange={(e) => updateTemplateConfig('qrCode', 'size', parseInt(e.target.value, 10))}
               fullWidth
+              helperText="Width & height"
             />
           </Grid>
         </Grid>
@@ -526,7 +643,7 @@ function CertificateTemplateManager() {
       </TableContainer>
 
       {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="lg" fullWidth>
         <DialogTitle>
           {selectedTemplate ? 'Edit Certificate Template' : 'Create Certificate Template'}
         </DialogTitle>
@@ -636,7 +753,7 @@ function CertificateTemplateManager() {
                       height="200"
                       image={backgroundPreview}
                       alt="Background preview"
-                      sx={{ objectFit: 'contain', bgcolor: 'grey.100' }}
+                      sx={{ objectFit: 'contain', bgcolor: 'action.hover' }}
                     />
                     <IconButton
                       size="small"
@@ -654,7 +771,7 @@ function CertificateTemplateManager() {
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      bgcolor: 'grey.100',
+                      bgcolor: 'action.hover',
                       borderRadius: 1,
                     }}
                   >
@@ -692,7 +809,7 @@ function CertificateTemplateManager() {
                     alignItems: 'center',
                     gap: 2,
                     p: 2,
-                    bgcolor: 'grey.100',
+                    bgcolor: 'action.hover',
                     borderRadius: 1,
                   }}
                 >
@@ -732,43 +849,62 @@ function CertificateTemplateManager() {
               </Card>
             </Grid>
 
-            {/* Template Configuration Section */}
+            {/* Template Configuration + Preview Section */}
             <Grid item xs={12}>
               <Accordion>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <SettingsIcon color="primary" />
-                    <Typography variant="subtitle1">Text Position Configuration</Typography>
+                    <Typography variant="subtitle1">Text Position Configuration & Preview</Typography>
                   </Box>
                 </AccordionSummary>
                 <AccordionDetails>
-                  <Alert severity="info" sx={{ mb: 2 }}>
-                    Configure where text elements appear on the PDF template.
-                    Coordinates are in PDF points (A4: 595 x 842 points).
-                    Y position is from the bottom of the page.
-                  </Alert>
+                  <Grid container spacing={3}>
+                    {/* Left: Configuration controls */}
+                    <Grid item xs={12} md={7}>
+                      <Alert severity="info" sx={{ mb: 2 }}>
+                        Configure text position, size, and color on the certificate PDF.
+                        Coordinates are in PDF points (A4: 595 x 842 points).
+                        X = distance from left edge, Y = distance from bottom edge.
+                        Enable "Center" to horizontally center text (X is ignored when centered).
+                      </Alert>
 
-                  {renderTextElementConfig('Certify Text ("This is to certify that")', 'certifyText', templateConfig.certifyText)}
-                  {renderTextElementConfig('Student Name', 'studentName', templateConfig.studentName)}
-                  {renderTextElementConfig('Completed Text', 'completedText', templateConfig.completedText)}
-                  {renderTextElementConfig('Course Title', 'courseTitle', templateConfig.courseTitle)}
-                  {renderTextElementConfig('Course Code', 'courseCode', templateConfig.courseCode)}
-                  {renderTextElementConfig('Trainer Name', 'trainerName', templateConfig.trainerName)}
-                  {renderTextElementConfig('Short Description', 'shortDescription', templateConfig.shortDescription)}
-                  {renderTextElementConfig('Score/Marks', 'marks', templateConfig.marks)}
-                  {renderTextElementConfig('Issue Date', 'issueDate', templateConfig.issueDate)}
-                  {renderTextElementConfig('Certificate ID', 'certificateId', templateConfig.certificateId)}
-                  {renderQRCodeConfig(templateConfig.qrCode)}
-                  {renderTextElementConfig('Scan to Verify Text', 'scanText', templateConfig.scanText)}
+                      {renderTextElementConfig('Certificate Type ("Completion / Participation")', 'certificateType', templateConfig.certificateType)}
+                      {renderTextElementConfig('Certify Text ("This is to certify that")', 'certifyText', templateConfig.certifyText)}
+                      {renderTextElementConfig('Student Name', 'studentName', templateConfig.studentName)}
+                      {renderTextElementConfig('Completed Text', 'completedText', templateConfig.completedText)}
+                      {renderTextElementConfig('Course Title', 'courseTitle', templateConfig.courseTitle)}
+                      {renderTextElementConfig('Course Code', 'courseCode', templateConfig.courseCode)}
+                      {renderTextElementConfig('Trainer Name', 'trainerName', templateConfig.trainerName)}
+                      {renderTextElementConfig('Short Description', 'shortDescription', templateConfig.shortDescription)}
+                      {renderTextElementConfig('Score/Marks', 'marks', templateConfig.marks)}
+                      {renderTextElementConfig('Issue Date', 'issueDate', templateConfig.issueDate)}
+                      {renderTextElementConfig('Certificate ID', 'certificateId', templateConfig.certificateId)}
+                      {renderQRCodeConfig(templateConfig.qrCode)}
+                      {renderTextElementConfig('Scan to Verify Text', 'scanText', templateConfig.scanText)}
 
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={() => setTemplateConfig(DEFAULT_TEMPLATE_CONFIG)}
-                    sx={{ mt: 1 }}
-                  >
-                    Reset to Defaults
-                  </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => setTemplateConfig(DEFAULT_TEMPLATE_CONFIG)}
+                        sx={{ mt: 1 }}
+                      >
+                        Reset to Defaults
+                      </Button>
+                    </Grid>
+
+                    {/* Right: Live preview */}
+                    <Grid item xs={12} md={5}>
+                      <Box sx={{ position: 'sticky', top: 0 }}>
+                        <CertificatePreview
+                          templateConfig={templateConfig}
+                          backgroundPreview={backgroundPreview}
+                          certificateType={formData.type}
+                          templatePdfData={templatePdfData}
+                        />
+                      </Box>
+                    </Grid>
+                  </Grid>
                 </AccordionDetails>
               </Accordion>
             </Grid>

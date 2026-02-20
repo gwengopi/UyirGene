@@ -50,7 +50,7 @@ public class VideoController {
             @ApiResponse(responseCode = "404", description = "Video or enrollment not found")
     })
     public ResponseEntity<VideoProgress> updateProgress(@PathVariable("id") Long id, @RequestBody ProgressUpdateDto dto) {
-        VideoProgress p = progressService.updateProgress(id, dto.getLastPositionSeconds());
+        VideoProgress p = progressService.updateProgress(id, dto.getLastPositionSeconds(), Boolean.TRUE.equals(dto.getCompleted()));
         return ResponseEntity.ok(p);
     }
 
@@ -83,8 +83,11 @@ public class VideoController {
 
     public static class ProgressUpdateDto {
         private Long lastPositionSeconds;
+        private Boolean completed;
 
         public Long getLastPositionSeconds() { return lastPositionSeconds; }
         public void setLastPositionSeconds(Long lastPositionSeconds) { this.lastPositionSeconds = lastPositionSeconds; }
+        public Boolean getCompleted() { return completed; }
+        public void setCompleted(Boolean completed) { this.completed = completed; }
     }
 }

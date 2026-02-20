@@ -13,15 +13,24 @@ import VerifiedIcon from '@mui/icons-material/Verified';
 import ScienceIcon from '@mui/icons-material/Science';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
-import FactCheckIcon from '@mui/icons-material/FactCheck';
+
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
-import { Button, Breadcrumb } from '../components/common';
+import { Button, Breadcrumb, SEO } from '../components/common';
 import { useScrollAnimation } from '../hooks';
 import { useConfig, useUI } from '../store';
 import { ROUTES, IMAGES } from '../utils/constants';
 
 const services = [
+  {
+    icon: MenuBookIcon,
+    title: 'Training',
+    path: ROUTES.SERVICES_LEARNING,
+    imageKey: 'SERVICE_LEARNING',
+    imageFallback: IMAGES.SERVICE_LEARNING,
+    description:
+      'Professional online courses covering ISO standards, food safety, quality management, regulatory compliance, and life sciences. Learn from industry experts at your own pace.',
+  },
   {
     icon: BiotechIcon,
     title: 'Microbiology Research',
@@ -33,12 +42,12 @@ const services = [
   },
   {
     icon: VerifiedIcon,
-    title: 'Certification',
+    title: 'Auditing and Certifications',
     path: ROUTES.SERVICES_CERTIFICATION,
     imageKey: 'SERVICE_CERTIFICATION',
     imageFallback: IMAGES.SERVICE_CERTIFICATION,
     description:
-      'ISO 22000 food safety certification, HACCP implementation, regulatory compliance audits, and quality management system certification. Globally recognized certification services.',
+      'ISO 22000 food safety certification, HACCP implementation, internal and external auditing, regulatory compliance, and quality management system certification services.',
   },
   {
     icon: ScienceIcon,
@@ -58,24 +67,6 @@ const services = [
     description:
       'Advanced clinical research and medical testing including thyroid profiling, dengue detection, sepsis bacteria identification, vitamin assessments, and molecular diagnostics with rapid turnaround.',
   },
-  {
-    icon: MenuBookIcon,
-    title: 'Learning',
-    path: ROUTES.SERVICES_LEARNING,
-    imageKey: 'SERVICE_LEARNING',
-    imageFallback: IMAGES.SERVICE_LEARNING,
-    description:
-      'Professional online courses covering ISO standards, food safety, quality management, regulatory compliance, and life sciences. Learn from industry experts at your own pace.',
-  },
-  {
-    icon: FactCheckIcon,
-    title: 'Auditing',
-    path: ROUTES.SERVICES_AUDITING,
-    imageKey: 'SERVICE_AUDITING',
-    imageFallback: IMAGES.SERVICE_AUDITING,
-    description:
-      'Comprehensive internal and external auditing services for ISO 22000, ISO 9001, HACCP, and quality management systems. Identify gaps and ensure regulatory compliance.',
-  },
 ];
 
 function Services() {
@@ -94,6 +85,11 @@ function Services() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <SEO
+        title="Services"
+        description="Explore Uyirgene International's services: microbiology research, auditing and certifications, food & environmental testing, clinical diagnostics, and training."
+        path="/services"
+      />
       <Breadcrumb items={[{ label: 'Services', path: ROUTES.SERVICES }]} />
 
       {/* Hero */}
@@ -184,7 +180,7 @@ function Services() {
                     }}
                   >
                     <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600 }}>
-                      Learn More
+                      Explore Now
                     </Typography>
                   </Box>
                 </Box>
@@ -208,7 +204,7 @@ function Services() {
                     }}
                     fullWidth
                   >
-                    Learn More
+                    Explore Now
                   </Button>
                 </Box>
               </Paper>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bundle Enrollment Successful</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+        <!-- Header -->
+        <tr>
+            <td style="background: linear-gradient(135deg, #8E44AD 0%, #9B59B6 100%); padding: 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Welcome to {{appName}}!</h1>
+                <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 16px;">Bundle Enrollment Confirmed</p>
+            </td>
+        </tr>
+
+        <!-- Content -->
+        <tr>
+            <td style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px;">Hi <strong>{{name}}</strong>,</p>
+
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px;">{{content}}</p>
+
+                <!-- Bundle Card -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f0ff; border: 2px solid #8E44AD; border-radius: 8px; margin: 20px 0;">
+                    <tr>
+                        <td style="padding: 25px;">
+                            <h2 style="color: #8E44AD; margin: 0 0 15px; font-size: 22px;">{{bundleTitle}}</h2>
+                            <p style="color: #555; margin: 0 0 12px; font-size: 14px; font-weight: bold;">Courses included in this bundle:</p>
+                            {{courseList}}
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- CTA Button -->
+                <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td style="text-align: center; padding: 20px 0;">
+                            <a href="{{dashboardUrl}}" style="display: inline-block; background-color: #8E44AD; color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 5px; font-size: 16px; font-weight: bold;">Go to My Courses</a>
+                        </td>
+                    </tr>
+                </table>
+
+                <p style="font-size: 14px; color: #666; margin: 20px 0 0;">
+                    Happy learning!<br>
+                    <strong>The {{appName}} Team</strong>
+                </p>
+            </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+            <td style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #eee;">
+                <p style="font-size: 12px; color: #999; margin: 0;">
+                    &copy; 2024 {{appName}}. All rights reserved.<br>
+                    Professional Training Institute | ISO 9001 Certified
+                </p>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

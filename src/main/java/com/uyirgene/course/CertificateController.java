@@ -19,6 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -47,6 +48,9 @@ public class CertificateController {
 
     @Autowired
     private SiteConfigService siteConfigService;
+
+    @org.springframework.beans.factory.annotation.Value("${app.certificate.folder:uploads/certificates}")
+    private String certFolder;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMMM dd, yyyy");
 
@@ -125,6 +129,20 @@ public class CertificateController {
 
         Certificate cert = certOpt.get();
         File file = new File(cert.getFilePath());
+
+        // Path traversal prevention: ensure file is within the certificate folder
+        try {
+            Path certDir = Path.of(certFolder).toAbsolutePath().normalize();
+            Path filePath = file.toPath().toAbsolutePath().normalize();
+            if (!filePath.startsWith(certDir)) {
+                return ResponseEntity.status(403)
+                        .body(Map.of("error", "Access denied"));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(Map.of("error", "Certificate path validation failed"));
+        }
+
         if (!file.exists()) {
             return ResponseEntity.status(404)
                     .body(Map.of("error", "Certificate file not found. Please contact admin to regenerate the certificate."));

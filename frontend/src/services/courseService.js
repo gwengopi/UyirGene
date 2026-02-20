@@ -2,6 +2,7 @@ import api from './api';
 
 const COURSE_ENDPOINTS = {
   LIST: '/api/courses',
+  ADMIN_LIST: '/api/courses/admin',
   DETAIL: (id) => `/api/courses/${id}`,
   VIDEOS: (courseId) => `/api/courses/${courseId}/videos`,
   VIDEOS_ADMIN: (courseId) => `/api/courses/${courseId}/videos/admin`,
@@ -10,6 +11,7 @@ const COURSE_ENDPOINTS = {
   THUMBNAIL: (courseId) => `/api/courses/${courseId}/thumbnail`,
   DESCRIPTION_IMAGE: (courseId) => `/api/courses/${courseId}/description-image`,
   ENROLLED: '/api/courses/enrolled',
+  FLAGSHIP: '/api/courses/flagship',
 };
 
 /**
@@ -18,6 +20,36 @@ const COURSE_ENDPOINTS = {
  */
 export async function getAllCourses() {
   const response = await api.get(COURSE_ENDPOINTS.LIST);
+  return response.data;
+}
+
+/**
+ * Get all courses including unpublished (Admin/Instructor only)
+ * @returns {Promise<Array>} List of all courses
+ */
+export async function getAdminCourses() {
+  const response = await api.get(COURSE_ENDPOINTS.ADMIN_LIST);
+  return response.data;
+}
+
+/**
+ * Get flagship courses only
+ * @returns {Promise<Array>} List of flagship courses
+ */
+export async function getFlagshipCourses() {
+  const response = await api.get(COURSE_ENDPOINTS.FLAGSHIP);
+  return response.data;
+}
+
+/**
+ * Get published courses filtered by category
+ * @param {string} category - MasterData category code
+ * @param {boolean} exclude - If true, returns courses NOT in the category
+ */
+export async function getCoursesByCategory(category, exclude = false) {
+  const params = { category };
+  if (exclude) params.excludeCategory = true;
+  const response = await api.get(COURSE_ENDPOINTS.LIST, { params });
   return response.data;
 }
 
@@ -78,8 +110,28 @@ export async function createCourse(courseData, imageOptions = {}) {
   if (courseOnly.durationHours) formData.append('durationHours', courseOnly.durationHours);
   if (courseOnly.price) formData.append('price', courseOnly.price);
   formData.append('published', courseOnly.published || false);
+  formData.append('flagship', courseOnly.flagship || false);
+  if (courseOnly.displayOrder != null) formData.append('displayOrder', courseOnly.displayOrder);
+  if (courseOnly.courseType) formData.append('courseType', courseOnly.courseType);
   if (courseOnly.testLink) formData.append('testLink', courseOnly.testLink);
   if (courseOnly.testDescription) formData.append('testDescription', courseOnly.testDescription);
+
+  // Structured description sections
+  if (courseOnly.keyComponents && courseOnly.keyComponents.length > 0) {
+    formData.append('keyComponents', JSON.stringify(courseOnly.keyComponents));
+  }
+  if (courseOnly.targetAudience) formData.append('targetAudience', courseOnly.targetAudience);
+  if (courseOnly.assessment) formData.append('assessment', courseOnly.assessment);
+  if (courseOnly.outcome) formData.append('outcome', courseOnly.outcome);
+  if (courseOnly.courseDurationText) formData.append('courseDurationText', courseOnly.courseDurationText);
+  if (courseOnly.examDetails && courseOnly.examDetails.length > 0) {
+    formData.append('examDetails', JSON.stringify(courseOnly.examDetails));
+  }
+
+  // Country prices for multi-currency support
+  if (courseOnly.countryPrices && courseOnly.countryPrices.length > 0) {
+    formData.append('countryPrices', JSON.stringify(courseOnly.countryPrices));
+  }
 
   // Handle images
   if (imageOptions.thumbnailImage) {
@@ -137,8 +189,30 @@ export async function updateCourse(id, courseData, imageOptions = {}) {
   if (courseOnly.durationHours) formData.append('durationHours', courseOnly.durationHours);
   if (courseOnly.price) formData.append('price', courseOnly.price);
   formData.append('published', courseOnly.published || false);
+  formData.append('flagship', courseOnly.flagship || false);
+  if (courseOnly.displayOrder != null) formData.append('displayOrder', courseOnly.displayOrder);
+  if (courseOnly.courseType) formData.append('courseType', courseOnly.courseType);
   if (courseOnly.testLink !== undefined) formData.append('testLink', courseOnly.testLink || '');
   if (courseOnly.testDescription !== undefined) formData.append('testDescription', courseOnly.testDescription || '');
+
+  // Structured description sections
+  if (courseOnly.keyComponents !== undefined) {
+    formData.append('keyComponents', courseOnly.keyComponents && courseOnly.keyComponents.length > 0
+      ? JSON.stringify(courseOnly.keyComponents) : '');
+  }
+  if (courseOnly.targetAudience !== undefined) formData.append('targetAudience', courseOnly.targetAudience || '');
+  if (courseOnly.assessment !== undefined) formData.append('assessment', courseOnly.assessment || '');
+  if (courseOnly.outcome !== undefined) formData.append('outcome', courseOnly.outcome || '');
+  if (courseOnly.courseDurationText !== undefined) formData.append('courseDurationText', courseOnly.courseDurationText || '');
+  if (courseOnly.examDetails !== undefined) {
+    formData.append('examDetails', courseOnly.examDetails && courseOnly.examDetails.length > 0
+      ? JSON.stringify(courseOnly.examDetails) : '');
+  }
+
+  // Country prices for multi-currency support
+  if (courseOnly.countryPrices) {
+    formData.append('countryPrices', JSON.stringify(courseOnly.countryPrices));
+  }
 
   // Handle images
   if (imageOptions.thumbnailImage) {
@@ -266,6 +340,9 @@ export async function addVideoToCourse(courseId, videoData) {
 
 export default {
   getAllCourses,
+  getAdminCourses,
+  getFlagshipCourses,
+  getCoursesByCategory,
   getCourse,
   getCourseVideos,
   getAdminCourseVideos,

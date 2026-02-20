@@ -1,6 +1,7 @@
 package com.uyirgene.config;
 
 import com.uyirgene.exception.EntityNotFoundException;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -137,6 +138,7 @@ public class SiteConfigService {
      */
     @Transactional
     @CacheEvict(value = "siteConfigs", allEntries = true)
+    @PostConstruct
     public void seedDefaultConfigs() {
         // Logo images
         createIfNotExists("LOGO_MAIN", "https://img1.wsimg.com/isteam/ip/1026513f-a4fe-4205-ac72-b744196cbd6f/UI_color-removebg-preview%202.png/:/rs=h:80,cg:true,m/qt=q:100/ll", "IMAGE", "LOGO", "Main logo");
@@ -152,6 +154,12 @@ public class SiteConfigService {
         createIfNotExists("COURSE_PRACTICAL", "https://img1.wsimg.com/isteam/getty/1938554573/:/rs=w:600,h:400,cg:true,m/qt=q:90", "IMAGE", "COURSE", "Practical learning image");
         createIfNotExists("COURSE_CERTIFICATION", "https://img1.wsimg.com/isteam/getty/1341288264/:/rs=w:600,h:400,cg:true,m/qt=q:90", "IMAGE", "COURSE", "Certification image");
         createIfNotExists("COURSE_REGULATORY", "https://img1.wsimg.com/isteam/getty/2165387046/:/rs=w:600,h:400,cg:true,m/qt=q:90", "IMAGE", "COURSE", "Regulatory courses image");
+
+        // Service images
+        createIfNotExists("SERVICE_MICROBIOLOGY", "https://images.unsplash.com/photo-1576086213369-97a306d36557?w=600&h=400&fit=crop&q=80", "IMAGE", "SERVICE", "Microbiology Research service image");
+        createIfNotExists("SERVICE_CERTIFICATION", "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&h=400&fit=crop&q=80", "IMAGE", "SERVICE", "Certification service image");
+        createIfNotExists("SERVICE_GMO_TESTING", "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=600&h=400&fit=crop&q=80", "IMAGE", "SERVICE", "GMO Testing service image");
+        createIfNotExists("SERVICE_CLINICAL_DIAGNOSTICS", "https://images.unsplash.com/photo-1579154204601-01588f351e67?w=600&h=400&fit=crop&q=80", "IMAGE", "SERVICE", "Clinical Diagnostics service image");
 
         // About images
         createIfNotExists("ABOUT_MISSION", "https://img1.wsimg.com/isteam/getty/852586044/:/rs=w:800,h:600,cg:true,m/qt=q:90", "IMAGE", "ABOUT", "About mission image");
@@ -185,10 +193,15 @@ public class SiteConfigService {
         createIfNotExists("FOOTER_PLATFORM_LINKS", "[{\"label\":\"Courses\",\"path\":\"/courses\"},{\"label\":\"About Us\",\"path\":\"/about\"},{\"label\":\"Blog\",\"path\":\"/blogs\"},{\"label\":\"Careers\",\"path\":\"/careers\"}]", "JSON", "FOOTER", "Platform section links (JSON array with label, path)");
 
         // Footer Support Links (JSON array)
-        createIfNotExists("FOOTER_SUPPORT_LINKS", "[{\"label\":\"Help Center\",\"path\":\"/help\"},{\"label\":\"Contact Us\",\"path\":\"/contact\"},{\"label\":\"FAQs\",\"path\":\"/faq\"},{\"label\":\"Verify Certificate\",\"path\":\"/verify-certificate\"},{\"label\":\"Community\",\"path\":\"/community\"}]", "JSON", "FOOTER", "Support section links (JSON array with label, path)");
+        createIfNotExists("FOOTER_SUPPORT_LINKS", "[{\"label\":\"Contact Us\",\"path\":\"/contact\"},{\"label\":\"FAQs\",\"path\":\"/faq\"}]", "JSON", "FOOTER", "Support section links (JSON array with label, path)");
 
         // Footer Legal Links (JSON array)
         createIfNotExists("FOOTER_LEGAL_LINKS", "[{\"label\":\"Terms of Service\",\"path\":\"/terms\"},{\"label\":\"Privacy Policy\",\"path\":\"/privacy\"},{\"label\":\"Cookie Policy\",\"path\":\"/cookies\"},{\"label\":\"Refund Policy\",\"path\":\"/refund\"},{\"label\":\"Accessibility\",\"path\":\"/accessibility\"}]", "JSON", "FOOTER", "Legal section links (JSON array with label, path)");
+
+        // Google Review Configuration
+        createIfNotExists("GOOGLE_REVIEW_LINK", "", "URL", "REVIEW", "Google Maps review page link (for Leave a Review button)");
+        createIfNotExists("GOOGLE_PLACE_ID", "", "TEXT", "REVIEW", "Google Place ID for fetching reviews via Places API");
+        createIfNotExists("GOOGLE_API_KEY", "", "TEXT", "REVIEW", "Google Places API key for fetching reviews");
     }
 
     private void createIfNotExists(String key, String value, String type, String category, String description) {

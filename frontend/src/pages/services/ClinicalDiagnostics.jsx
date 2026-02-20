@@ -15,7 +15,7 @@ import {
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import { Button, Breadcrumb } from '../../components/common';
+import { Button, Breadcrumb, SEO } from '../../components/common';
 import { useScrollAnimation } from '../../hooks';
 import { useConfig, useUI } from '../../store';
 import { ROUTES, IMAGES } from '../../utils/constants';
@@ -63,6 +63,11 @@ function ClinicalResearch() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <SEO
+        title="Clinical Diagnostics"
+        description="Clinical diagnostic services including pathology, molecular diagnostics, and specialized testing from Uyirgene International."
+        path="/services/clinical-research"
+      />
       <Breadcrumb
         items={[
           { label: 'Services', path: ROUTES.SERVICES },

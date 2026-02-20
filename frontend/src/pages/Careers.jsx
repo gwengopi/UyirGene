@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Container, Typography, Box, Grid, Paper, Chip, Skeleton, Alert } from '@mui/material';
 import WorkIcon from '@mui/icons-material/Work';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import { Breadcrumb, Button } from '../components/common';
+import { Breadcrumb, Button, SEO } from '../components/common';
 import { careerService } from '../services';
 
 function Careers() {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -35,6 +37,7 @@ function Careers() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <SEO title="Careers" description="Join Uyirgene International. Explore career opportunities in food safety, quality management, microbiology research, and professional training." path="/careers" />
       <Breadcrumb items={[{ label: 'Careers', path: '/careers' }]} />
 
       {/* Hero Section */}
@@ -149,7 +152,7 @@ function Careers() {
                         </Typography>
                       )}
                     </Box>
-                    <Button variant="outlined">
+                    <Button variant="outlined" onClick={() => navigate('/contact')}>
                       Apply Now
                     </Button>
                   </Box>

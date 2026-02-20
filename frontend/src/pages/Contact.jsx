@@ -1,27 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, Box, Grid, Paper, TextField, Alert, Divider } from '@mui/material';
+import { Container, Typography, Box, Grid, Paper, TextField, Alert, Divider, useTheme, alpha } from '@mui/material';
 import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import LanguageIcon from '@mui/icons-material/Language';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import SendIcon from '@mui/icons-material/Send';
-import { Breadcrumb, Button } from '../components/common';
+import BusinessIcon from '@mui/icons-material/Business';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import { Breadcrumb, Button, SEO } from '../components/common';
 import { useToast } from '../store';
 import { configService } from '../services';
 
 // Default contact info (fallback if config not loaded)
 const DEFAULT_CONTACT = {
-  phone: '+91 99437 12383',
+  phoneManager: '+91-99 437 123 83',
+  phoneOffice: '04562 359 331',
   whatsapp: '919943712383',
-  email: 'info@uyirgene.com',
-  emailAlt: 'uyirgene@gmail.com',
+  email: 'uyirgene@gmail.com',
+  emailOutlook: 'uyirgene@outlook.com',
   website: 'www.uyirgene.com',
   address: 'Uyir-Tech International Testing Laboratory, Research and Training Institute, Bharathi Nagar, NGO Colony, Sattur, Tamil Nadu, India',
+  locations: 'Chennai, Bengaluru, Coimbatore & Sattur',
 };
 
 function Contact() {
   const { showSuccess, showError } = useToast();
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -44,12 +50,14 @@ function Contact() {
         });
 
         setContactConfig({
-          phone: configMap.CONTACT_PHONE || DEFAULT_CONTACT.phone,
+          phoneManager: configMap.CONTACT_PHONE_MANAGER || DEFAULT_CONTACT.phoneManager,
+          phoneOffice: configMap.CONTACT_PHONE_OFFICE || DEFAULT_CONTACT.phoneOffice,
           whatsapp: configMap.CONTACT_WHATSAPP || DEFAULT_CONTACT.whatsapp,
           email: configMap.CONTACT_EMAIL || DEFAULT_CONTACT.email,
-          emailAlt: configMap.CONTACT_EMAIL_ALT || DEFAULT_CONTACT.emailAlt,
+          emailOutlook: configMap.CONTACT_EMAIL_OUTLOOK || DEFAULT_CONTACT.emailOutlook,
           website: configMap.CONTACT_WEBSITE || DEFAULT_CONTACT.website,
           address: configMap.CONTACT_ADDRESS || DEFAULT_CONTACT.address,
+          locations: configMap.CONTACT_LOCATIONS || DEFAULT_CONTACT.locations,
         });
       } catch (error) {
         console.error('Failed to load contact config:', error);
@@ -80,7 +88,7 @@ function Contact() {
   };
 
   const handleWhatsAppClick = () => {
-    const message = encodeURIComponent('Hello! I would like to inquire about your courses.');
+    const message = encodeURIComponent('Hello! I would like to inquire about your services and courses.');
     window.open(`https://wa.me/${contactConfig.whatsapp}?text=${message}`, '_blank');
   };
 
@@ -91,9 +99,15 @@ function Contact() {
   const contactInfo = [
     {
       icon: PhoneIcon,
-      title: 'Phone',
-      content: contactConfig.phone,
-      link: `tel:${contactConfig.phone.replace(/\s/g, '')}`,
+      title: 'Manager',
+      content: contactConfig.phoneManager,
+      link: `tel:${contactConfig.phoneManager.replace(/[\s-]/g, '')}`,
+    },
+    {
+      icon: PhoneIcon,
+      title: 'Office',
+      content: contactConfig.phoneOffice,
+      link: `tel:${contactConfig.phoneOffice.replace(/[\s-]/g, '')}`,
     },
     {
       icon: EmailIcon,
@@ -103,9 +117,9 @@ function Contact() {
     },
     {
       icon: EmailIcon,
-      title: 'Alternate Email',
-      content: contactConfig.emailAlt,
-      link: `mailto:${contactConfig.emailAlt}`,
+      title: 'Email',
+      content: contactConfig.emailOutlook,
+      link: `mailto:${contactConfig.emailOutlook}`,
     },
     {
       icon: LanguageIcon,
@@ -115,14 +129,25 @@ function Contact() {
     },
     {
       icon: LocationOnIcon,
-      title: 'Address',
+      title: 'Head Office',
       content: contactConfig.address,
+      link: null,
+    },
+    {
+      icon: BusinessIcon,
+      title: 'Our Offices',
+      content: contactConfig.locations,
       link: null,
     },
   ];
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <SEO
+        title="Contact Us"
+        description="Get in touch with Uyirgene International. Reach us at our offices in Chennai, Bengaluru, Coimbatore & Sattur for training, testing, and certification inquiries."
+        path="/contact"
+      />
       <Breadcrumb items={[{ label: 'Contact Us', path: '/contact' }]} />
 
       <Box sx={{ textAlign: 'center', mb: 6 }}>
@@ -130,7 +155,10 @@ function Contact() {
           Contact Us
         </Typography>
         <Typography variant="h6" color="text.secondary">
-          We'd love to hear from you. Get in touch with us.
+          Better yet, see us in person!
+        </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
+          We love meeting our customers. Feel free to visit during normal business hours.
         </Typography>
       </Box>
 
@@ -173,7 +201,7 @@ function Contact() {
         <Grid item xs={12} md={7}>
           <Paper sx={{ p: 4 }}>
             <Typography variant="h5" gutterBottom fontWeight={600}>
-              Send us a Message
+              Drop us a line!
             </Typography>
 
             {submitted && (

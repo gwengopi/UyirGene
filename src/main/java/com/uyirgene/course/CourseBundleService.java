@@ -1,0 +1,352 @@
+package com.uyirgene.course;
+
+import com.uyirgene.course.dto.CourseBundleDto;
+import com.uyirgene.course.dto.EnrollmentResult;
+import com.uyirgene.course.payment.PaymentProvider;
+import com.uyirgene.course.payment.dto.PaymentOrder;
+import com.uyirgene.exception.EntityNotFoundException;
+import com.uyirgene.exception.PaymentException;
+import com.uyirgene.user.CurrentUserService;
+import com.uyirgene.user.User;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class CourseBundleService {
+    private final CourseBundleRepository bundleRepo;
+    private final BundlePriceRepository bundlePriceRepo;
+    private final CourseRepository courseRepo;
+    private final EnrollmentRepository enrollmentRepo;
+    private final CurrentUserService currentUserService;
+    private final PaymentProvider paymentProvider;
+    private final MailService mailService;
+
+    // ==================== Public ====================
+
+    public List<CourseBundleDto> getPublishedBundles() {
+        return bundleRepo.findByPublishedTrueOrderByDisplayOrderAscIdAsc().stream()
+                .map(CourseBundleDto::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    public List<CourseBundleDto> getPublishedBundlesByCategory(String category) {
+        return bundleRepo.findByPublishedTrueAndCategoryOrderByDisplayOrderAscIdAsc(category).stream()
+                .map(CourseBundleDto::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    public CourseBundleDto getBundleById(Long id) {
+        CourseBundle bundle = bundleRepo.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Bundle not found"));
+        return CourseBundleDto.fromEntity(bundle);
+    }
+
+    // ==================== Admin CRUD ====================
+
+    public List<CourseBundleDto> getAllBundles() {
+        return bundleRepo.findAllByOrderByDisplayOrderAscIdAsc().stream()
+                .map(CourseBundleDto::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public CourseBundleDto createBundle(String bundleCode, String title, String description,
+                                        Double price, Integer displayOrder, String category,
+                                        List<Long> courseIds,
+                                        List<Map<String, Object>> countryPrices,
+                                        byte[] thumbnailImage, String thumbnailImageContentType) {
+        List<Course> courses = courseRepo.findAllById(courseIds);
+        if (courses.size() != courseIds.size()) {
+            throw new IllegalArgumentException("One or more course IDs are invalid");
+        }
+
+        // Calculate original price from individual course prices
+        Double originalPrice = courses.stream()
+                .map(Course::getPrice)
+                .filter(Objects::nonNull)
+                .reduce(0.0, Double::sum);
+
+        CourseBundle bundle = CourseBundle.builder()
+                .bundleCode(bundleCode)
+                .title(title)
+                .description(description)
+                .price(price)
+                .originalPrice(originalPrice)
+                .displayOrder(displayOrder != null ? displayOrder : 0)
+                .category(category)
+                .published(false)
+                .courses(new ArrayList<>(courses))
+                .thumbnailImage(thumbnailImage)
+                .thumbnailImageContentType(thumbnailImageContentType)
+                .build();
+
+        // Add country prices
+        if (countryPrices != null) {
+            for (Map<String, Object> entry : countryPrices) {
+                String countryCode = (String) entry.get("countryCode");
+                String currencyCode = (String) entry.get("currencyCode");
+                Object amtObj = entry.get("amount");
+                Double amount = amtObj instanceof Number
+                        ? ((Number) amtObj).doubleValue()
+                        : Double.parseDouble(amtObj.toString());
+                if (countryCode != null && currencyCode != null && amount > 0) {
+                    BundlePrice bp = BundlePrice.builder()
+                            .bundle(bundle)
+                            .countryCode(countryCode)
+                            .currencyCode(currencyCode)
+                            .amount(amount)
+                            .build();
+                    bundle.getCountryPrices().add(bp);
+                }
+            }
+        }
+
+        CourseBundle saved = bundleRepo.save(bundle);
+        return CourseBundleDto.fromEntity(saved);
+    }
+
+    @Transactional
+    public CourseBundleDto updateBundle(Long id, String bundleCode, String title, String description,
+                                        Double price, Integer displayOrder, String category,
+                                        List<Long> courseIds,
+                                        List<Map<String, Object>> countryPrices,
+                                        byte[] thumbnailImage, String thumbnailImageContentType,
+                                        boolean removeThumbnailImage) {
+        CourseBundle bundle = bundleRepo.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Bundle not found"));
+
+        bundle.setBundleCode(bundleCode);
+        bundle.setTitle(title);
+        bundle.setDescription(description);
+        bundle.setPrice(price);
+        bundle.setDisplayOrder(displayOrder != null ? displayOrder : 0);
+        bundle.setCategory(category);
+
+        // Update courses
+        if (courseIds != null) {
+            List<Course> courses = courseRepo.findAllById(courseIds);
+            bundle.setCourses(new ArrayList<>(courses));
+            // Recalculate original price
+            Double originalPrice = courses.stream()
+                    .map(Course::getPrice)
+                    .filter(Objects::nonNull)
+                    .reduce(0.0, Double::sum);
+            bundle.setOriginalPrice(originalPrice);
+        }
+
+        // Handle thumbnail
+        if (removeThumbnailImage) {
+            bundle.setThumbnailImage(null);
+            bundle.setThumbnailImageContentType(null);
+        } else if (thumbnailImage != null) {
+            bundle.setThumbnailImage(thumbnailImage);
+            bundle.setThumbnailImageContentType(thumbnailImageContentType);
+        }
+
+        // Update country prices (in-place merge to avoid Hibernate conflicts)
+        if (countryPrices != null) {
+            Map<String, Map<String, Object>> newPricesMap = new HashMap<>();
+            for (Map<String, Object> entry : countryPrices) {
+                String cc = (String) entry.get("countryCode");
+                if (cc != null) newPricesMap.put(cc, entry);
+            }
+
+            List<BundlePrice> toRemove = new ArrayList<>();
+            for (BundlePrice bp : bundle.getCountryPrices()) {
+                Map<String, Object> newEntry = newPricesMap.remove(bp.getCountryCode());
+                if (newEntry != null) {
+                    bp.setCurrencyCode((String) newEntry.get("currencyCode"));
+                    Object amtObj = newEntry.get("amount");
+                    bp.setAmount(amtObj instanceof Number
+                            ? ((Number) amtObj).doubleValue()
+                            : Double.parseDouble(amtObj.toString()));
+                } else {
+                    toRemove.add(bp);
+                }
+            }
+            bundle.getCountryPrices().removeAll(toRemove);
+
+            for (Map<String, Object> entry : newPricesMap.values()) {
+                String countryCode = (String) entry.get("countryCode");
+                String currencyCode = (String) entry.get("currencyCode");
+                Object amtObj = entry.get("amount");
+                Double amount = amtObj instanceof Number
+                        ? ((Number) amtObj).doubleValue()
+                        : Double.parseDouble(amtObj.toString());
+                if (countryCode != null && currencyCode != null && amount > 0) {
+                    BundlePrice bp = BundlePrice.builder()
+                            .bundle(bundle)
+                            .countryCode(countryCode)
+                            .currencyCode(currencyCode)
+                            .amount(amount)
+                            .build();
+                    bundle.getCountryPrices().add(bp);
+                }
+            }
+        }
+
+        CourseBundle saved = bundleRepo.save(bundle);
+        return CourseBundleDto.fromEntity(saved);
+    }
+
+    @Transactional
+    public void deleteBundle(Long id) {
+        CourseBundle bundle = bundleRepo.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Bundle not found"));
+        bundleRepo.delete(bundle);
+    }
+
+    @Transactional
+    public CourseBundleDto togglePublish(Long id) {
+        CourseBundle bundle = bundleRepo.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Bundle not found"));
+        bundle.setPublished(!bundle.getPublished());
+        CourseBundle saved = bundleRepo.save(bundle);
+        return CourseBundleDto.fromEntity(saved);
+    }
+
+    // ==================== Bundle Enrollment ====================
+
+    @Transactional
+    public BundleEnrollmentResult startBundleEnrollment(Long bundleId, String countryCode) {
+        User user = currentUserService.getCurrentUser();
+        CourseBundle bundle = bundleRepo.findById(bundleId)
+                .orElseThrow(() -> new EntityNotFoundException("Bundle not found"));
+
+        if (!bundle.getPublished()) {
+            throw new IllegalStateException("This bundle is not available for purchase");
+        }
+
+        // Check which courses the user already owns
+        List<Course> allCourses = bundle.getCourses();
+        List<Course> alreadyOwned = new ArrayList<>();
+        List<Course> newCourses = new ArrayList<>();
+
+        for (Course course : allCourses) {
+            Optional<Enrollment> existing = enrollmentRepo.findByUserAndCourse(user, course);
+            if (existing.isPresent() &&
+                (existing.get().getStatus() == Enrollment.Status.ENROLLED ||
+                 existing.get().getStatus() == Enrollment.Status.COMPLETED)) {
+                alreadyOwned.add(course);
+            } else {
+                newCourses.add(course);
+            }
+        }
+
+        // If user owns ALL courses in the bundle, block purchase
+        if (newCourses.isEmpty()) {
+            return new BundleEnrollmentResult(null, null, null,
+                    "You already own all courses in this bundle", true);
+        }
+
+        // Resolve price and currency
+        Double resolvedPrice;
+        String resolvedCurrency;
+        if (countryCode != null && !countryCode.isBlank() && !"IN".equalsIgnoreCase(countryCode)) {
+            Optional<BundlePrice> bundlePrice = bundlePriceRepo.findByBundleAndCountryCode(bundle, countryCode.toUpperCase());
+            if (bundlePrice.isPresent()) {
+                resolvedPrice = bundlePrice.get().getAmount();
+                resolvedCurrency = bundlePrice.get().getCurrencyCode();
+            } else {
+                resolvedPrice = bundle.getPrice();
+                resolvedCurrency = "INR";
+            }
+        } else {
+            resolvedPrice = bundle.getPrice();
+            resolvedCurrency = "INR";
+        }
+
+        // Create Razorpay order
+        long amountSmallestUnit = Math.round(resolvedPrice * 100);
+        PaymentOrder po = paymentProvider.createOrder(
+                amountSmallestUnit, resolvedCurrency, "bundle-" + bundleId + "-" + System.currentTimeMillis());
+
+        EnrollmentResult.RazorpayOrder order = new EnrollmentResult.RazorpayOrder(
+                po.getId(), po.getAmount(), po.getCurrency(), po.getKeyId());
+
+        // Build warning message if user already owns some courses
+        String message = null;
+        if (!alreadyOwned.isEmpty()) {
+            String ownedNames = alreadyOwned.stream().map(Course::getTitle).collect(Collectors.joining(", "));
+            message = "You already own: " + ownedNames + ". The bundle will give you access to the remaining " +
+                      newCourses.size() + " course(s).";
+        }
+
+        List<String> alreadyOwnedTitles = alreadyOwned.stream().map(Course::getTitle).collect(Collectors.toList());
+        List<String> newCourseTitles = newCourses.stream().map(Course::getTitle).collect(Collectors.toList());
+
+        return new BundleEnrollmentResult(order, alreadyOwnedTitles, newCourseTitles, message, false);
+    }
+
+    @Transactional
+    public List<Enrollment> confirmBundlePayment(Long bundleId, String razorpayPaymentId,
+                                                  String razorpayOrderId, String signature) {
+        User user = currentUserService.getCurrentUser();
+        CourseBundle bundle = bundleRepo.findById(bundleId)
+                .orElseThrow(() -> new EntityNotFoundException("Bundle not found"));
+
+        // Verify payment signature
+        boolean ok = paymentProvider.verifySignature(razorpayOrderId, razorpayPaymentId, signature);
+        if (!ok) {
+            throw new PaymentException("Invalid payment signature");
+        }
+
+        // Enroll user in each course they don't already own
+        List<Enrollment> newEnrollments = new ArrayList<>();
+        for (Course course : bundle.getCourses()) {
+            Optional<Enrollment> existing = enrollmentRepo.findByUserAndCourse(user, course);
+            if (existing.isPresent()) {
+                Enrollment e = existing.get();
+                if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) {
+                    continue; // Already enrolled, skip
+                }
+                // Update PENDING enrollment
+                e.setStatus(Enrollment.Status.ENROLLED);
+                e.setBundle(bundle);
+                e.setPaymentOrderId(razorpayOrderId);
+                newEnrollments.add(enrollmentRepo.save(e));
+            } else {
+                Enrollment enrollment = Enrollment.builder()
+                        .user(user)
+                        .course(course)
+                        .bundle(bundle)
+                        .enrolledAt(LocalDateTime.now())
+                        .status(Enrollment.Status.ENROLLED)
+                        .paymentOrderId(razorpayOrderId)
+                        .build();
+                newEnrollments.add(enrollmentRepo.save(enrollment));
+            }
+        }
+
+        // Eagerly resolve all data before transaction closes (for @Async mail)
+        String userEmail = user.getEmail();
+        String userName = user.getName();
+        String bundleTitle = bundle.getTitle();
+        List<String> enrolledCourseTitles = newEnrollments.stream()
+                .map(e -> e.getCourse().getTitle())
+                .toList();
+
+        // Send confirmation email with all enrolled courses
+        if (!newEnrollments.isEmpty()) {
+            mailService.sendBundleEnrollmentSuccess(userEmail, userName, bundleTitle, enrolledCourseTitles);
+        }
+
+        return newEnrollments;
+    }
+
+    // ==================== Result DTOs ====================
+
+    public record BundleEnrollmentResult(
+            EnrollmentResult.RazorpayOrder order,
+            List<String> alreadyOwnedCourses,
+            List<String> newCourses,
+            String message,
+            boolean allOwned
+    ) {}
+}

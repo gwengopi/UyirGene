@@ -7,7 +7,7 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary';
 import CardMembershipIcon from '@mui/icons-material/CardMembership';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import { Breadcrumb, Button } from '../components/common';
+import { Breadcrumb, Button, SEO } from '../components/common';
 import { useNavigate } from 'react-router-dom';
 
 function Help() {
@@ -64,6 +64,7 @@ function Help() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <SEO title="Help" description="Get help with Uyirgene International's learning platform. Find guides for enrollment, courses, payments and certifications." path="/help" />
       <Breadcrumb items={[{ label: 'Help Center', path: '/help' }]} />
 
       {/* Hero Section */}

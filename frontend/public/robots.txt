@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+# Block admin and protected pages
+Disallow: /admin
+Disallow: /admin/
+Disallow: /dashboard
+Disallow: /my-courses
+Disallow: /payment
+Disallow: /profile
+Disallow: /login
+Disallow: /register
+Disallow: /unauthorized
+
+# Sitemap
+Sitemap: https://uyirgene.com/sitemap.xml

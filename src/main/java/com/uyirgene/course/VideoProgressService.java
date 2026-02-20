@@ -20,7 +20,7 @@ public class VideoProgressService {
     private final CurrentUserService currentUserService;
 
     @Transactional
-    public VideoProgress updateProgress(Long videoId, Long lastPositionSeconds) {
+    public VideoProgress updateProgress(Long videoId, Long lastPositionSeconds, boolean markCompleted) {
         User user = currentUserService.getCurrentUser();
         Video v = videoRepo.findById(videoId).orElseThrow(() -> new IllegalArgumentException("Video not found"));
 
@@ -28,9 +28,11 @@ public class VideoProgressService {
         Enrollment e = enrollmentRepo.findByUserAndCourse(user, v.getCourse()).orElseThrow(() -> new SecurityException("User not enrolled"));
 
         VideoProgress p = progressRepo.findByUserAndVideo(user, v).orElseGet(() -> VideoProgress.builder().user(user).video(v).build());
-        p.setLastPositionSeconds(lastPositionSeconds);
+        if (lastPositionSeconds != null) {
+            p.setLastPositionSeconds(lastPositionSeconds);
+        }
         p.setLastSeenAt(LocalDateTime.now());
-        if (v.getDurationSeconds() != null && lastPositionSeconds >= v.getDurationSeconds()) {
+        if (markCompleted || (v.getDurationSeconds() != null && lastPositionSeconds != null && lastPositionSeconds >= v.getDurationSeconds())) {
             p.setCompleted(true);
         }
         p = progressRepo.save(p);

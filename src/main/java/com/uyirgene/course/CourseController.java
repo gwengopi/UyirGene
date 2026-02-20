@@ -1,5 +1,7 @@
 package com.uyirgene.course;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uyirgene.course.dto.CourseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -15,9 +17,14 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
@@ -30,17 +37,49 @@ public class CourseController {
     private final EnrollmentRepository enrollmentRepo;
     private final CertificateRepository certificateRepo;
     private final VideoProgressRepository videoProgressRepo;
+    private final ObjectMapper objectMapper;
+
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @Operation(summary = "List all courses including unpublished (admin)")
+    @ApiResponse(responseCode = "200", description = "List of all courses")
+    public ResponseEntity<List<CourseDto>> adminAll() {
+        List<CourseDto> courses = repo.findAllByOrderByDisplayOrderAscIdAsc().stream()
+                .map(CourseDto::fromEntity)
+                .toList();
+        return ResponseEntity.ok(courses);
+    }
+
+    @GetMapping("/flagship")
+    @Operation(summary = "List flagship courses")
+    @ApiResponse(responseCode = "200", description = "List of flagship courses")
+    public ResponseEntity<List<CourseDto>> flagship() {
+        List<CourseDto> courses = repo.findByFlagshipTrueAndPublishedTrueOrderByDisplayOrderAscIdAsc().stream()
+                .map(CourseDto::fromEntity)
+                .toList();
+        return ResponseEntity.ok(courses);
+    }
 
     @GetMapping
-    @Operation(summary = "List all courses with optional sorting")
-    @ApiResponse(responseCode = "200", description = "List of courses")
+    @Operation(summary = "List all published courses with optional filtering and sorting")
+    @ApiResponse(responseCode = "200", description = "List of published courses")
     public ResponseEntity<List<CourseDto>> all(
+            @RequestParam(value = "category", required = false) String category,
+            @RequestParam(value = "excludeCategory", defaultValue = "false") boolean excludeCategory,
             @RequestParam(value = "sortBy", required = false) String sortBy,
             @RequestParam(value = "sortOrder", defaultValue = "asc") String sortOrder
     ) {
-        List<Course> courses = repo.findAll();
+        List<Course> courses;
+        if (category != null && !category.isBlank()) {
+            courses = excludeCategory
+                    ? repo.findByPublishedTrueAndCategoryNotOrderByDisplayOrderAscIdAsc(category)
+                    : repo.findByPublishedTrueAndCategoryOrderByDisplayOrderAscIdAsc(category);
+            List<CourseDto> dtos = courses.stream().map(CourseDto::fromEntity).toList();
+            return ResponseEntity.ok(dtos);
+        }
+        courses = new java.util.ArrayList<>(repo.findByPublishedTrueOrderByDisplayOrderAscIdAsc());
 
-        // Apply sorting
+        // Apply sorting (overrides default display order when explicitly requested)
         if (sortBy != null) {
             Comparator<Course> comparator = switch (sortBy.toLowerCase()) {
                 case "duration", "durationhours" -> Comparator.comparing(
@@ -88,22 +127,52 @@ public class CourseController {
             @RequestParam(value = "durationHours", required = false) Integer durationHours,
             @RequestParam(value = "price", required = false) Double price,
             @RequestParam(value = "published", defaultValue = "false") Boolean published,
+            @RequestParam(value = "flagship", defaultValue = "false") Boolean flagship,
+            @RequestParam(value = "courseType", required = false) String courseType,
             @RequestParam(value = "trainerName", required = false) String trainerName,
             @RequestParam(value = "image", required = false) MultipartFile image,
             @RequestParam(value = "thumbnailImage", required = false) MultipartFile thumbnailImage,
             @RequestParam(value = "descriptionImage", required = false) MultipartFile descriptionImage,
             @RequestParam(value = "testLink", required = false) String testLink,
-            @RequestParam(value = "testDescription", required = false) String testDescription
+            @RequestParam(value = "testDescription", required = false) String testDescription,
+            @RequestParam(value = "displayOrder", required = false) Integer displayOrder,
+            @RequestParam(value = "countryPrices", required = false) String countryPricesJson,
+            @RequestParam(value = "keyComponents", required = false) String keyComponents,
+            @RequestParam(value = "targetAudience", required = false) String targetAudience,
+            @RequestParam(value = "assessment", required = false) String assessment,
+            @RequestParam(value = "outcome", required = false) String outcome,
+            @RequestParam(value = "courseDurationText", required = false) String courseDurationText,
+            @RequestParam(value = "examDetails", required = false) String examDetails
     ) throws IOException {
+        // Validate price
+        if (price != null && price < 0) {
+            return ResponseEntity.badRequest().body(null);
+        }
+
+        // Validate uploaded images
+        for (MultipartFile img : new MultipartFile[]{image, thumbnailImage, descriptionImage}) {
+            String err = validateImage(img);
+            if (err != null) return ResponseEntity.badRequest().body(null);
+        }
+
         Course course = Course.builder()
                 .courseCode(courseCode)
                 .title(title)
                 .shortDescription(shortDescription)
                 .description(description)
+                .keyComponents(keyComponents)
+                .targetAudience(targetAudience)
+                .assessment(assessment)
+                .outcome(outcome)
+                .courseDurationText(courseDurationText)
+                .examDetails(examDetails)
                 .category(category)
                 .durationHours(durationHours)
                 .price(price)
                 .published(published)
+                .flagship(flagship)
+                .displayOrder(displayOrder)
+                .courseType(courseType)
                 .trainerName(trainerName)
                 .testLink(testLink)
                 .testDescription(testDescription)
@@ -131,6 +200,9 @@ public class CourseController {
             course.setDescriptionImageContentType(descriptionImage.getContentType());
         }
 
+        // Handle country prices
+        parseAndSetCountryPrices(course, countryPricesJson);
+
         Course saved = repo.save(course);
         return ResponseEntity.created(URI.create("/api/courses/" + saved.getId()))
                 .body(CourseDto.fromEntity(saved));
@@ -140,8 +212,33 @@ public class CourseController {
     @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
     @Operation(summary = "Create a course (JSON)")
     public ResponseEntity<CourseDto> createJson(@RequestBody Course c) {
-        c.setId(null);
-        Course saved = repo.save(c);
+        if (c.getPrice() != null && c.getPrice() < 0) {
+            return ResponseEntity.badRequest().body(null);
+        }
+        // Only copy safe fields to prevent mass assignment
+        Course course = Course.builder()
+                .courseCode(c.getCourseCode())
+                .title(c.getTitle())
+                .shortDescription(c.getShortDescription())
+                .description(c.getDescription())
+                .keyComponents(c.getKeyComponents())
+                .targetAudience(c.getTargetAudience())
+                .assessment(c.getAssessment())
+                .outcome(c.getOutcome())
+                .courseDurationText(c.getCourseDurationText())
+                .examDetails(c.getExamDetails())
+                .category(c.getCategory())
+                .durationHours(c.getDurationHours())
+                .price(c.getPrice())
+                .published(c.getPublished())
+                .flagship(c.getFlagship())
+                .displayOrder(c.getDisplayOrder())
+                .courseType(c.getCourseType())
+                .trainerName(c.getTrainerName())
+                .testLink(c.getTestLink())
+                .testDescription(c.getTestDescription())
+                .build();
+        Course saved = repo.save(course);
         return ResponseEntity.created(URI.create("/api/courses/" + saved.getId()))
                 .body(CourseDto.fromEntity(saved));
     }
@@ -156,6 +253,7 @@ public class CourseController {
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @Transactional
     @Operation(summary = "Update a course with optional images")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Course updated"),
@@ -171,6 +269,8 @@ public class CourseController {
             @RequestParam(value = "durationHours", required = false) Integer durationHours,
             @RequestParam(value = "price", required = false) Double price,
             @RequestParam(value = "published", defaultValue = "false") Boolean published,
+            @RequestParam(value = "flagship", defaultValue = "false") Boolean flagship,
+            @RequestParam(value = "courseType", required = false) String courseType,
             @RequestParam(value = "trainerName", required = false) String trainerName,
             @RequestParam(value = "image", required = false) MultipartFile image,
             @RequestParam(value = "thumbnailImage", required = false) MultipartFile thumbnailImage,
@@ -179,18 +279,35 @@ public class CourseController {
             @RequestParam(value = "testDescription", required = false) String testDescription,
             @RequestParam(value = "removeImage", defaultValue = "false") Boolean removeImage,
             @RequestParam(value = "removeThumbnailImage", defaultValue = "false") Boolean removeThumbnailImage,
-            @RequestParam(value = "removeDescriptionImage", defaultValue = "false") Boolean removeDescriptionImage
+            @RequestParam(value = "removeDescriptionImage", defaultValue = "false") Boolean removeDescriptionImage,
+            @RequestParam(value = "displayOrder", required = false) Integer displayOrder,
+            @RequestParam(value = "countryPrices", required = false) String countryPricesJson,
+            @RequestParam(value = "keyComponents", required = false) String keyComponents,
+            @RequestParam(value = "targetAudience", required = false) String targetAudience,
+            @RequestParam(value = "assessment", required = false) String assessment,
+            @RequestParam(value = "outcome", required = false) String outcome,
+            @RequestParam(value = "courseDurationText", required = false) String courseDurationText,
+            @RequestParam(value = "examDetails", required = false) String examDetails
     ) throws IOException {
         return repo.findById(id).map(existing -> {
             existing.setCourseCode(courseCode);
             existing.setTitle(title);
             existing.setShortDescription(shortDescription);
             existing.setDescription(description);
+            existing.setKeyComponents(keyComponents);
+            existing.setTargetAudience(targetAudience);
+            existing.setAssessment(assessment);
+            existing.setOutcome(outcome);
+            existing.setCourseDurationText(courseDurationText);
+            existing.setExamDetails(examDetails);
             existing.setCategory(category);
             existing.setTrainerName(trainerName);
             existing.setDurationHours(durationHours);
             existing.setPrice(price);
             existing.setPublished(published);
+            existing.setFlagship(flagship);
+            existing.setDisplayOrder(displayOrder);
+            existing.setCourseType(courseType);
             existing.setTestLink(testLink);
             existing.setTestDescription(testDescription);
 
@@ -225,6 +342,9 @@ public class CourseController {
                 throw new RuntimeException("Failed to process image", e);
             }
 
+            // Handle country prices
+            parseAndSetCountryPrices(existing, countryPricesJson);
+
             Course saved = repo.save(existing);
             return ResponseEntity.ok(CourseDto.fromEntity(saved));
         }).orElseGet(() -> ResponseEntity.notFound().build());
@@ -234,13 +354,24 @@ public class CourseController {
     @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
     @Operation(summary = "Update a course (JSON)")
     public ResponseEntity<CourseDto> updateJson(@PathVariable("id") Long id, @RequestBody Course c) {
+        if (c.getPrice() != null && c.getPrice() < 0) {
+            return ResponseEntity.badRequest().body(null);
+        }
         return repo.findById(id).map(existing -> {
             existing.setTitle(c.getTitle());
             existing.setDescription(c.getDescription());
+            existing.setKeyComponents(c.getKeyComponents());
+            existing.setTargetAudience(c.getTargetAudience());
+            existing.setAssessment(c.getAssessment());
+            existing.setOutcome(c.getOutcome());
+            existing.setCourseDurationText(c.getCourseDurationText());
+            existing.setExamDetails(c.getExamDetails());
             existing.setCategory(c.getCategory());
             existing.setDurationHours(c.getDurationHours());
             existing.setPrice(c.getPrice());
             existing.setPublished(c.getPublished());
+            existing.setDisplayOrder(c.getDisplayOrder());
+            existing.setCourseType(c.getCourseType());
             existing.setTestLink(c.getTestLink());
             existing.setTestDescription(c.getTestDescription());
             Course saved = repo.save(existing);
@@ -386,9 +517,14 @@ public class CourseController {
     })
     public ResponseEntity<Video> addVideo(@PathVariable("id") Long id, @RequestBody Video v) {
         Course course = repo.findById(id).orElseThrow(() -> new IllegalArgumentException("Course not found"));
-        v.setId(null);
-        v.setCourse(course);
-        Video saved = videoRepo.save(v);
+        // Only copy safe fields to prevent over-posting
+        Video video = new Video();
+        video.setCourse(course);
+        video.setTitle(v.getTitle());
+        video.setUrl(v.getUrl());
+        video.setOrderIndex(v.getOrderIndex());
+        video.setDurationSeconds(v.getDurationSeconds());
+        Video saved = videoRepo.save(video);
         return ResponseEntity.created(URI.create("/api/courses/" + id + "/videos/" + saved.getId())).body(saved);
     }
 
@@ -466,5 +602,101 @@ public class CourseController {
             Course saved = repo.save(course);
             return ResponseEntity.ok(CourseDto.fromEntity(saved));
         }).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of("image/jpeg", "image/png", "image/gif", "image/webp");
+
+    /**
+     * Parse country prices JSON and set on course entity.
+     * Uses in-place merge to avoid Hibernate orphanRemoval + unique constraint conflicts.
+     */
+    private void parseAndSetCountryPrices(Course course, String countryPricesJson) {
+        // null means the field wasn't sent - don't modify existing prices
+        if (countryPricesJson == null) {
+            return;
+        }
+        // Blank or empty means explicitly clear all prices
+        if (countryPricesJson.isBlank()) {
+            course.getCountryPrices().clear();
+            return;
+        }
+        try {
+            List<Map<String, Object>> pricesList = objectMapper.readValue(
+                    countryPricesJson, new TypeReference<>() {});
+
+            if (pricesList.isEmpty()) {
+                course.getCountryPrices().clear();
+                return;
+            }
+
+            // Build map of incoming prices keyed by country code
+            Map<String, Map<String, Object>> newPricesMap = new HashMap<>();
+            for (Map<String, Object> entry : pricesList) {
+                String cc = (String) entry.get("countryCode");
+                if (cc != null) newPricesMap.put(cc, entry);
+            }
+
+            // Update existing entries in-place or mark for removal
+            List<CoursePrice> toRemove = new ArrayList<>();
+            for (CoursePrice cp : course.getCountryPrices()) {
+                Map<String, Object> newEntry = newPricesMap.remove(cp.getCountryCode());
+                if (newEntry != null) {
+                    // Update existing row (no INSERT/DELETE needed)
+                    cp.setCurrencyCode((String) newEntry.get("currencyCode"));
+                    Object amtObj = newEntry.get("amount");
+                    cp.setAmount(amtObj instanceof Number
+                            ? ((Number) amtObj).doubleValue()
+                            : Double.parseDouble(amtObj.toString()));
+                } else {
+                    toRemove.add(cp);
+                }
+            }
+            course.getCountryPrices().removeAll(toRemove);
+
+            // Add genuinely new country entries
+            for (Map<String, Object> entry : newPricesMap.values()) {
+                String countryCode = (String) entry.get("countryCode");
+                String currencyCode = (String) entry.get("currencyCode");
+                Object amtObj = entry.get("amount");
+                Double amount = amtObj instanceof Number
+                        ? ((Number) amtObj).doubleValue()
+                        : Double.parseDouble(amtObj.toString());
+                if (countryCode != null && currencyCode != null && amount > 0) {
+                    CoursePrice cp = CoursePrice.builder()
+                            .course(course)
+                            .countryCode(countryCode)
+                            .currencyCode(currencyCode)
+                            .amount(amount)
+                            .build();
+                    course.getCountryPrices().add(cp);
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Invalid countryPrices JSON", e);
+        }
+    }
+
+    /**
+     * Validate image file: check content type and magic bytes
+     */
+    private String validateImage(MultipartFile file) {
+        if (file == null || file.isEmpty()) return null;
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType)) {
+            return "Invalid image type. Allowed: JPEG, PNG, GIF, WebP";
+        }
+        try (InputStream is = file.getInputStream()) {
+            byte[] header = new byte[4];
+            if (is.read(header) < 4) return "File too small to be a valid image";
+            // JPEG: FF D8 FF, PNG: 89 50 4E 47, GIF: 47 49 46, WebP: starts with RIFF
+            boolean valid = (header[0] == (byte) 0xFF && header[1] == (byte) 0xD8) ||
+                    (header[0] == (byte) 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47) ||
+                    (header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46) ||
+                    (header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46);
+            if (!valid) return "File content does not match a valid image format";
+        } catch (IOException e) {
+            return "Could not read image file";
+        }
+        return null;
     }
 }

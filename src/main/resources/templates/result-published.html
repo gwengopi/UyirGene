@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Results Published</title>
+    <title>Results Published &amp; Certificate Ready</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
         <!-- Header -->
         <tr>
-            <td style="background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%); padding: 30px; text-align: center;">
-                <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Results Published!</h1>
+            <td style="background: linear-gradient(135deg, #27AE60 0%, #2ECC71 100%); padding: 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Results &amp; Certificate Ready!</h1>
                 <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 16px;">Your results are now available</p>
             </td>
         </tr>
@@ -20,41 +20,42 @@
             <td style="padding: 40px 30px;">
                 <p style="font-size: 16px; color: #333; margin: 0 0 20px;">Hi <strong>{{name}}</strong>,</p>
 
-                <p style="font-size: 16px; color: #333; margin: 0 0 20px;">
-                    The results for your course have been published. Here are your details:
-                </p>
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px;">{{content}}</p>
 
                 <!-- Results Card -->
-                <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fff5f5; border: 2px solid #E74C3C; border-radius: 8px; margin: 20px 0;">
+                <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-radius: 8px; margin: 20px 0; border: 1px solid #eee;">
                     <tr>
                         <td style="padding: 25px;">
-                            <h2 style="color: #E74C3C; margin: 0 0 10px; font-size: 22px;">{{courseTitle}}</h2>
+                            <h2 style="color: #27AE60; margin: 0 0 8px; font-size: 22px;">{{courseTitle}}</h2>
                             <p style="color: #666; margin: 0 0 20px; font-size: 14px;">Course Code: {{courseCode}}</p>
 
-                            <table width="100%" cellpadding="0" cellspacing="0">
-                                <tr>
-                                    <td style="text-align: center; padding: 15px; background-color: #ffffff; border-radius: 8px;">
-                                        <p style="color: #666; margin: 0 0 5px; font-size: 14px;">Your Score</p>
-                                        <p style="color: #E74C3C; margin: 0; font-size: 42px; font-weight: bold;">{{marks}}</p>
-                                        <p style="color: #27AE60; margin: 10px 0 0; font-size: 14px; font-weight: bold;">
-                                            Certificate: {{certificateType}}
-                                        </p>
-                                    </td>
-                                </tr>
-                            </table>
+                            <p style="color: #555; margin: 0; font-size: 14px; font-weight: bold;">Certificate: {{certificateType}}</p>
                         </td>
                     </tr>
                 </table>
 
-                <p style="font-size: 16px; color: #333; margin: 20px 0;">
-                    You can now download your certificate from your dashboard. Click the button below to view your results and download your certificate.
-                </p>
+                <!-- Certificate Card -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #f5f0ff 0%, #ebe0ff 100%); border: 2px solid #8E44AD; border-radius: 8px; margin: 20px 0;">
+                    <tr>
+                        <td style="padding: 25px; text-align: center;">
+                            <div style="font-size: 40px; margin-bottom: 10px;">🎓</div>
+                            <p style="color: #8E44AD; margin: 0 0 8px; font-size: 18px; font-weight: bold;">Certificate Ready for Download</p>
+                            <p style="color: #666; margin: 0 0 5px; font-size: 14px;">
+                                Certificate ID: <strong style="color: #8E44AD;">{{certificateId}}</strong>
+                            </p>
+                            <p style="color: #888; margin: 0 0 12px; font-size: 13px;">Issued on: {{issuedDate}}</p>
+                            <a href="{{verifyUrl}}" style="color: #8E44AD; font-size: 13px; text-decoration: underline;">
+                                Verify certificate online
+                            </a>
+                        </td>
+                    </tr>
+                </table>
 
                 <!-- CTA Button -->
                 <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                         <td style="text-align: center; padding: 20px 0;">
-                            <a href="{{dashboardUrl}}" style="display: inline-block; background-color: #E74C3C; color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 5px; font-size: 16px; font-weight: bold;">View Results & Download Certificate</a>
+                            <a href="{{dashboardUrl}}" style="display: inline-block; background-color: #27AE60; color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 5px; font-size: 16px; font-weight: bold;">View Results &amp; Download Certificate</a>
                         </td>
                     </tr>
                 </table>

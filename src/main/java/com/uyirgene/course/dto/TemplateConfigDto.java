@@ -31,6 +31,8 @@ public class TemplateConfigDto {
             .fontColor("#2980B9")
             .centered(true)
             .visible(true)
+            .fontStyle("bold")
+            .fontFamily("helvetica")
             .build();
 
     // Course title position
@@ -42,6 +44,8 @@ public class TemplateConfigDto {
             .fontColor("#2C3E50")
             .centered(true)
             .visible(true)
+            .fontStyle("bold")
+            .fontFamily("helvetica")
             .build();
 
     // Course code position (e.g., "COURSE-001")
@@ -53,6 +57,8 @@ public class TemplateConfigDto {
             .fontColor("#969696")
             .centered(true)
             .visible(true)
+            .fontStyle("normal")
+            .fontFamily("helvetica")
             .build();
 
     // Trainer name position
@@ -64,6 +70,8 @@ public class TemplateConfigDto {
             .fontColor("#636363")
             .centered(true)
             .visible(true)
+            .fontStyle("normal")
+            .fontFamily("helvetica")
             .build();
 
     // Course short description position
@@ -75,6 +83,8 @@ public class TemplateConfigDto {
             .fontColor("#636363")
             .centered(true)
             .visible(false)  // Disabled by default as it may be long
+            .fontStyle("normal")
+            .fontFamily("helvetica")
             .build();
 
     // Issue date position
@@ -86,6 +96,8 @@ public class TemplateConfigDto {
             .fontColor("#636363")
             .centered(true)
             .visible(true)
+            .fontStyle("italic")
+            .fontFamily("helvetica")
             .build();
 
     // Certificate ID position
@@ -97,6 +109,8 @@ public class TemplateConfigDto {
             .fontColor("#969696")
             .centered(true)
             .visible(true)
+            .fontStyle("normal")
+            .fontFamily("helvetica")
             .build();
 
     // Marks/Score position (only shown if marks available)
@@ -108,6 +122,8 @@ public class TemplateConfigDto {
             .fontColor("#636363")
             .centered(true)
             .visible(true)
+            .fontStyle("normal")
+            .fontFamily("helvetica")
             .build();
 
     // QR Code position
@@ -128,6 +144,21 @@ public class TemplateConfigDto {
             .fontColor("#969696")
             .centered(true)
             .visible(true)
+            .fontStyle("normal")
+            .fontFamily("helvetica")
+            .build();
+
+    // Certificate type title
+    @Builder.Default
+    private TextElement certificateType = TextElement.builder()
+            .x(297.5f)
+            .y(600f)
+            .fontSize(28)
+            .fontColor("#2C3E50")
+            .centered(true)
+            .visible(true)
+            .fontStyle("bold")
+            .fontFamily("helvetica")
             .build();
 
     // Optional: Header/title text (if not using template's headerText)
@@ -139,6 +170,8 @@ public class TemplateConfigDto {
             .fontColor("#2C3E50")
             .centered(true)
             .visible(false)  // Disabled by default, use template's headerText
+            .fontStyle("bold")
+            .fontFamily("helvetica")
             .build();
 
     // Optional: "This is to certify that" text
@@ -151,6 +184,8 @@ public class TemplateConfigDto {
             .centered(true)
             .visible(true)
             .text("This is to certify that")
+            .fontStyle("normal")
+            .fontFamily("helvetica")
             .build();
 
     // Optional: "has successfully completed" text
@@ -162,6 +197,8 @@ public class TemplateConfigDto {
             .fontColor("#636363")
             .centered(true)
             .visible(true)
+            .fontStyle("normal")
+            .fontFamily("helvetica")
             .build();
 
     /**
@@ -180,6 +217,8 @@ public class TemplateConfigDto {
         private boolean centered;
         private boolean visible;
         private String text;  // Optional fixed text (for certifyText, etc.)
+        private String fontStyle;  // "normal", "bold", "italic", or "bold-italic"
+        private String fontFamily; // "helvetica", "times", or "courier"
     }
 
     /**
@@ -206,11 +245,34 @@ public class TemplateConfigDto {
         }
         try {
             ObjectMapper mapper = new ObjectMapper();
-            return mapper.readValue(json, TemplateConfigDto.class);
+            TemplateConfigDto config = mapper.readValue(json, TemplateConfigDto.class);
+            config.fillNullsWithDefaults();
+            return config;
         } catch (Exception e) {
             log.warn("Failed to parse template config JSON, using defaults: {}", e.getMessage());
             return getDefault();
         }
+    }
+
+    /**
+     * Fill any null fields with default values (handles old configs missing new fields)
+     */
+    private void fillNullsWithDefaults() {
+        TemplateConfigDto defaults = getDefault();
+        if (this.certificateType == null) this.certificateType = defaults.getCertificateType();
+        if (this.studentName == null) this.studentName = defaults.getStudentName();
+        if (this.courseTitle == null) this.courseTitle = defaults.getCourseTitle();
+        if (this.courseCode == null) this.courseCode = defaults.getCourseCode();
+        if (this.trainerName == null) this.trainerName = defaults.getTrainerName();
+        if (this.shortDescription == null) this.shortDescription = defaults.getShortDescription();
+        if (this.issueDate == null) this.issueDate = defaults.getIssueDate();
+        if (this.certificateId == null) this.certificateId = defaults.getCertificateId();
+        if (this.marks == null) this.marks = defaults.getMarks();
+        if (this.qrCode == null) this.qrCode = defaults.getQrCode();
+        if (this.scanText == null) this.scanText = defaults.getScanText();
+        if (this.header == null) this.header = defaults.getHeader();
+        if (this.certifyText == null) this.certifyText = defaults.getCertifyText();
+        if (this.completedText == null) this.completedText = defaults.getCompletedText();
     }
 
     /**

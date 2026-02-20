@@ -10,6 +10,8 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.springframework.beans.factory.annotation.Value;
@@ -64,13 +66,20 @@ public class CertificateService {
     public Certificate generateCertificateWithType(User user, Course course, Certificate.CertificateType type, Double marks, String trainerName) {
         Optional<Certificate> existing = certRepo.findByUserAndCourse(user, course);
         if (existing.isPresent()) {
-            // If existing certificate is of different type, regenerate
-            Certificate existingCert = existing.get();
-            if (existingCert.getType() == type) {
-                return existingCert;
+            // Clean up old certificate file before regenerating
+            Certificate oldCert = existing.get();
+            if (oldCert.getFilePath() != null) {
+                try {
+                    boolean deleted = Files.deleteIfExists(Path.of(oldCert.getFilePath()));
+                    if (!deleted) {
+                        log.warn("Old certificate file not found for cleanup: {}", oldCert.getCertificateId());
+                    }
+                } catch (IOException e) {
+                    log.warn("Failed to delete old certificate file for {}: {}", oldCert.getCertificateId(), e.getMessage());
+                }
             }
-            // Delete existing and create new with different type
-            certRepo.delete(existingCert);
+            certRepo.delete(oldCert);
+            certRepo.flush();
         }
 
         // Use provided trainer name or fallback to course trainer
@@ -110,10 +119,11 @@ public class CertificateService {
                 log.info("No template found for course {} and type {}", course.getId(), type);
             }
 
-            // Check if template has a PDF file
-            if (template != null && template.getTemplateFile() != null && template.getTemplateFile().length > 0) {
-                log.info("Using PDF template for certificate generation");
-                // Use PDF template with overlay
+            // Use template config if available (colors, positions, sizes)
+            if (template != null && template.getTemplateConfig() != null && !template.getTemplateConfig().isBlank()) {
+                log.info("Using template config for certificate generation (hasTemplatePdf={}, hasBackgroundImage={})",
+                    template.getTemplateFile() != null && template.getTemplateFile().length > 0,
+                    template.getBackgroundImage() != null && template.getBackgroundImage().length > 0);
                 createCertificateFromTemplate(
                         user.getName(),
                         course,
@@ -126,7 +136,7 @@ public class CertificateService {
                         effectiveTrainerName
                 );
             } else {
-                log.info("Using dynamic certificate generation (no PDF template found or template has no PDF file)");
+                log.info("Using dynamic certificate generation (no template config)");
                 // Use dynamic generation (legacy method)
                 createCertificatePdfDynamic(
                         user.getName(),
@@ -144,13 +154,6 @@ public class CertificateService {
             certificate.setFilePath(filePath.toString());
             Certificate saved = certRepo.save(certificate);
 
-            // Send certificate ready email notification
-            try {
-                mailService.sendCertificateReady(user, course, saved);
-            } catch (Exception emailEx) {
-                log.warn("Failed to send certificate ready email, but certificate was generated successfully", emailEx);
-            }
-
             return saved;
         } catch (Exception ex) {
             log.error("Failed to generate certificate for user {} and course {}", user.getId(), course.getId(), ex);
@@ -163,7 +166,7 @@ public class CertificateService {
     }
 
     private String generateUniqueCertificateId() {
-        return "CERT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        return "CERT-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase();
     }
 
     /**
@@ -175,14 +178,30 @@ public class CertificateService {
                                                 String filePath, CertificateTemplate template,
                                                 String trainerName) throws IOException, WriterException {
 
-        log.info("Creating certificate from PDF template: {}", template.getName());
+        log.info("Creating certificate from template: {}", template.getName());
 
-        // Load the PDF template (PDFBox 2.x uses PDDocument.load())
-        PDDocument document = PDDocument.load(new ByteArrayInputStream(template.getTemplateFile()));
+        PDDocument document;
+        PDPage page;
+
+        // Load PDF template file if available, otherwise create blank A4 page
+        if (template.getTemplateFile() != null && template.getTemplateFile().length > 0) {
+            document = PDDocument.load(new ByteArrayInputStream(template.getTemplateFile()));
+            page = document.getPage(0);
+        } else {
+            document = new PDDocument();
+            page = new PDPage(PDRectangle.A4);
+            document.addPage(page);
+
+            // Draw background image if available
+            if (template.getBackgroundImage() != null && template.getBackgroundImage().length > 0) {
+                PDImageXObject bgImage = PDImageXObject.createFromByteArray(document, template.getBackgroundImage(), "background");
+                PDPageContentStream bgStream = new PDPageContentStream(document, page);
+                bgStream.drawImage(bgImage, 0, 0, page.getMediaBox().getWidth(), page.getMediaBox().getHeight());
+                bgStream.close();
+            }
+        }
 
         try {
-            // Get the first page (or only page) of the template
-            PDPage page = document.getPage(0);
             float pageWidth = page.getMediaBox().getWidth();
             float pageHeight = page.getMediaBox().getHeight();
 
@@ -194,20 +213,31 @@ public class CertificateService {
                     document, page, PDPageContentStream.AppendMode.APPEND, true, true);
 
             // Get fonts (PDFBox 2.x uses static constants)
-            PDType1Font fontBold = PDType1Font.HELVETICA_BOLD;
-            PDType1Font fontRegular = PDType1Font.HELVETICA;
-            PDType1Font fontItalic = PDType1Font.HELVETICA_OBLIQUE;
+            PDFont fontBold = PDType1Font.HELVETICA_BOLD;
+            PDFont fontRegular = PDType1Font.HELVETICA;
+            PDFont fontItalic = PDType1Font.HELVETICA_OBLIQUE;
+
+            // Pre-load Oswald TTF fonts once per document (if available on classpath)
+            java.util.Map<String, PDFont> extraFonts = loadExtraFonts(document);
+
+            // Draw certificate type ("Completion" / "Participation")
+            if (config.getCertificateType().isVisible()) {
+                String typeTitle = type == Certificate.CertificateType.COMPLETION
+                        ? "Completion"
+                        : "Participation";
+                drawText(contentStream, typeTitle, config.getCertificateType(), fontBold, pageWidth, extraFonts);
+            }
 
             // Draw "This is to certify that" text
             if (config.getCertifyText().isVisible()) {
                 TemplateConfigDto.TextElement elem = config.getCertifyText();
                 String text = elem.getText() != null ? elem.getText() : "This is to certify that";
-                drawText(contentStream, text, elem, fontRegular, pageWidth);
+                drawText(contentStream, text, elem, fontRegular, pageWidth, extraFonts);
             }
 
             // Draw student name
             if (config.getStudentName().isVisible()) {
-                drawText(contentStream, userName, config.getStudentName(), fontBold, pageWidth);
+                drawText(contentStream, userName, config.getStudentName(), fontBold, pageWidth, extraFonts);
             }
 
             // Draw "has successfully completed" text
@@ -215,45 +245,44 @@ public class CertificateService {
                 String text = type == Certificate.CertificateType.COMPLETION
                         ? "has successfully completed the course"
                         : "has participated in the course";
-                drawText(contentStream, text, config.getCompletedText(), fontRegular, pageWidth);
+                drawText(contentStream, text, config.getCompletedText(), fontRegular, pageWidth, extraFonts);
             }
 
             // Draw course title
             if (config.getCourseTitle().isVisible()) {
-                drawText(contentStream, course.getTitle(), config.getCourseTitle(), fontBold, pageWidth);
+                drawText(contentStream, course.getTitle(), config.getCourseTitle(), fontBold, pageWidth, extraFonts);
             }
 
             // Draw course code
             if (config.getCourseCode() != null && config.getCourseCode().isVisible() && course.getCourseCode() != null) {
-                drawText(contentStream, "Course ID: " + course.getCourseCode(), config.getCourseCode(), fontRegular, pageWidth);
+                drawText(contentStream, course.getCourseCode(), config.getCourseCode(), fontRegular, pageWidth, extraFonts);
             }
 
             // Draw trainer name (use provided trainerName, not course.getTrainerName())
             if (config.getTrainerName() != null && config.getTrainerName().isVisible() && trainerName != null) {
-                drawText(contentStream, "Trainer: " + trainerName, config.getTrainerName(), fontRegular, pageWidth);
+                drawText(contentStream, trainerName, config.getTrainerName(), fontRegular, pageWidth, extraFonts);
             }
 
             // Draw short description
             if (config.getShortDescription() != null && config.getShortDescription().isVisible() && course.getShortDescription() != null) {
-                drawText(contentStream, course.getShortDescription(), config.getShortDescription(), fontRegular, pageWidth);
+                drawText(contentStream, course.getShortDescription(), config.getShortDescription(), fontRegular, pageWidth, extraFonts);
             }
 
             // Draw marks if available
             if (marks != null && config.getMarks().isVisible()) {
-                String marksText = String.format("Score: %.1f%%", marks);
-                drawText(contentStream, marksText, config.getMarks(), fontRegular, pageWidth);
+                String marksText = String.format("%.1f%%", marks);
+                drawText(contentStream, marksText, config.getMarks(), fontRegular, pageWidth, extraFonts);
             }
 
             // Draw issue date
             if (config.getIssueDate().isVisible()) {
-                String dateText = "Issued on: " + issuedAt.format(DATE_FORMATTER);
-                drawText(contentStream, dateText, config.getIssueDate(), fontItalic, pageWidth);
+                String dateText = issuedAt.format(DATE_FORMATTER);
+                drawText(contentStream, dateText, config.getIssueDate(), fontItalic, pageWidth, extraFonts);
             }
 
             // Draw certificate ID
             if (config.getCertificateId().isVisible()) {
-                String idText = "Certificate ID: " + certificateId;
-                drawText(contentStream, idText, config.getCertificateId(), fontRegular, pageWidth);
+                drawText(contentStream, certificateId, config.getCertificateId(), fontRegular, pageWidth, extraFonts);
             }
 
             // Draw QR code
@@ -272,7 +301,7 @@ public class CertificateService {
 
             // Draw "Scan to verify" text
             if (config.getScanText().isVisible()) {
-                drawText(contentStream, "Scan to verify", config.getScanText(), fontRegular, pageWidth);
+                drawText(contentStream, "Scan to verify", config.getScanText(), fontRegular, pageWidth, extraFonts);
             }
 
             // Close content stream
@@ -288,11 +317,131 @@ public class CertificateService {
     }
 
     /**
+     * Pre-load TTF fonts from classpath into the document once.
+     * Returns a map of key -> PDFont for use in resolveFont.
+     * Key format: "{family}-{style}" where style = regular | bold | italic | bolditalic
+     */
+    private java.util.Map<String, PDFont> loadExtraFonts(PDDocument document) {
+        java.util.Map<String, PDFont> fonts = new java.util.HashMap<>();
+        String[][] entries = {
+            // Anton (single weight — inherently bold/heavy display font)
+            {"anton-regular",    "fonts/Anton-Regular.ttf"},
+            {"anton-bold",       "fonts/Anton-Regular.ttf"},
+            {"anton-italic",     "fonts/Anton-Regular.ttf"},
+            {"anton-bolditalic", "fonts/Anton-Regular.ttf"},
+            // Oswald
+            {"oswald-regular",    "fonts/Oswald-Regular.ttf"},
+            {"oswald-bold",       "fonts/Oswald-Bold.ttf"},
+            {"oswald-italic",     "fonts/Oswald-Light.ttf"},
+            {"oswald-bolditalic", "fonts/Oswald-Bold.ttf"},
+            // Playfair Display
+            {"playfair-regular",    "fonts/PlayfairDisplay-Regular.ttf"},
+            {"playfair-bold",       "fonts/PlayfairDisplay-Bold.ttf"},
+            {"playfair-italic",     "fonts/PlayfairDisplay-Italic.ttf"},
+            {"playfair-bolditalic", "fonts/PlayfairDisplay-BoldItalic.ttf"},
+            // Cinzel
+            {"cinzel-regular",    "fonts/Cinzel-Regular.ttf"},
+            {"cinzel-bold",       "fonts/Cinzel-Bold.ttf"},
+            {"cinzel-italic",     "fonts/Cinzel-Regular.ttf"},
+            {"cinzel-bolditalic", "fonts/Cinzel-Bold.ttf"},
+            // Montserrat
+            {"montserrat-regular",    "fonts/Montserrat-Regular.ttf"},
+            {"montserrat-bold",       "fonts/Montserrat-Bold.ttf"},
+            {"montserrat-italic",     "fonts/Montserrat-Italic.ttf"},
+            {"montserrat-bolditalic", "fonts/Montserrat-BoldItalic.ttf"},
+            // Lato
+            {"lato-regular",    "fonts/Lato-Regular.ttf"},
+            {"lato-bold",       "fonts/Lato-Bold.ttf"},
+            {"lato-italic",     "fonts/Lato-Italic.ttf"},
+            {"lato-bolditalic", "fonts/Lato-BoldItalic.ttf"},
+            // Raleway
+            {"raleway-regular",    "fonts/Raleway-Regular.ttf"},
+            {"raleway-bold",       "fonts/Raleway-Bold.ttf"},
+            {"raleway-italic",     "fonts/Raleway-Italic.ttf"},
+            {"raleway-bolditalic", "fonts/Raleway-BoldItalic.ttf"},
+            // Merriweather
+            {"merriweather-regular",    "fonts/Merriweather-Regular.ttf"},
+            {"merriweather-bold",       "fonts/Merriweather-Bold.ttf"},
+            {"merriweather-italic",     "fonts/Merriweather-Italic.ttf"},
+            {"merriweather-bolditalic", "fonts/Merriweather-BoldItalic.ttf"},
+            // EB Garamond
+            {"garamond-regular",    "fonts/EBGaramond-Regular.ttf"},
+            {"garamond-bold",       "fonts/EBGaramond-Bold.ttf"},
+            {"garamond-italic",     "fonts/EBGaramond-Italic.ttf"},
+            {"garamond-bolditalic", "fonts/EBGaramond-BoldItalic.ttf"},
+            // Roboto
+            {"roboto-regular",    "fonts/Roboto-Regular.ttf"},
+            {"roboto-bold",       "fonts/Roboto-Bold.ttf"},
+            {"roboto-italic",     "fonts/Roboto-Italic.ttf"},
+            {"roboto-bolditalic", "fonts/Roboto-BoldItalic.ttf"},
+        };
+        for (String[] entry : entries) {
+            try (java.io.InputStream is = getClass().getClassLoader().getResourceAsStream(entry[1])) {
+                if (is != null) {
+                    fonts.put(entry[0], PDType0Font.load(document, is, true));
+                }
+            } catch (Exception e) {
+                log.warn("Could not load font '{}': {}", entry[1], e.getMessage());
+            }
+        }
+        return fonts;
+    }
+
+    /**
+     * Resolve PDFont from fontFamily + fontStyle config values.
+     * Supports TTF fonts loaded via loadExtraFonts(), falling back to built-in Type1.
+     */
+    private PDFont resolveFont(TemplateConfigDto.TextElement elem, PDFont fallback,
+                               java.util.Map<String, PDFont> extraFonts) {
+        String family = elem.getFontFamily() != null ? elem.getFontFamily().toLowerCase() : null;
+        String style  = elem.getFontStyle()  != null ? elem.getFontStyle().toLowerCase()  : "normal";
+        if (family == null) return fallback;
+
+        boolean bold   = style.contains("bold");
+        boolean italic = style.contains("italic");
+        String styleKey = bold && italic ? "bolditalic" : bold ? "bold" : italic ? "italic" : "regular";
+
+        // TTF fonts — look up in extraFonts map
+        switch (family) {
+            case "oswald": case "playfair": case "cinzel":
+            case "montserrat": case "lato": case "raleway":
+            case "merriweather": case "garamond": case "roboto": {
+                PDFont f = extraFonts.get(family + "-" + styleKey);
+                if (f != null) return f;
+                // Fallback to regular variant of the same family
+                PDFont reg = extraFonts.get(family + "-regular");
+                if (reg != null) return reg;
+                break;
+            }
+            // Built-in Type1 fonts
+            case "times":
+                if (bold && italic) return PDType1Font.TIMES_BOLD_ITALIC;
+                if (bold)   return PDType1Font.TIMES_BOLD;
+                if (italic) return PDType1Font.TIMES_ITALIC;
+                return PDType1Font.TIMES_ROMAN;
+            case "courier":
+                if (bold && italic) return PDType1Font.COURIER_BOLD_OBLIQUE;
+                if (bold)   return PDType1Font.COURIER_BOLD;
+                if (italic) return PDType1Font.COURIER_OBLIQUE;
+                return PDType1Font.COURIER;
+            case "helvetica":
+            default:
+                if (bold && italic) return PDType1Font.HELVETICA_BOLD_OBLIQUE;
+                if (bold)   return PDType1Font.HELVETICA_BOLD;
+                if (italic) return PDType1Font.HELVETICA_OBLIQUE;
+                return PDType1Font.HELVETICA;
+        }
+        // Final fallback
+        return fallback;
+    }
+
+    /**
      * Draw text on the PDF at the specified position
      */
     private void drawText(PDPageContentStream contentStream, String text,
-                          TemplateConfigDto.TextElement elem, PDType1Font font,
-                          float pageWidth) throws IOException {
+                          TemplateConfigDto.TextElement elem, PDFont fallbackFont,
+                          float pageWidth, java.util.Map<String, PDFont> extraFonts) throws IOException {
+        PDFont font = resolveFont(elem, fallbackFont, extraFonts);
         float[] color = TemplateConfigDto.parseColor(elem.getFontColor());
 
         contentStream.beginText();
@@ -384,8 +533,8 @@ public class CertificateService {
                 certTitle = template.getHeaderText();
             } else {
                 certTitle = type == Certificate.CertificateType.COMPLETION
-                        ? "CERTIFICATE OF COMPLETION"
-                        : "CERTIFICATE OF PARTICIPATION";
+                        ? "Completion"
+                        : "Participation";
             }
             float certTitleWidth = fontBold.getStringWidth(certTitle) / 1000 * 24;
             contentStream.beginText();
@@ -451,7 +600,7 @@ public class CertificateService {
             // Course Code (if available)
             if (course.getCourseCode() != null && !course.getCourseCode().isEmpty()) {
                 y -= 25;
-                String codeText = "Course ID: " + course.getCourseCode();
+                String codeText = course.getCourseCode();
                 float codeWidth = fontRegular.getStringWidth(codeText) / 1000 * 10;
                 contentStream.beginText();
                 contentStream.setFont(fontRegular, 10);
@@ -464,7 +613,7 @@ public class CertificateService {
             // Trainer Name (use provided trainerName, not course.getTrainerName())
             if (trainerName != null && !trainerName.isEmpty()) {
                 y -= 25;
-                String trainerText = "Trainer: " + trainerName;
+                String trainerText = trainerName;
                 float trainerWidth = fontRegular.getStringWidth(trainerText) / 1000 * 12;
                 contentStream.beginText();
                 contentStream.setFont(fontRegular, 12);
@@ -494,7 +643,7 @@ public class CertificateService {
             // Show marks if available
             if (marks != null) {
                 y -= 35;
-                String marksText = String.format("Score: %.1f%%", marks);
+                String marksText = String.format("%.1f%%", marks);
                 float marksWidth = fontRegular.getStringWidth(marksText) / 1000 * 12;
                 contentStream.beginText();
                 contentStream.setFont(fontRegular, 12);
@@ -506,7 +655,7 @@ public class CertificateService {
 
             // Issued date
             y -= 40;
-            String dateText = "Issued on: " + issuedAt.format(DATE_FORMATTER);
+            String dateText = issuedAt.format(DATE_FORMATTER);
             float dateWidth = fontItalic.getStringWidth(dateText) / 1000 * 12;
             contentStream.beginText();
             contentStream.setFont(fontItalic, 12);
@@ -517,7 +666,7 @@ public class CertificateService {
 
             // Certificate ID
             y -= 25;
-            String idText = "Certificate ID: " + certificateId;
+            String idText = certificateId;
             float idWidth = fontRegular.getStringWidth(idText) / 1000 * 10;
             contentStream.beginText();
             contentStream.setFont(fontRegular, 10);

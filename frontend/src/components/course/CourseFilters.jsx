@@ -21,28 +21,20 @@ import { COURSE_CATEGORIES } from '../../utils/constants';
 function CourseFilters({
   search = '',
   category = '',
-  priceFilter = '',
   sortBy = '',
   onSearchChange,
   onCategoryChange,
-  onPriceFilterChange,
   onSortByChange,
   onClearFilters,
 }) {
   const { getCategoryOptions } = useConfig();
-  const hasFilters = search || category || priceFilter || sortBy;
+  const hasFilters = search || category || sortBy;
 
   // Use dynamic categories from master data, fallback to static list
   const dynamicCategories = getCategoryOptions();
   const categoryOptions = dynamicCategories.length > 0
     ? dynamicCategories
     : COURSE_CATEGORIES.map((cat) => ({ value: cat, label: cat }));
-
-  const priceOptions = [
-    { value: '', label: 'All Prices' },
-    { value: 'free', label: 'Free' },
-    { value: 'paid', label: 'Paid' },
-  ];
 
   const sortOptions = [
     { value: '', label: 'Default' },
@@ -99,23 +91,6 @@ function CourseFilters({
           {categoryOptions.map((cat) => (
             <MenuItem key={cat.value} value={cat.value}>
               {cat.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-
-      {/* Price filter */}
-      <FormControl size="small" sx={{ minWidth: 120 }}>
-        <InputLabel id="price-filter-label">Price</InputLabel>
-        <Select
-          labelId="price-filter-label"
-          value={priceFilter}
-          onChange={(e) => onPriceFilterChange?.(e.target.value)}
-          label="Price"
-        >
-          {priceOptions.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
             </MenuItem>
           ))}
         </Select>

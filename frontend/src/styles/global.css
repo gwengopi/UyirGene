@@ -10,6 +10,8 @@
 html {
   font-size: 16px;
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 body {
@@ -17,6 +19,8 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
+  overflow-x: hidden;
+  width: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -25,6 +29,7 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 /* Links */
@@ -70,6 +75,13 @@ img {
   outline: 2px solid #90caf9;
   outline-offset: 2px;
   text-decoration: none;
+}
+
+[data-theme="light"] .skip-link:focus {
+  background-color: rgb(255, 255, 255);
+  color: rgb(33, 33, 33);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  outline-color: #1976d2;
 }
 
 /* Focus visible for keyboard navigation */
@@ -180,10 +192,27 @@ main {
   background: rgb(100, 130, 145);
 }
 
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: rgb(240, 240, 240);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgb(180, 180, 180);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgb(150, 150, 150);
+}
+
 /* Selection styles */
 ::selection {
   background-color: rgba(79, 102, 114, 0.4);
   color: rgb(255, 255, 255);
+}
+
+[data-theme="light"] ::selection {
+  background-color: rgba(69, 90, 100, 0.3);
+  color: rgb(33, 33, 33);
 }
 
 /* Loading skeleton animation */
@@ -205,6 +234,16 @@ main {
   );
   background-size: 200px 100%;
   animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+[data-theme="light"] .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.06) 25%,
+    rgba(0, 0, 0, 0.1) 50%,
+    rgba(0, 0, 0, 0.06) 75%
+  );
+  background-size: 200px 100%;
 }
 
 /* Fade in animation */

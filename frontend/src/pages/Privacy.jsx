@@ -1,10 +1,11 @@
 import React from 'react';
 import { Container, Typography, Box, Paper } from '@mui/material';
-import { Breadcrumb } from '../components/common';
+import { Breadcrumb, SEO } from '../components/common';
 
 function Privacy() {
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
+      <SEO title="Privacy Policy" description="Privacy Policy for Uyirgene International. Learn how we collect, use and protect your personal data." path="/privacy" noindex />
       <Breadcrumb items={[{ label: 'Privacy Policy', path: '/privacy' }]} />
 
       <Typography variant="h3" component="h1" gutterBottom fontWeight={700}>

@@ -42,19 +42,18 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
-import FactCheckIcon from '@mui/icons-material/FactCheck';
+
 import { useAuth, useUI } from '../../../store';
 import { ROUTES, ROLES, IMAGES } from '../../../utils/constants';
 
 // Services sub-menu items
 const servicesSubItems = [
   { label: 'All Services', path: ROUTES.SERVICES, icon: <MiscellaneousServicesIcon fontSize="small" /> },
+  { label: 'Training', path: ROUTES.SERVICES_LEARNING, icon: <MenuBookIcon fontSize="small" /> },
   { label: 'Microbiology Research', path: ROUTES.SERVICES_MICROBIOLOGY, icon: <BiotechIcon fontSize="small" /> },
-  { label: 'Certification', path: ROUTES.SERVICES_CERTIFICATION, icon: <VerifiedIcon fontSize="small" /> },
+  { label: 'Auditing and Certifications', path: ROUTES.SERVICES_CERTIFICATION, icon: <VerifiedIcon fontSize="small" /> },
   { label: 'Testing', path: ROUTES.SERVICES_TESTING, icon: <ScienceIcon fontSize="small" /> },
   { label: 'Clinical Research', path: ROUTES.SERVICES_CLINICAL_RESEARCH, icon: <LocalHospitalIcon fontSize="small" /> },
-  { label: 'Learning', path: ROUTES.SERVICES_LEARNING, icon: <MenuBookIcon fontSize="small" /> },
-  { label: 'Auditing', path: ROUTES.SERVICES_AUDITING, icon: <FactCheckIcon fontSize="small" /> },
 ];
 
 function Navbar() {
@@ -390,8 +389,8 @@ function Navbar() {
                     anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                     transformOrigin={{ vertical: 'top', horizontal: 'right' }}
                   >
-                    <MenuItem disabled>
-                      <Typography variant="body2" color="text.secondary">
+                    <MenuItem disabled sx={{ '&.Mui-disabled': { opacity: 1 } }}>
+                      <Typography variant="body2" color="text.primary">
                         {user?.email}
                       </Typography>
                     </MenuItem>

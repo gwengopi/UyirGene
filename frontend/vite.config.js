@@ -83,6 +83,11 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
@@ -110,6 +115,19 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', '@mui/material'],
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@mui/material',
+      '@mui/icons-material',
+      '@emotion/react',
+      '@emotion/styled',
+      '@react-oauth/google',
+      'swiper',
+      'swiper/react',
+      'swiper/modules',
+    ],
+    force: false,
   },
 });

@@ -13,6 +13,8 @@ const ADMIN_ENDPOINTS = {
   ENROLLMENT_MARKS: (id) => `/api/admin/enrollments/${id}/marks`,
   ENROLLMENT_PUBLISH_RESULT: (id) => `/api/admin/enrollments/${id}/publish-result`,
   ENROLLMENT_GENERATE_CERTIFICATE: (id) => `/api/admin/enrollments/${id}/generate-certificate`,
+  ENROLLMENT_CERTIFICATE_DOWNLOAD: (id) => `/api/admin/enrollments/${id}/certificate/download`,
+  ENROLLMENT_CERTIFICATE_UPLOAD: (id) => `/api/admin/enrollments/${id}/certificate/upload`,
 };
 
 /**
@@ -131,6 +133,37 @@ export async function generateCertificate(enrollmentId) {
 }
 
 /**
+ * Preview/download certificate PDF for an enrollment (Admin only)
+ * Opens the certificate in a new browser tab
+ * @param {number|string} enrollmentId - Enrollment ID
+ */
+export async function previewCertificate(enrollmentId) {
+  const response = await api.get(ADMIN_ENDPOINTS.ENROLLMENT_CERTIFICATE_DOWNLOAD(enrollmentId), {
+    responseType: 'blob',
+  });
+  const blob = new Blob([response.data], { type: 'application/pdf' });
+  const url = window.URL.createObjectURL(blob);
+  window.open(url, '_blank');
+}
+
+/**
+ * Upload a certificate PDF for an enrollment (Admin only)
+ * @param {number|string} enrollmentId - Enrollment ID
+ * @param {File} file - PDF file to upload
+ * @param {string} type - Certificate type: 'COMPLETION' or 'PARTICIPATION'
+ * @returns {Promise<Object>} Updated enrollment
+ */
+export async function uploadCertificate(enrollmentId, file, type) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('type', type);
+  const response = await api.post(ADMIN_ENDPOINTS.ENROLLMENT_CERTIFICATE_UPLOAD(enrollmentId), formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+}
+
+/**
  * Get single enrollment details (Admin only)
  * @param {number|string} enrollmentId - Enrollment ID
  * @returns {Promise<Object>} Enrollment details
@@ -142,10 +175,11 @@ export async function getEnrollment(enrollmentId) {
 
 /**
  * Get analytics dashboard data (Admin only)
+ * @param {Object} [params] - Optional query params (from, to) for date filtering
  * @returns {Promise<Object>} Analytics data
  */
-export async function getAnalytics() {
-  const response = await api.get(ADMIN_ENDPOINTS.ANALYTICS);
+export async function getAnalytics(params = {}) {
+  const response = await api.get(ADMIN_ENDPOINTS.ANALYTICS, { params });
   return response.data;
 }
 
@@ -193,6 +227,8 @@ export default {
   updateEnrollmentMarks,
   publishResult,
   generateCertificate,
+  previewCertificate,
+  uploadCertificate,
   getEnrollment,
   getAnalytics,
   getAllEnrollments,

@@ -41,6 +41,11 @@ const AdminUsers = lazy(() => import('./pages/Admin/Users'));
 const AdminAnalytics = lazy(() => import('./pages/Admin/Analytics'));
 const AdminSettings = lazy(() => import('./pages/Admin/Settings'));
 const AdminCertificateTemplates = lazy(() => import('./pages/Admin/CertificateTemplates'));
+const AdminBundles = lazy(() => import('./pages/Admin/Bundles'));
+const AdminMailTemplates = lazy(() => import('./pages/Admin/MailTemplates'));
+const BundleDetail = lazy(() => import('./pages/BundleDetail'));
+const FlagshipPage = lazy(() => import('./pages/FlagshipPage'));
+const CategoryPage = lazy(() => import('./pages/CategoryPage'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Unauthorized = lazy(() => import('./pages/Unauthorized'));
 
@@ -66,7 +71,7 @@ const CertificationDetail = lazy(() => import('./pages/services/CertificationDet
 const Testing = lazy(() => import('./pages/services/Testing'));
 const TestingDetail = lazy(() => import('./pages/services/TestingDetail'));
 const ClinicalResearch = lazy(() => import('./pages/services/ClinicalDiagnostics'));
-const Auditing = lazy(() => import('./pages/services/Auditing'));
+
 
 // Loading fallback component
 function PageLoader() {
@@ -124,7 +129,10 @@ function AppContent() {
             {/* Public routes */}
             <Route path={ROUTES.HOME} element={<Home />} />
             <Route path={ROUTES.COURSES} element={<Courses />} />
+            <Route path="/courses/flagship" element={<FlagshipPage />} />
+            <Route path="/courses/category/:categoryCode" element={<CategoryPage />} />
             <Route path="/courses/:id" element={<CourseDetail />} />
+            <Route path="/bundles/:id" element={<BundleDetail />} />
             <Route path={ROUTES.VERIFY_CERTIFICATE} element={<CertificateVerify />} />
             <Route path="/certificate/:id" element={<CertificateVerify />} />
 
@@ -210,7 +218,7 @@ function AppContent() {
             <Route
               path={ROUTES.ADMIN.USERS}
               element={
-                <RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.INSTRUCTOR]}>
+                <RoleRoute allowedRoles={[ROLES.ADMIN]}>
                   <AdminUsers />
                 </RoleRoute>
               }
@@ -218,7 +226,7 @@ function AppContent() {
             <Route
               path={ROUTES.ADMIN.ANALYTICS}
               element={
-                <RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.INSTRUCTOR]}>
+                <RoleRoute allowedRoles={[ROLES.ADMIN]}>
                   <AdminAnalytics />
                 </RoleRoute>
               }
@@ -239,6 +247,22 @@ function AppContent() {
                 </RoleRoute>
               }
             />
+            <Route
+              path={ROUTES.ADMIN.BUNDLES}
+              element={
+                <RoleRoute allowedRoles={[ROLES.ADMIN]}>
+                  <AdminBundles />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={ROUTES.ADMIN.MAIL_TEMPLATES}
+              element={
+                <RoleRoute allowedRoles={[ROLES.ADMIN]}>
+                  <AdminMailTemplates />
+                </RoleRoute>
+              }
+            />
 
             {/* Static pages */}
             <Route path="/services" element={<Services />} />
@@ -248,7 +272,7 @@ function AppContent() {
             <Route path="/services/testing" element={<Testing />} />
             <Route path="/services/testing/:id" element={<TestingDetail />} />
             <Route path="/services/clinical-research" element={<ClinicalResearch />} />
-            <Route path="/services/auditing" element={<Auditing />} />
+
             <Route path="/about" element={<About />} />
             <Route path="/blog" element={<Blog />} />
             <Route path="/blog/:slug" element={<BlogDetail />} />

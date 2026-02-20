@@ -1,10 +1,11 @@
 import React from 'react';
 import { Container, Typography, Box, Paper } from '@mui/material';
-import { Breadcrumb } from '../components/common';
+import { Breadcrumb, SEO } from '../components/common';
 
 function Terms() {
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
+      <SEO title="Terms of Service" description="Terms of Service for Uyirgene International's learning platform and services." path="/terms" noindex />
       <Breadcrumb items={[{ label: 'Terms & Conditions', path: '/terms' }]} />
 
       <Typography variant="h3" component="h1" gutterBottom fontWeight={700}>

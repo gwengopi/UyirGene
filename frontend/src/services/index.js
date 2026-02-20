@@ -16,3 +16,4 @@ export { default as serviceCertificationService } from './serviceCertificationSe
 export { default as serviceTestingService } from './serviceTestingService';
 export { default as serviceDiagnosticsService } from './serviceDiagnosticsService';
 export { default as careerService } from './careerService';
+export { default as bundleService } from './bundleService';

@@ -8,6 +8,8 @@ import PeopleIcon from '@mui/icons-material/People';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import SettingsIcon from '@mui/icons-material/Settings';
 import CardMembershipIcon from '@mui/icons-material/CardMembership';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import EmailIcon from '@mui/icons-material/Email';
 import { Sidebar } from '../common';
 import AdminHeader from './AdminHeader';
 import { ROUTES } from '../../utils/constants';
@@ -25,9 +27,11 @@ function AdminLayout({ children, title }) {
     { divider: true },
     { subheader: 'Management' },
     { label: 'Courses', path: ROUTES.ADMIN.COURSES, icon: <SchoolIcon /> },
+    { label: 'Bundles', path: ROUTES.ADMIN.BUNDLES, icon: <LocalOfferIcon /> },
     { label: 'Blogs', path: ROUTES.ADMIN.BLOGS, icon: <ArticleIcon /> },
     { label: 'Users', path: ROUTES.ADMIN.USERS, icon: <PeopleIcon /> },
     { label: 'Certificate Templates', path: ROUTES.ADMIN.CERTIFICATE_TEMPLATES, icon: <CardMembershipIcon /> },
+    { label: 'Mail Templates', path: ROUTES.ADMIN.MAIL_TEMPLATES, icon: <EmailIcon /> },
     { divider: true },
     { subheader: 'Reports' },
     { label: 'Analytics', path: ROUTES.ADMIN.ANALYTICS, icon: <BarChartIcon /> },

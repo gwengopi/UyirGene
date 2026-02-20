@@ -30,7 +30,7 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import BiotechIcon from '@mui/icons-material/Biotech';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
-import FactCheckIcon from '@mui/icons-material/FactCheck';
+
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import SecurityIcon from '@mui/icons-material/Security';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
@@ -44,7 +44,8 @@ import { Navigation, Pagination, Autoplay } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
-import { Button } from '../components/common';
+import { Button, SEO } from '../components/common';
+import { organizationSchema } from '../components/common/SEO';
 import { CourseCard } from '../components/course';
 import { courseService, reviewService } from '../services';
 import { useAuth, useToast, useConfig, useUI } from '../store';
@@ -147,45 +148,44 @@ function Home() {
 
   const servicesList = [
     {
+      icon: <MenuBookIcon sx={{ fontSize: 44 }} />,
+      title: 'Training',
+      description: 'Professional online courses in ISO standards, food safety, quality management and life sciences.',
+      image: getImage('SERVICE_LEARNING', IMAGES.SERVICE_LEARNING),
+      path: ROUTES.SERVICES_LEARNING,
+    },
+    {
       icon: <BiotechIcon sx={{ fontSize: 44 }} />,
       title: 'Microbial Research',
       description: 'Environmental, food, and product microbiology testing with advanced lab technology.',
       image: getImage('SERVICE_MICROBIOLOGY', IMAGES.SERVICE_MICROBIOLOGY),
+      path: ROUTES.SERVICES_MICROBIOLOGY,
     },
     {
       icon: <VerifiedIcon sx={{ fontSize: 44 }} />,
-      title: 'Certification',
-      description: 'ISO, food safety, and quality management system certification services.',
+      title: 'Auditing and Certifications',
+      description: 'ISO auditing, food safety certification, and quality management system compliance services.',
       image: getImage('SERVICE_CERTIFICATION', IMAGES.SERVICE_CERTIFICATION),
+      path: ROUTES.SERVICES_CERTIFICATION,
     },
     {
       icon: <ScienceIcon sx={{ fontSize: 44 }} />,
-      title: 'GMO Testing',
-      description: 'Genetically modified organism detection using molecular biology techniques.',
+      title: 'Testing',
+      description: 'Comprehensive testing services including GMO detection using molecular biology techniques.',
       image: getImage('SERVICE_GMO_TESTING', IMAGES.SERVICE_GMO_TESTING),
+      path: ROUTES.SERVICES_TESTING,
     },
     {
       icon: <LocalHospitalIcon sx={{ fontSize: 44 }} />,
       title: 'Clinical Research',
       description: 'Clinical research, pathogen identification, and advanced medical testing.',
       image: getImage('SERVICE_CLINICAL_DIAGNOSTICS', IMAGES.SERVICE_CLINICAL_DIAGNOSTICS),
-    },
-    {
-      icon: <MenuBookIcon sx={{ fontSize: 44 }} />,
-      title: 'Learning',
-      description: 'Professional online courses in ISO standards, food safety, quality management and life sciences.',
-      image: getImage('SERVICE_LEARNING', IMAGES.SERVICE_LEARNING),
-    },
-    {
-      icon: <FactCheckIcon sx={{ fontSize: 44 }} />,
-      title: 'Auditing',
-      description: 'Internal and external auditing services for ISO, food safety, and quality management systems.',
-      image: getImage('SERVICE_AUDITING', IMAGES.SERVICE_AUDITING),
+      path: ROUTES.SERVICES_CLINICAL_RESEARCH,
     },
   ];
 
   const statistics = [
-    { value: 500, suffix: '+', label: 'Students Trained', icon: <PeopleIcon sx={{ fontSize: 40 }} /> },
+    { value: 5000, suffix: '+', label: 'Students Trained', icon: <PeopleIcon sx={{ fontSize: 40 }} /> },
     { value: 50, suffix: '+', label: 'Professional Courses', icon: <SchoolIcon sx={{ fontSize: 40 }} /> },
     { value: 15, suffix: '+', label: 'Expert Trainers', icon: <WorkspacePremiumIcon sx={{ fontSize: 40 }} /> },
     { value: 100, suffix: '%', label: 'Satisfaction Rate', icon: <ThumbUpIcon sx={{ fontSize: 40 }} /> },
@@ -208,6 +208,12 @@ function Home() {
 
   return (
     <Box>
+      <SEO
+        title="Home"
+        description="Uyirgene International - Professional Training Institute | ISO 9001 Certified | Courses in Food Safety, Quality Management, Microbiology, ISO Standards & more."
+        path="/"
+        structuredData={organizationSchema()}
+      />
       {/* ===== SECTION 1: Hero — Full-screen immersive background ===== */}
       <Box
         sx={{
@@ -451,7 +457,7 @@ function Home() {
                   }}
                 >
                   {[
-                    { val: '500+', label: 'Students Trained' },
+                    { val: '5000+', label: 'Students Trained' },
                     { val: '20+', label: 'Lab Programs' },
                     { val: 'ISO', label: 'Certified Institute' },
                   ].map((stat, i) => (
@@ -554,7 +560,7 @@ function Home() {
                       ))}
                     </Box>
                     <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
-                      500+ students trained
+                      5000+ students trained
                     </Typography>
                   </Box>
                 </Box>
@@ -807,6 +813,7 @@ function Home() {
                 >
                   <Paper
                     elevation={isDarkMode ? 1 : 0}
+                    onClick={() => navigate(service.path)}
                     sx={{
                       textAlign: 'center',
                       height: '100%',
@@ -814,6 +821,7 @@ function Home() {
                       flexDirection: 'column',
                       borderRadius: 3,
                       overflow: 'hidden',
+                      cursor: 'pointer',
                       background: isDarkMode ? undefined : '#f7f9fc',
                       border: isDarkMode ? undefined : '1px solid rgba(69,90,100,0.08)',
                       transition: 'transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease',
@@ -1208,7 +1216,7 @@ function Home() {
                                 mt: 'auto',
                               }}
                             >
-                              {isFree ? 'Enroll Free' : 'View Programme'}
+                              {isFree ? 'Enroll Free' : 'Enroll & Get Certified'}
                             </Button>
                           </Box>
                         </Paper>

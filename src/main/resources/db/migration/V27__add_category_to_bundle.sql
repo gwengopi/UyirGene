@@ -1,0 +1,1 @@
+ALTER TABLE course_bundle ADD COLUMN IF NOT EXISTS category VARCHAR(100);

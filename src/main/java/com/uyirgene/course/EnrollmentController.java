@@ -11,6 +11,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,14 +23,16 @@ public class EnrollmentController {
     private final EnrollmentService enrollmentService;
 
     @PostMapping("/{id}/enroll")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Enroll current user in a course")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Enrolled successfully"),
             @ApiResponse(responseCode = "200", description = "Already enrolled - returns existing enrollment"),
             @ApiResponse(responseCode = "404", description = "Course not found")
     })
-    public ResponseEntity<?> enroll(@PathVariable("id") Long id) {
-        EnrollmentResult result = enrollmentService.startEnrollment(id);
+    public ResponseEntity<?> enroll(@PathVariable("id") Long id, @RequestBody(required = false) EnrollRequest enrollRequest) {
+        String countryCode = (enrollRequest != null) ? enrollRequest.getCountryCode() : null;
+        EnrollmentResult result = enrollmentService.startEnrollment(id, countryCode);
 
         // If already enrolled, return 200 with message
         if (result.isAlreadyEnrolled()) {
@@ -61,6 +64,7 @@ public class EnrollmentController {
     }
 
     @PostMapping("/{id}/enroll/confirm")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Confirm payment for enrollment (idempotent)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Payment confirmed and enrolled"),
@@ -78,6 +82,7 @@ public class EnrollmentController {
     }
 
     @GetMapping("/enrolled")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "List courses current user is enrolled in")
     @ApiResponse(responseCode = "200", description = "List of enrolled courses")
     public ResponseEntity<List<EnrollmentDto>> enrolled() {
@@ -85,6 +90,7 @@ public class EnrollmentController {
     }
 
     @DeleteMapping("/{id}/enroll")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Unenroll current user from a course")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Unenrolled"),
@@ -123,5 +129,10 @@ public class EnrollmentController {
         public void setRazorpayOrderId(String razorpayOrderId) { this.razorpayOrderId = razorpayOrderId; }
         public String getRazorpaySignature() { return razorpaySignature; }
         public void setRazorpaySignature(String razorpaySignature) { this.razorpaySignature = razorpaySignature; }
+    }
+
+    @Data
+    public static class EnrollRequest {
+        private String countryCode;
     }
 }

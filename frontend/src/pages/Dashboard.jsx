@@ -39,10 +39,10 @@ function Dashboard() {
 
   const stats = {
     enrolledCourses: enrolledCourses.length,
-    completedCourses: 0, // Would need to track this from backend
+    completedCourses: enrolledCourses.filter((e) => e.status === 'COMPLETED').length,
   };
 
-  const recentCourses = enrolledCourses.slice(0, 3);
+  const recentCourses = enrolledCourses.slice(0, 3).map((e) => e.course || e);
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>

@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Container, Paper, Typography, Box, Button, Alert } from '@mui/material';
+import {
+  Container, Paper, Typography, Box, Button, Alert,
+  Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
+} from '@mui/material';
 import { useToast } from '../store';
 import { enrollmentService } from '../services';
+import * as bundleService from '../services/bundleService';
 import { formatCurrency } from '../utils/formatters';
 import { ROUTES } from '../utils/constants';
 
@@ -12,12 +16,15 @@ function Payment() {
   const { showSuccess, showError } = useToast();
 
   const [processing, setProcessing] = useState(false);
+  const [failureDialog, setFailureDialog] = useState({ open: false, message: '' });
 
   const order = state?.order;
   const courseId = state?.courseId;
-  const courseName = state?.courseName || 'course';
+  const bundleId = state?.bundleId;
+  const courseName = state?.courseName || state?.bundleName || 'course';
+  const isBundle = !!bundleId;
 
-  if (!order || !courseId) {
+  if (!order || (!courseId && !bundleId)) {
     return (
       <Container maxWidth="sm" sx={{ py: 8 }}>
         <Alert severity="error">Payment information missing. Please retry enrollment from the course page.</Alert>
@@ -27,6 +34,14 @@ function Payment() {
       </Container>
     );
   }
+
+  const confirmPayment = async (paymentData) => {
+    if (isBundle) {
+      await bundleService.confirmBundlePayment(bundleId, paymentData);
+    } else {
+      await enrollmentService.confirmPayment(courseId, paymentData);
+    }
+  };
 
   const handlePayNow = async () => {
     setProcessing(true);
@@ -39,32 +54,26 @@ function Payment() {
         courseName,
       });
 
-      await enrollmentService.confirmPayment(courseId, paymentData);
-      showSuccess('Payment successful! Enrollment completed.');
+      await confirmPayment(paymentData);
+      showSuccess(isBundle
+        ? 'Payment successful! You are now enrolled in all bundle courses.'
+        : 'Payment successful! Enrollment completed.');
       navigate(ROUTES.MY_COURSES);
     } catch (error) {
-      if (error.message !== 'Payment cancelled') {
-        showError(error.message || 'Payment failed');
+      if (error.message === 'Payment cancelled') {
+        // User cancelled - no message needed
+      } else if (error.response?.status === 401) {
+        showError('Session expired. Please login and try again.');
+        navigate(ROUTES.LOGIN);
+      } else {
+        const msg = error.message || 'Payment failed. Please try again.';
+        setFailureDialog({ open: true, message: msg });
+        enrollmentService.notifyPaymentFailed(
+          courseId ? Number(courseId) : null,
+          bundleId ? Number(bundleId) : null,
+          msg
+        );
       }
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleSimulate = async () => {
-    // Useful for dev with mock payment provider
-    setProcessing(true);
-    try {
-      const mock = {
-        razorpayPaymentId: `mock_pay_${Date.now()}`,
-        razorpayOrderId: order.orderId,
-        razorpaySignature: 'mock_signature',
-      };
-      await enrollmentService.confirmPayment(courseId, mock);
-      showSuccess('Mock payment confirmed. Enrollment completed.');
-      navigate(ROUTES.MY_COURSES);
-    } catch (error) {
-      showError(error.message || 'Failed to confirm mock payment');
     } finally {
       setProcessing(false);
     }
@@ -85,16 +94,37 @@ function Payment() {
 
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Button variant="contained" onClick={handlePayNow} disabled={processing}>
-            Pay Now
-          </Button>
-          <Button variant="outlined" onClick={handleSimulate} disabled={processing}>
-            Simulate Payment
+            {processing ? 'Processing...' : 'Pay Now'}
           </Button>
           <Button onClick={() => navigate(-1)} disabled={processing}>
             Cancel
           </Button>
         </Box>
       </Paper>
+
+      {/* Payment Failure Dialog */}
+      <Dialog open={failureDialog.open} onClose={() => setFailureDialog({ open: false, message: '' })}>
+        <DialogTitle sx={{ color: 'error.main' }}>Payment Failed</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{failureDialog.message}</DialogContentText>
+          <DialogContentText sx={{ mt: 1 }}>
+            If any amount was deducted from your account, it will be automatically refunded within 5–7 business days. If you do not receive a refund within this period, please contact your bank with the transaction reference details.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => navigate(-1)}>Go Back</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => {
+              setFailureDialog({ open: false, message: '' });
+              handlePayNow();
+            }}
+          >
+            Try Again
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

@@ -46,10 +46,28 @@ export function AuthProvider({ children }) {
     setAuth({ token, user, loading: false });
   }, []);
 
-  // Logout function
+  // Logout function - clear all user-related cached data
   const logout = useCallback(() => {
     authService.logout();
+    // Clear any cached user data from localStorage
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('uyir_') && key !== 'uyir_auth') {
+        localStorage.removeItem(key);
+      }
+    });
     setAuth({ token: null, user: null, loading: false });
+  }, []);
+
+  // Refresh user data from server
+  const refreshUser = useCallback(async () => {
+    try {
+      const user = await authService.getCurrentUser();
+      setAuth((prev) => ({ ...prev, user }));
+      return user;
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
+      return null;
+    }
   }, []);
 
   // Check if user is authenticated
@@ -81,6 +99,7 @@ export function AuthProvider({ children }) {
     login,
     loginWithToken,
     logout,
+    refreshUser,
     isAuthenticated,
     hasRole,
     isAdmin,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Container, Typography, Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
-import { Breadcrumb } from '../components/common';
+import { Breadcrumb, SEO } from '../components/common';
 
 function Cookies() {
   const lastUpdated = 'January 1, 2024';
@@ -34,6 +34,7 @@ function Cookies() {
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
+      <SEO title="Cookie Policy" description="Cookie Policy for Uyirgene International's website and learning platform." path="/cookies" noindex />
       <Breadcrumb items={[{ label: 'Cookie Policy', path: '/cookies' }]} />
 
       <Typography variant="h3" component="h1" gutterBottom fontWeight={700}>

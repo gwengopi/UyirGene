@@ -96,6 +96,7 @@ function ProfileForm({ user, onSave, onCancel, loading = false }) {
         error={errors.name}
         required
         autoComplete="name"
+        helperText="This name will be displayed on your certificates"
       />
 
       <FormField

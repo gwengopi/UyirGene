@@ -30,7 +30,7 @@ import { configService } from '../../services';
 import { useToast } from '../../store';
 
 const CONFIG_TYPES = ['IMAGE', 'TEXT', 'URL', 'JSON'];
-const CATEGORIES = ['LOGO', 'HERO', 'COURSE', 'ABOUT', 'BACKGROUND', 'GENERAL'];
+const CATEGORIES = ['LOGO', 'HERO', 'COURSE', 'SERVICE', 'ABOUT', 'BACKGROUND', 'CONTACT', 'SETTINGS', 'FOOTER', 'REVIEW', 'GENERAL'];
 
 function SiteConfigManager() {
   const { showSuccess, showError } = useToast();

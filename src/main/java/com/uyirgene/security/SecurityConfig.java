@@ -5,7 +5,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -45,7 +44,6 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers(
                             "/api/auth/**",
-                            "/api/courses/**",
                             "/api/blogs/**",
                             "/api/certificates/verify/**",
                             "/api/reviews",
@@ -53,14 +51,15 @@ public class SecurityConfig {
                             "/api/service-testings/**",
                             "/api/service-diagnostics/**",
                             "/api/careers/**",
-                            "/actuator/health",
-                            "/swagger-ui/**",
-                            "/v3/api-docs/**",
-                            "/swagger-ui.html"
+                            "/actuator/health"
                     ).permitAll()
+                    // Course & bundle public endpoints (read-only)
+                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/courses/**").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/bundles", "/api/bundles/{id}", "/api/bundles/{id}/thumbnail").permitAll()
+                    // Swagger - only accessible in dev (disabled in prod via springdoc config)
+                    .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                     .requestMatchers("/api/admin/**").authenticated()
                     .anyRequest().authenticated())
-            .httpBasic(Customizer.withDefaults())
             .authenticationProvider(authenticationProvider(userDetailsService))
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
@@ -82,7 +81,7 @@ public class SecurityConfig {
         }
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 

@@ -60,9 +60,10 @@ const CourseCard = memo(function CourseCard({
   const isFree = !course.price || course.price === 0;
   const isCompleted = progress >= 100;
 
-  // Construct full image URL from API base URL
-  const imageUrl = course.imageUrl
-    ? `${getApiBaseUrl()}${course.imageUrl}`
+  // Construct full image URL from API base URL (prefer thumbnail, fall back to legacy image)
+  const imagePath = course.thumbnailImageUrl || course.imageUrl;
+  const imageUrl = imagePath
+    ? `${getApiBaseUrl()}${imagePath}`
     : IMAGES.COURSE_PLACEHOLDER;
 
   return (
@@ -190,7 +191,7 @@ const CourseCard = memo(function CourseCard({
           disabled={enrolling || isEnrolled}
           aria-busy={enrolling}
         >
-          {isEnrolled ? 'Already Enrolled' : (enrolling ? 'Enrolling...' : isFree ? 'Enroll Free' : 'Enroll Now')}
+          {isEnrolled ? 'Already Enrolled' : (enrolling ? 'Enrolling...' : isFree ? 'Enroll Free' : 'Enroll & Get Certified')}
         </Button>
       </CardActions>
     </Card>

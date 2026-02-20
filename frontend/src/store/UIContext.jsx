@@ -8,18 +8,19 @@ export function UIProvider({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Theme mode state - default to dark, check localStorage
+  // Theme mode state - default to light, check localStorage
   const [themeMode, setThemeMode] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(THEME_STORAGE_KEY);
-      return saved || 'dark';
+      return saved || 'light';
     }
-    return 'dark';
+    return 'light';
   });
 
-  // Persist theme mode to localStorage
+  // Persist theme mode to localStorage and set data-theme attribute
   useEffect(() => {
     localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+    document.documentElement.setAttribute('data-theme', themeMode);
   }, [themeMode]);
 
   // Theme controls

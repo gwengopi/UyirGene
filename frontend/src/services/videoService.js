@@ -21,12 +21,15 @@ export async function decryptUrl(encryptedUrl) {
  * Update video progress
  * @param {number|string} videoId - Video ID
  * @param {number} lastPositionSeconds - Last watched position in seconds
+ * @param {boolean} [completed] - Explicitly mark video as completed
  * @returns {Promise<Object>} Updated progress object
  */
-export async function updateProgress(videoId, lastPositionSeconds) {
-  const response = await api.post(VIDEO_ENDPOINTS.PROGRESS(videoId), {
-    lastPositionSeconds,
-  });
+export async function updateProgress(videoId, lastPositionSeconds, completed) {
+  const payload = { lastPositionSeconds };
+  if (completed) {
+    payload.completed = true;
+  }
+  const response = await api.post(VIDEO_ENDPOINTS.PROGRESS(videoId), payload);
   return response.data;
 }
 

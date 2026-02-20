@@ -15,7 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Service
-@Profile("prod")
+@Profile({"dev", "prod"})
 @Slf4j
 public class RazorpayPaymentService implements PaymentProvider {
 
@@ -32,13 +32,13 @@ public class RazorpayPaymentService implements PaymentProvider {
     }
 
     @Override
-    public PaymentOrder createOrder(Long amountPaise, String receipt) {
-        log.info("Creating Razorpay order for amount: {} paise, receipt: {}", amountPaise, receipt);
+    public PaymentOrder createOrder(Long amountSmallestUnit, String currency, String receipt) {
+        log.info("Creating Razorpay order for amount: {} ({}), receipt: {}", amountSmallestUnit, currency, receipt);
 
         String url = "https://api.razorpay.com/v1/orders";
         Map<String, Object> body = new HashMap<>();
-        body.put("amount", amountPaise);
-        body.put("currency", "INR");
+        body.put("amount", amountSmallestUnit);
+        body.put("currency", currency);
         body.put("receipt", receipt);
         body.put("payment_capture", 1);
 
@@ -62,11 +62,11 @@ public class RazorpayPaymentService implements PaymentProvider {
             String orderId = String.valueOf(data.get("id"));
             Object amtObj = data.get("amount");
             Long amt = amtObj instanceof Number ? ((Number) amtObj).longValue() : Long.parseLong(amtObj.toString());
-            String currency = (String) data.get("currency");
+            String responseCurrency = (String) data.get("currency");
 
             log.info("Razorpay order created successfully: {}", orderId);
 
-            return new PaymentOrder(orderId, amt, currency, keyId);
+            return new PaymentOrder(orderId, amt, responseCurrency, keyId);
 
         } catch (PaymentException e) {
             throw e;

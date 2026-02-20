@@ -9,10 +9,13 @@ import { PROGRESS_SAVE_INTERVAL } from '../utils/constants';
  * Embedded video player for YouTube, Vimeo, Google Drive
  * Uses iframe with overlay protections
  */
-function EmbeddedPlayer({ src, title, onProgress, initialPosition = 0, userEmail }) {
+function EmbeddedPlayer({ src, title, onProgress, onComplete, initialPosition = 0, userEmail }) {
   const containerRef = useRef(null);
+  const iframeRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const progressRef = useRef(initialPosition);
+  const completedRef = useRef(false);
 
   // Handle fullscreen changes
   useEffect(() => {
@@ -22,6 +25,31 @@ function EmbeddedPlayer({ src, title, onProgress, initialPosition = 0, userEmail
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // Detect user interaction with iframe (focus = likely playing)
+  useEffect(() => {
+    const handleFocus = () => {
+      // When iframe gets focus, user likely clicked play
+      setIsPlaying(true);
+    };
+
+    const handleBlur = () => {
+      // Small delay to avoid false negatives from brief focus changes
+      setTimeout(() => {
+        if (document.activeElement !== iframeRef.current) {
+          setIsPlaying(false);
+        }
+      }, 200);
+    };
+
+    window.addEventListener('blur', handleFocus);
+    window.addEventListener('focus', handleBlur);
+
+    return () => {
+      window.removeEventListener('blur', handleFocus);
+      window.removeEventListener('focus', handleBlur);
+    };
   }, []);
 
   const toggleFullscreen = useCallback(() => {
@@ -35,16 +63,25 @@ function EmbeddedPlayer({ src, title, onProgress, initialPosition = 0, userEmail
     }
   }, []);
 
-  // Save progress periodically (approximate for embedded players)
+  // Save progress periodically (approximate for embedded players, only when playing)
   useEffect(() => {
+    if (!isPlaying || !onProgress) return;
+
     const interval = setInterval(() => {
-      if (onProgress) {
-        progressRef.current += PROGRESS_SAVE_INTERVAL;
-        onProgress(progressRef.current);
-      }
+      progressRef.current += PROGRESS_SAVE_INTERVAL;
+      onProgress(progressRef.current);
     }, PROGRESS_SAVE_INTERVAL * 1000);
 
     return () => clearInterval(interval);
+  }, [isPlaying, onProgress]);
+
+  // Save progress on unmount
+  useEffect(() => {
+    return () => {
+      if (progressRef.current > 0 && onProgress) {
+        onProgress(progressRef.current);
+      }
+    };
   }, [onProgress]);
 
   return (
@@ -74,6 +111,7 @@ function EmbeddedPlayer({ src, title, onProgress, initialPosition = 0, userEmail
       >
         {/* Iframe */}
         <iframe
+          ref={iframeRef}
           src={src}
           title={title}
           style={{

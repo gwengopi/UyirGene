@@ -13,10 +13,12 @@ const ENROLLMENT_ENDPOINTS = {
  * For free courses: immediately enrolls the user
  * For paid courses: returns Razorpay order details
  * @param {number|string} courseId - Course ID
+ * @param {string} [countryCode] - Country code for multi-currency pricing (e.g. "US", "GB")
  * @returns {Promise<Object>} Enrollment result or payment order details
  */
-export async function startEnrollment(courseId) {
-  const response = await api.post(ENROLLMENT_ENDPOINTS.ENROLL(courseId));
+export async function startEnrollment(courseId, countryCode) {
+  const body = countryCode ? { countryCode } : {};
+  const response = await api.post(ENROLLMENT_ENDPOINTS.ENROLL(courseId), body);
   return response.data;
 }
 
@@ -74,7 +76,11 @@ export function loadRazorpayScript() {
 
     const script = document.createElement('script');
     script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.onload = () => resolve(true);
+    script.crossOrigin = 'anonymous';
+    script.onload = () => {
+      // Verify Razorpay object exists after load
+      resolve(typeof window.Razorpay === 'function');
+    };
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
@@ -92,6 +98,28 @@ export function loadRazorpayScript() {
  * @param {Function} options.onError - Error callback
  * @returns {Promise<void>}
  */
+/**
+ * Restore body scroll after Razorpay modal closes
+ * Razorpay adds overflow:hidden to body which sometimes isn't removed on failure
+ */
+function cleanupRazorpay() {
+  // Restore body scroll
+  document.body.style.overflow = '';
+  document.body.style.position = '';
+  document.body.style.width = '';
+  document.body.style.height = '';
+  document.documentElement.style.overflow = '';
+
+  // Remove all Razorpay-injected DOM elements
+  document.querySelectorAll(
+    '.razorpay-container, .razorpay-backdrop, iframe[src*="razorpay"], [class*="razorpay"]'
+  ).forEach((el) => el.remove());
+
+  // Remove the script tag and clear window.Razorpay so it reloads fresh next time
+  document.querySelectorAll('script[src*="razorpay"]').forEach((el) => el.remove());
+  delete window.Razorpay;
+}
+
 export async function processRazorpayPayment(options) {
   const scriptLoaded = await loadRazorpayScript();
   if (!scriptLoaded) {
@@ -107,6 +135,7 @@ export async function processRazorpayPayment(options) {
       name: 'Uyirgene',
       description: `Enrollment for ${options.courseName || 'course'}`,
       handler: function (response) {
+        cleanupRazorpay();
         resolve({
           razorpayPaymentId: response.razorpay_payment_id,
           razorpayOrderId: response.razorpay_order_id,
@@ -115,6 +144,7 @@ export async function processRazorpayPayment(options) {
       },
       modal: {
         ondismiss: function () {
+          cleanupRazorpay();
           reject(new Error('Payment cancelled'));
         },
       },
@@ -124,11 +154,24 @@ export async function processRazorpayPayment(options) {
     });
 
     rzp.on('payment.failed', function (response) {
+      cleanupRazorpay();
       reject(new Error(response.error.description || 'Payment failed'));
     });
 
     rzp.open();
   });
+}
+
+/**
+ * Notify backend of a payment failure so a failure email can be sent to the user.
+ * Non-throwing — failure to notify should not block the UI.
+ */
+export async function notifyPaymentFailed(courseId, bundleId, reason) {
+  try {
+    await api.post('/api/payment/failed', { courseId, bundleId, reason });
+  } catch (e) {
+    // Non-critical — don't propagate
+  }
 }
 
 export default {
@@ -138,6 +181,7 @@ export default {
   isEnrolledInCourse,
   loadRazorpayScript,
   processRazorpayPayment,
+  notifyPaymentFailed,
   unenroll,
   markComplete,
 };

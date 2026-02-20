@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import java.util.Random;
 
 @Service
-@Profile({"dev", "test"})
+@Profile("test")
 @Slf4j
 public class MockPaymentService implements PaymentProvider {
 
@@ -19,8 +19,8 @@ public class MockPaymentService implements PaymentProvider {
     private static final Random random = new Random();
 
     @Override
-    public PaymentOrder createOrder(Long amountPaise, String receipt) {
-        log.info("Creating mock payment order for amount: {} paise, receipt: {}", amountPaise, receipt);
+    public PaymentOrder createOrder(Long amountSmallestUnit, String currency, String receipt) {
+        log.info("Creating mock payment order for amount: {} {}, receipt: {}", amountSmallestUnit, currency, receipt);
 
         // Simulate payment processing delay
         try {
@@ -39,8 +39,8 @@ public class MockPaymentService implements PaymentProvider {
 
         return new PaymentOrder(
             orderId,
-            amountPaise,
-            "INR",
+            amountSmallestUnit,
+            currency,
             "mock_key_id"
         );
     }

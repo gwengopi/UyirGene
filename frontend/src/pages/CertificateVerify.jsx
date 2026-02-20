@@ -17,7 +17,7 @@ import SchoolIcon from '@mui/icons-material/School';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import SearchIcon from '@mui/icons-material/Search';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
-import { LoadingSpinner, Breadcrumb, Button } from '../components/common';
+import { LoadingSpinner, Breadcrumb, Button, SEO } from '../components/common';
 import { certificateService } from '../services';
 
 function CertificateVerify() {
@@ -60,10 +60,13 @@ function CertificateVerify() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (certificateId.trim()) {
-      // Update URL to reflect the certificate being verified
-      navigate(`/certificate/${certificateId.trim()}`, { replace: true });
-      verifyCertificate(certificateId.trim());
+    const trimmed = certificateId.trim();
+    if (trimmed) {
+      // Only update URL if it looks like a certificate ID (alphanumeric/dashes)
+      if (/^[A-Za-z0-9-]+$/.test(trimmed)) {
+        navigate(`/certificate/${trimmed}`, { replace: true });
+      }
+      verifyCertificate(trimmed);
     }
   };
 
@@ -100,6 +103,7 @@ function CertificateVerify() {
 
   return (
     <Container maxWidth="sm" sx={{ py: 8 }}>
+      <SEO title="Verify Certificate" description="Verify the authenticity of certificates issued by Uyirgene International. Enter a certificate ID to validate." path="/verify-certificate" />
       <Breadcrumb
         items={[{ label: 'Verify Certificate', path: '/verify-certificate' }]}
       />
@@ -112,7 +116,7 @@ function CertificateVerify() {
             Certificate Verification
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Enter a certificate ID or scan the QR code on a certificate to verify its authenticity.
+            Enter a certificate ID to verify its authenticity.
           </Typography>
         </Box>
 
@@ -195,7 +199,7 @@ function CertificateVerify() {
                 <Divider sx={{ my: 3 }} />
 
                 <Box sx={{ textAlign: 'left' }}>
-                  <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                  <Box sx={{ mb: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
                     <Typography variant="caption" color="text.secondary">
                       Certificate ID
                     </Typography>
@@ -204,7 +208,7 @@ function CertificateVerify() {
                     </Typography>
                   </Box>
 
-                  <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                  <Box sx={{ mb: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
                     <Typography variant="caption" color="text.secondary">
                       Recipient
                     </Typography>
@@ -213,7 +217,7 @@ function CertificateVerify() {
                     </Typography>
                   </Box>
 
-                  <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                  <Box sx={{ mb: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
                     <Typography variant="caption" color="text.secondary">
                       Course
                     </Typography>
@@ -222,7 +226,7 @@ function CertificateVerify() {
                     </Typography>
                   </Box>
 
-                  <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                  <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
                     <Typography variant="caption" color="text.secondary">
                       Issue Date
                     </Typography>
@@ -248,7 +252,6 @@ function CertificateVerify() {
             </Typography>
             <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
               <li>Enter the Certificate ID printed on the certificate</li>
-              <li>Or scan the QR code on the certificate using your phone</li>
             </ul>
           </Alert>
         )}

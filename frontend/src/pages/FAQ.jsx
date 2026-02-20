@@ -9,7 +9,7 @@ import {
   Skeleton,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { Breadcrumb, Button } from '../components/common';
+import { Breadcrumb, Button, SEO } from '../components/common';
 import { useNavigate } from 'react-router-dom';
 import { faqService } from '../services';
 
@@ -118,6 +118,7 @@ function FAQ() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <SEO title="FAQ" description="Frequently asked questions about Uyirgene International courses, certifications, enrollments, payments and services." path="/faq" />
       <Breadcrumb items={[{ label: 'FAQ', path: '/faq' }]} />
 
       <Box sx={{ textAlign: 'center', mb: 6 }}>

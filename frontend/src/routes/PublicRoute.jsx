@@ -19,8 +19,10 @@ function PublicRoute({ children, redirectTo = ROUTES.DASHBOARD }) {
 
   // Redirect authenticated users to dashboard or previous location
   if (isAuthenticated()) {
-    const from = location.state?.from?.pathname || redirectTo;
-    return <Navigate to={from} replace />;
+    const from = location.state?.from?.pathname;
+    // Only allow internal paths (starting with /) to prevent open redirect
+    const safeTo = from && from.startsWith('/') && !from.startsWith('//') ? from : redirectTo;
+    return <Navigate to={safeTo} replace />;
   }
 
   return children;

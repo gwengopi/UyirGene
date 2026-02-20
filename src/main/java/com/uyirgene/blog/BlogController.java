@@ -16,8 +16,10 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 
 @RestController
@@ -80,8 +82,11 @@ public class BlogController {
     @GetMapping("/search")
     @Operation(summary = "Search blogs")
     @ApiResponse(responseCode = "200", description = "Search results")
-    public ResponseEntity<List<Blog>> searchBlogs(@RequestParam String q) {
-        return ResponseEntity.ok(blogService.searchBlogs(q));
+    public ResponseEntity<?> searchBlogs(@RequestParam String q) {
+        if (q == null || q.isBlank() || q.length() > 100) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Search query must be 1-100 characters"));
+        }
+        return ResponseEntity.ok(blogService.searchBlogs(q.trim()));
     }
 
     @GetMapping("/recent")
@@ -231,9 +236,13 @@ public class BlogController {
             @ApiResponse(responseCode = "200", description = "Image uploaded"),
             @ApiResponse(responseCode = "404", description = "Blog not found")
     })
-    public ResponseEntity<Blog> uploadFeaturedImage(
+    public ResponseEntity<?> uploadFeaturedImage(
             @PathVariable Long id,
             @RequestParam("file") MultipartFile file) throws IOException {
+        String validationError = validateImage(file);
+        if (validationError != null) {
+            return ResponseEntity.badRequest().body(Map.of("error", validationError));
+        }
         Blog updated = blogService.updateFeaturedImage(
                 id,
                 file.getBytes(),
@@ -264,6 +273,32 @@ public class BlogController {
     @ApiResponse(responseCode = "200", description = "List of active subscribers")
     public ResponseEntity<List<BlogSubscription>> getActiveSubscribers() {
         return ResponseEntity.ok(blogService.getActiveSubscribers());
+    }
+
+    // ==================== DTOs ====================
+
+    // ==================== Validation ====================
+
+    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of("image/jpeg", "image/png", "image/gif", "image/webp");
+
+    private String validateImage(MultipartFile file) {
+        if (file == null || file.isEmpty()) return "No file provided";
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType)) {
+            return "Invalid image type. Allowed: JPEG, PNG, GIF, WebP";
+        }
+        try (InputStream is = file.getInputStream()) {
+            byte[] header = new byte[4];
+            if (is.read(header) < 4) return "File too small to be a valid image";
+            boolean valid = (header[0] == (byte) 0xFF && header[1] == (byte) 0xD8) ||
+                    (header[0] == (byte) 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47) ||
+                    (header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46) ||
+                    (header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46);
+            if (!valid) return "File content does not match a valid image format";
+        } catch (IOException e) {
+            return "Could not read image file";
+        }
+        return null;
     }
 
     // ==================== DTOs ====================

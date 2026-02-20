@@ -52,7 +52,7 @@ function ProgressTracker({
             value={100}
             size={circularSize}
             thickness={thickness}
-            sx={{ color: 'rgba(255, 255, 255, 0.1)' }}
+            sx={{ color: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }}
           />
           {/* Progress circle */}
           <CircularProgress
@@ -122,7 +122,7 @@ function ProgressTracker({
         sx={{
           height: size === 'small' ? 4 : size === 'large' ? 12 : 8,
           borderRadius: 1,
-          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          backgroundColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
         }}
         aria-valuenow={percentage}
         aria-valuemin={0}

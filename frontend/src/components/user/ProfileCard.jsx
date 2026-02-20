@@ -62,40 +62,46 @@ function ProfileCard({
     <Card>
       <CardContent>
         {/* User info */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', mb: 3 }}>
           <Avatar
             sx={{
               width: 80,
               height: 80,
               bgcolor: 'primary.main',
               fontSize: '1.5rem',
+              mb: 2,
             }}
             alt={user.name}
           >
             {initials}
           </Avatar>
-          <Box sx={{ flex: 1 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-              <Typography variant="h5" fontWeight={600}>
-                {user.name}
-              </Typography>
-              <Chip
-                label={formatRole(user.role)}
-                size="small"
-                color="primary"
-                variant="outlined"
-              />
-            </Box>
-            <Typography variant="body2" color="text.secondary">
-              {user.email}
-            </Typography>
-          </Box>
+          <Typography
+            variant="h6"
+            fontWeight={600}
+            sx={{ wordBreak: 'break-word', mb: 0.5 }}
+          >
+            {user.name}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
+            This name will be displayed on your certificates
+          </Typography>
+          <Chip
+            label={formatRole(user.role)}
+            size="small"
+            color="primary"
+            variant="outlined"
+            sx={{ mb: 1 }}
+          />
+          <Typography variant="body2" color="text.secondary" sx={{ wordBreak: 'break-word' }}>
+            {user.email}
+          </Typography>
           {showEditButton && (
             <Button
               variant="outlined"
               startIcon={<EditIcon />}
               onClick={onEditProfile}
               size="small"
+              sx={{ mt: 2 }}
             >
               Edit Profile
             </Button>

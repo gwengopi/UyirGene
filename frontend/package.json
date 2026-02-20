@@ -9,17 +9,23 @@
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
-    "lint": "eslint src --ext .js,.jsx"
+    "lint": "eslint src --ext .js,.jsx",
+    "generate-sitemap": "node scripts/generate-sitemap.js"
   },
   "dependencies": {
-    "@emotion/react": "^11.11.1",
-    "@emotion/styled": "^11.11.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^5.14.0",
     "@mui/material": "^5.14.7",
+    "@react-oauth/google": "^0.13.4",
     "axios": "^1.4.0",
+    "dompurify": "^3.3.1",
+    "pdfjs-dist": "^5.4.530",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.18.0"
+    "react-helmet-async": "^2.0.5",
+    "react-router-dom": "^6.18.0",
+    "swiper": "^12.1.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.0",

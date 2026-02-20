@@ -1,7 +1,7 @@
-import { CURRENCY } from './constants';
+import { CURRENCY, SUPPORTED_COUNTRIES } from './constants';
 
 /**
- * Format currency amount
+ * Format currency amount with locale-aware formatting
  * @param {number} amount - Amount to format
  * @param {string} currency - Currency code (default: INR)
  * @returns {string} Formatted currency string
@@ -10,7 +10,11 @@ export function formatCurrency(amount, currency = CURRENCY.CODE) {
   if (amount === null || amount === undefined) return 'Free';
   if (amount === 0) return 'Free';
 
-  return new Intl.NumberFormat(CURRENCY.LOCALE, {
+  // Find the appropriate locale for this currency
+  const country = SUPPORTED_COUNTRIES.find((c) => c.currency === currency);
+  const locale = country?.locale || CURRENCY.LOCALE;
+
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
     minimumFractionDigits: 0,

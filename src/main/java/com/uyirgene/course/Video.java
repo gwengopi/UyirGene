@@ -1,5 +1,6 @@
 package com.uyirgene.course;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -10,6 +11,7 @@ public class Video {
     private Long id;
 
     @ManyToOne(optional = false)
+    @JsonIgnore
     private Course course;
 
     private String title;

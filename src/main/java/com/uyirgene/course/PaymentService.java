@@ -1,11 +1,11 @@
 package com.uyirgene.course;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -14,6 +14,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PaymentService {
 
     @Value("${razorpay.key-id:}")
@@ -57,8 +58,13 @@ public class PaymentService {
             mac.init(new javax.crypto.spec.SecretKeySpec(keySecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             byte[] hmac = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
             String expected = java.util.HexFormat.of().formatHex(hmac).toLowerCase();
-            return expected.equals(signature);
+            boolean valid = expected.equals(signature);
+            if (!valid) {
+                log.warn("Payment signature verification failed for orderId={}, paymentId={}", orderId, paymentId);
+            }
+            return valid;
         } catch (Exception e) {
+            log.error("Payment signature verification error for orderId={}, paymentId={}", orderId, paymentId, e);
             return false;
         }
     }

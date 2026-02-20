@@ -12,13 +12,22 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -34,26 +43,23 @@ public class AdminController {
     private final SiteConfigService siteConfigService;
     private final MailService mailService;
 
+    @Value("${app.certificate.folder:uploads/certificates}")
+    private String certFolder;
+
     @GetMapping("/users")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "List all users")
     @ApiResponse(responseCode = "200", description = "List of users")
     public ResponseEntity<List<User>> listUsers() {
-        List<User> users = userRepository.findAll();
-        // Clear passwords before returning
-        users.forEach(u -> u.setPassword(null));
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(userRepository.findAll());
     }
 
     @GetMapping("/users/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get user by ID")
     public ResponseEntity<User> getUser(@PathVariable("id") Long id) {
         return userRepository.findById(id)
-                .map(u -> {
-                    u.setPassword(null);
-                    return ResponseEntity.ok(u);
-                })
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -69,7 +75,6 @@ public class AdminController {
                 .map(user -> {
                     user.setRole(req.getRole());
                     User saved = userRepository.save(user);
-                    saved.setPassword(null);
                     return ResponseEntity.ok(saved);
                 })
                 .orElse(ResponseEntity.notFound().build());
@@ -102,14 +107,13 @@ public class AdminController {
                 .map(user -> {
                     user.setEnabled(req.isEnabled());
                     User saved = userRepository.save(user);
-                    saved.setPassword(null);
                     return ResponseEntity.ok(saved);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/users/{id}/enrollments")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get enrollments for a specific user")
     public ResponseEntity<List<EnrollmentResponse>> getUserEnrollments(@PathVariable("id") Long userId) {
         List<Enrollment> enrollments = enrollmentRepository.findByUserId(userId);
@@ -159,6 +163,21 @@ public class AdminController {
         return enrollmentRepository.findById(enrollmentId)
                 .map(enrollment -> {
                     boolean isFirstTimeMarks = enrollment.getTestCompletedAt() == null;
+
+                    // Always delete existing certificate when marks are saved (admin must regenerate/re-upload)
+                    if (enrollment.getUser() != null && enrollment.getCourse() != null) {
+                        var existingCert = certificateRepository.findByUserAndCourse(enrollment.getUser(), enrollment.getCourse());
+                        if (existingCert.isPresent()) {
+                            // Delete file from disk
+                            try {
+                                java.io.File oldFile = new java.io.File(existingCert.get().getFilePath());
+                                if (oldFile.exists()) oldFile.delete();
+                            } catch (Exception ignored) {}
+                            certificateRepository.delete(existingCert.get());
+                            certificateRepository.flush();
+                        }
+                    }
+
                     enrollment.setMarks(req.getMarks());
 
                     // Set trainer name - use provided name or default to course trainer
@@ -217,12 +236,13 @@ public class AdminController {
                     enrollment.setResultPublishedAt(LocalDateTime.now());
                     Enrollment saved = enrollmentRepository.save(enrollment);
 
-                    // Send result published email notification
+                    // Send combined results + certificate email notification
                     try {
                         User user = saved.getUser();
                         Course course = saved.getCourse();
                         if (user != null && course != null) {
-                            mailService.sendResultPublished(user, course, saved);
+                            Certificate certificate = certificateRepository.findByUserAndCourse(user, course).orElse(null);
+                            mailService.sendResultPublished(user, course, saved, certificate);
                         }
                     } catch (Exception e) {
                         // Log but don't fail the operation
@@ -280,6 +300,160 @@ public class AdminController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/enrollments/{id}/certificate/download")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Download/preview certificate PDF for an enrollment (admin only)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "PDF certificate returned"),
+            @ApiResponse(responseCode = "404", description = "Certificate not found")
+    })
+    public ResponseEntity<?> downloadCertificate(@PathVariable("id") Long enrollmentId) {
+        return enrollmentRepository.findById(enrollmentId)
+                .map(enrollment -> {
+                    if (enrollment.getUser() == null || enrollment.getCourse() == null) {
+                        return ResponseEntity.notFound().build();
+                    }
+
+                    var certOpt = certificateRepository.findByUserAndCourse(
+                            enrollment.getUser(), enrollment.getCourse());
+                    if (certOpt.isEmpty()) {
+                        return ResponseEntity.status(404)
+                                .body((Object) Map.of("error", "Certificate not found for this enrollment"));
+                    }
+
+                    Certificate cert = certOpt.get();
+                    java.io.File file = new java.io.File(cert.getFilePath());
+
+                    // Path traversal prevention
+                    try {
+                        java.nio.file.Path certDir = java.nio.file.Path.of(certFolder).toAbsolutePath().normalize();
+                        java.nio.file.Path filePath = file.toPath().toAbsolutePath().normalize();
+                        if (!filePath.startsWith(certDir)) {
+                            return ResponseEntity.status(403)
+                                    .body((Object) Map.of("error", "Access denied"));
+                        }
+                    } catch (Exception ex) {
+                        return ResponseEntity.status(500)
+                                .body((Object) Map.of("error", "Certificate path validation failed"));
+                    }
+
+                    if (!file.exists()) {
+                        return ResponseEntity.status(404)
+                                .body((Object) Map.of("error", "Certificate file not found on disk"));
+                    }
+
+                    FileSystemResource fs = new FileSystemResource(file);
+                    return ResponseEntity.ok()
+                            .header(HttpHeaders.CONTENT_DISPOSITION,
+                                    "inline; filename=certificate-" + cert.getCertificateId() + ".pdf")
+                            .contentType(MediaType.APPLICATION_PDF)
+                            .body((Object) fs);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping(value = "/enrollments/{id}/certificate/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    @Operation(summary = "Manually upload a certificate PDF for an enrollment")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Certificate uploaded"),
+            @ApiResponse(responseCode = "400", description = "Invalid file or result already published"),
+            @ApiResponse(responseCode = "404", description = "Enrollment not found")
+    })
+    public ResponseEntity<?> uploadCertificate(
+            @PathVariable("id") Long enrollmentId,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("type") String type
+    ) {
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "No file provided"));
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.equals("application/pdf")) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Only PDF files are accepted"));
+        }
+
+        // Validate PDF magic bytes to prevent content-type spoofing
+        try {
+            byte[] header = new byte[5];
+            if (file.getInputStream().read(header) < 5 || !new String(header).startsWith("%PDF")) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Invalid PDF file"));
+            }
+        } catch (IOException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Could not read file"));
+        }
+
+        return enrollmentRepository.findById(enrollmentId)
+                .map(enrollment -> {
+                    if (enrollment.getUser() == null || enrollment.getCourse() == null) {
+                        return ResponseEntity.badRequest()
+                                .body((Object) Map.of("error", "Invalid enrollment"));
+                    }
+
+                    try {
+                        // Delete existing certificate if present
+                        var existingCert = certificateRepository.findByUserAndCourse(
+                                enrollment.getUser(), enrollment.getCourse());
+                        if (existingCert.isPresent()) {
+                            try {
+                                java.io.File oldFile = new java.io.File(existingCert.get().getFilePath());
+                                if (oldFile.exists()) oldFile.delete();
+                            } catch (Exception ignored) {}
+                            certificateRepository.delete(existingCert.get());
+                            certificateRepository.flush();
+                        }
+
+                        // Generate certificate ID and save file to disk using Path (works reliably on Windows)
+                        String certId = "CERT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+                        java.nio.file.Path dir = java.nio.file.Path.of(certFolder);
+                        java.nio.file.Files.createDirectories(dir);
+                        java.nio.file.Path targetPath = dir.resolve(certId + ".pdf");
+                        file.transferTo(targetPath.toFile().getAbsoluteFile());
+                        String filePath = targetPath.toString();
+
+                        // Use admin-selected certificate type
+                        Certificate.CertificateType certType;
+                        try {
+                            certType = Certificate.CertificateType.valueOf(type);
+                        } catch (IllegalArgumentException e2) {
+                            certType = Certificate.CertificateType.COMPLETION;
+                        }
+
+                        // Get trainer name
+                        String trainerName = enrollment.getTrainerName();
+                        if (trainerName == null || trainerName.isBlank()) {
+                            trainerName = enrollment.getCourse() != null ? enrollment.getCourse().getTrainerName() : null;
+                        }
+
+                        // Create certificate record
+                        Certificate certificate = Certificate.builder()
+                                .user(enrollment.getUser())
+                                .course(enrollment.getCourse())
+                                .certificateId(certId)
+                                .filePath(filePath)
+                                .issuedAt(LocalDateTime.now())
+                                .type(certType)
+                                .marks(enrollment.getMarks())
+                                .trainerName(trainerName)
+                                .build();
+                        certificateRepository.save(certificate);
+
+                        // Update enrollment
+                        enrollment.setCertificateType(Enrollment.CertificateType.valueOf(certType.name()));
+                        enrollment.setStatus(Enrollment.Status.COMPLETED);
+                        Enrollment saved = enrollmentRepository.save(enrollment);
+
+                        return ResponseEntity.ok((Object) mapToEnrollmentResponse(saved));
+                    } catch (Exception e) {
+                        return ResponseEntity.status(500)
+                                .body((Object) Map.of("error", "Failed to upload certificate"));
+                    }
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     private double getPassMarkPercentage() {
         String passMarkStr = siteConfigService.getConfigValue("PASS_MARK_PERCENTAGE", "60");
         try {
@@ -290,7 +464,7 @@ public class AdminController {
     }
 
     @GetMapping("/enrollments/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get a single enrollment with full details")
     public ResponseEntity<EnrollmentResponse> getEnrollment(@PathVariable("id") Long enrollmentId) {
         return enrollmentRepository.findById(enrollmentId)
@@ -342,7 +516,7 @@ public class AdminController {
                 .hasTestLink(hasTestLink)
                 .testLink(e.getCourse() != null ? e.getCourse().getTestLink() : null)
                 .testDescription(e.getCourse() != null ? e.getCourse().getTestDescription() : null)
-                .canGenerateCertificate(e.getMarks() != null && !hasCertificate)
+                .canGenerateCertificate(e.getMarks() != null)
                 .trainerName(trainerName)
                 .defaultTrainerName(defaultTrainerName)
                 .build();
@@ -368,39 +542,72 @@ public class AdminController {
     // ========== Analytics Endpoints ==========
 
     @GetMapping("/analytics")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
-    @Operation(summary = "Get dashboard analytics")
-    public ResponseEntity<AnalyticsResponse> getAnalytics() {
-        long totalUsers = userRepository.count();
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Get dashboard analytics with optional date range filter")
+    public ResponseEntity<AnalyticsResponse> getAnalytics(
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to
+    ) {
+        // Parse date range filters
+        LocalDateTime filterFrom = null;
+        LocalDateTime filterTo = null;
+        if (from != null && !from.isBlank()) {
+            filterFrom = LocalDate.parse(from).atStartOfDay();
+        }
+        if (to != null && !to.isBlank()) {
+            filterTo = LocalDate.parse(to).atTime(23, 59, 59);
+        }
+        final LocalDateTime fFrom = filterFrom;
+        final LocalDateTime fTo = filterTo;
+        boolean hasFilter = fFrom != null || fTo != null;
+
+        List<User> allUsers = userRepository.findAll();
         long totalCourses = courseRepository.count();
 
-        // Get all enrollments
-        List<Enrollment> allEnrollments = enrollmentRepository.findAll();
+        // Filter users by date range (for user count + user growth)
+        List<User> filteredUsers = allUsers;
+        if (hasFilter) {
+            filteredUsers = allUsers.stream()
+                    .filter(u -> u.getCreatedAt() != null)
+                    .filter(u -> fFrom == null || !u.getCreatedAt().isBefore(fFrom))
+                    .filter(u -> fTo == null || !u.getCreatedAt().isAfter(fTo))
+                    .collect(Collectors.toList());
+        }
+        long totalUsers = filteredUsers.size();
 
-        // Count only confirmed enrollments (ENROLLED or COMPLETED, not PENDING)
-        long confirmedEnrollments = allEnrollments.stream()
+        // Get all enrollments and filter by date range
+        List<Enrollment> allEnrollments = enrollmentRepository.findAll();
+        List<Enrollment> filteredEnrollments = allEnrollments;
+        if (hasFilter) {
+            filteredEnrollments = allEnrollments.stream()
+                    .filter(e -> e.getEnrolledAt() != null)
+                    .filter(e -> fFrom == null || !e.getEnrolledAt().isBefore(fFrom))
+                    .filter(e -> fTo == null || !e.getEnrolledAt().isAfter(fTo))
+                    .collect(Collectors.toList());
+        }
+
+        // Filter confirmed enrollments (ENROLLED or COMPLETED, not PENDING)
+        List<Enrollment> confirmedList = filteredEnrollments.stream()
                 .filter(e -> e.getStatus() == Enrollment.Status.ENROLLED ||
                              e.getStatus() == Enrollment.Status.COMPLETED)
-                .count();
+                .collect(Collectors.toList());
 
-        long completedEnrollments = allEnrollments.stream()
+        long confirmedEnrollments = confirmedList.size();
+
+        long completedEnrollments = filteredEnrollments.stream()
                 .filter(e -> e.getStatus() == Enrollment.Status.COMPLETED)
                 .count();
 
         // Calculate total revenue from paid enrollments (only ENROLLED or COMPLETED)
-        double totalRevenue = allEnrollments.stream()
+        double totalRevenue = confirmedList.stream()
                 .filter(e -> e.getCourse() != null &&
                              e.getCourse().getPrice() != null &&
-                             e.getCourse().getPrice() > 0 &&
-                             (e.getStatus() == Enrollment.Status.ENROLLED ||
-                              e.getStatus() == Enrollment.Status.COMPLETED))
+                             e.getCourse().getPrice() > 0)
                 .mapToDouble(e -> e.getCourse().getPrice())
                 .sum();
 
         // Get recent enrollments (last 10, only confirmed)
-        List<RecentEnrollment> recentEnrollments = allEnrollments.stream()
-                .filter(e -> e.getStatus() == Enrollment.Status.ENROLLED ||
-                             e.getStatus() == Enrollment.Status.COMPLETED)
+        List<RecentEnrollment> recentEnrollments = confirmedList.stream()
                 .sorted((a, b) -> {
                     if (a.getEnrolledAt() == null) return 1;
                     if (b.getEnrolledAt() == null) return -1;
@@ -418,19 +625,88 @@ public class AdminController {
                         .build())
                 .collect(Collectors.toList());
 
+        // Determine chart month range
+        YearMonth chartEnd = YearMonth.now();
+        YearMonth chartStart;
+        if (fFrom != null) {
+            chartStart = YearMonth.from(fFrom);
+        } else {
+            chartStart = chartEnd.minusMonths(11); // default last 12 months
+        }
+        if (fTo != null) {
+            chartEnd = YearMonth.from(fTo);
+        }
+
+        DateTimeFormatter monthFmt = DateTimeFormatter.ofPattern("MMM yyyy");
+
+        // ---- Monthly Enrollments ----
+        List<MonthlyData> monthlyEnrollments = new ArrayList<>();
+        for (YearMonth ym = chartStart; !ym.isAfter(chartEnd); ym = ym.plusMonths(1)) {
+            final YearMonth currentYm = ym;
+            long count = confirmedList.stream()
+                    .filter(e -> e.getEnrolledAt() != null &&
+                                 YearMonth.from(e.getEnrolledAt()).equals(currentYm))
+                    .count();
+            monthlyEnrollments.add(new MonthlyData(currentYm.format(monthFmt), count));
+        }
+
+        // ---- Revenue by Month ----
+        List<MonthlyRevenue> revenueByMonth = new ArrayList<>();
+        for (YearMonth ym = chartStart; !ym.isAfter(chartEnd); ym = ym.plusMonths(1)) {
+            final YearMonth currentYm = ym;
+            double rev = confirmedList.stream()
+                    .filter(e -> e.getEnrolledAt() != null &&
+                                 YearMonth.from(e.getEnrolledAt()).equals(currentYm) &&
+                                 e.getCourse() != null &&
+                                 e.getCourse().getPrice() != null &&
+                                 e.getCourse().getPrice() > 0)
+                    .mapToDouble(e -> e.getCourse().getPrice())
+                    .sum();
+            revenueByMonth.add(new MonthlyRevenue(currentYm.format(monthFmt), rev));
+        }
+
+        // ---- Popular Courses (top 10 by enrollment count) ----
+        Map<String, Long> courseEnrollCounts = confirmedList.stream()
+                .filter(e -> e.getCourse() != null)
+                .collect(Collectors.groupingBy(
+                        e -> e.getCourse().getTitle() != null ? e.getCourse().getTitle() : "Unknown",
+                        Collectors.counting()
+                ));
+        List<PopularCourse> popularCourses = courseEnrollCounts.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(10)
+                .map(entry -> new PopularCourse(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList());
+
+        // ---- User Growth ----
+        final List<User> chartUsers = hasFilter ? allUsers : filteredUsers;
+        List<MonthlyData> userGrowth = new ArrayList<>();
+        for (YearMonth ym = chartStart; !ym.isAfter(chartEnd); ym = ym.plusMonths(1)) {
+            final YearMonth currentYm = ym;
+            long count = chartUsers.stream()
+                    .filter(u -> u.getCreatedAt() != null &&
+                                 YearMonth.from(u.getCreatedAt()).equals(currentYm))
+                    .count();
+            userGrowth.add(new MonthlyData(currentYm.format(monthFmt), count));
+        }
+
         return ResponseEntity.ok(AnalyticsResponse.builder()
                 .totalUsers(totalUsers)
                 .totalCourses(totalCourses)
                 .totalEnrollments(confirmedEnrollments)
                 .completedEnrollments(completedEnrollments)
-                .pendingEnrollments(allEnrollments.size() - confirmedEnrollments)
+                .pendingEnrollments(filteredEnrollments.size() - confirmedEnrollments)
                 .totalRevenue(totalRevenue)
                 .recentEnrollments(recentEnrollments)
+                .monthlyEnrollments(monthlyEnrollments)
+                .revenueByMonth(revenueByMonth)
+                .popularCourses(popularCourses)
+                .userGrowth(userGrowth)
                 .build());
     }
 
     @GetMapping("/enrollments")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get all enrollments")
     public ResponseEntity<List<EnrollmentResponse>> getAllEnrollments() {
         List<Enrollment> enrollments = enrollmentRepository.findAll();
@@ -446,11 +722,15 @@ public class AdminController {
     static class AnalyticsResponse {
         private long totalUsers;
         private long totalCourses;
-        private long totalEnrollments;      // Confirmed enrollments (ENROLLED + COMPLETED)
-        private long completedEnrollments;   // Only COMPLETED
-        private long pendingEnrollments;     // Only PENDING
+        private long totalEnrollments;
+        private long completedEnrollments;
+        private long pendingEnrollments;
         private double totalRevenue;
         private List<RecentEnrollment> recentEnrollments;
+        private List<MonthlyData> monthlyEnrollments;
+        private List<MonthlyRevenue> revenueByMonth;
+        private List<PopularCourse> popularCourses;
+        private List<MonthlyData> userGrowth;
     }
 
     @Data
@@ -464,6 +744,27 @@ public class AdminController {
         private Double coursePrice;
         private String status;
         private String enrolledAt;
+    }
+
+    @Data
+    @AllArgsConstructor
+    static class MonthlyData {
+        private String month;
+        private long count;
+    }
+
+    @Data
+    @AllArgsConstructor
+    static class MonthlyRevenue {
+        private String month;
+        private double revenue;
+    }
+
+    @Data
+    @AllArgsConstructor
+    static class PopularCourse {
+        private String name;
+        private long enrollments;
     }
 
     @Data

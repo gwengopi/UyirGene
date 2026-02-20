@@ -1,6 +1,7 @@
 package com.uyirgene.course;
 
 import com.uyirgene.config.SiteConfigService;
+import com.uyirgene.course.dto.CourseDto;
 import com.uyirgene.course.dto.EnrollmentResult;
 import com.uyirgene.course.payment.PaymentProvider;
 import com.uyirgene.course.payment.dto.PaymentOrder;
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 public class EnrollmentService {
     private final EnrollmentRepository enrollmentRepo;
     private final CourseRepository courseRepo;
+    private final CoursePriceRepository coursePriceRepo;
     private final CurrentUserService currentUserService;
     private final PaymentProvider paymentProvider;
     private final MailService mailService;
@@ -68,12 +70,31 @@ public class EnrollmentService {
     /**
      * Start enrollment process - handles both free and paid courses
      * Returns existing enrollment info if already enrolled (idempotent)
+     * @param countryCode optional country code for multi-currency pricing (e.g. "US", "GB")
      */
     @Transactional
-    public EnrollmentResult startEnrollment(Long courseId) {
+    public EnrollmentResult startEnrollment(Long courseId, String countryCode) {
         User u = currentUserService.getCurrentUser();
         Course c = courseRepo.findById(courseId)
                 .orElseThrow(() -> new com.uyirgene.exception.EntityNotFoundException("Course not found"));
+
+        // Resolve price and currency based on country
+        Double resolvedPrice;
+        String resolvedCurrency;
+        if (countryCode != null && !countryCode.isBlank() && !"IN".equalsIgnoreCase(countryCode)) {
+            Optional<CoursePrice> countryPrice = coursePriceRepo.findByCourseAndCountryCode(c, countryCode.toUpperCase());
+            if (countryPrice.isPresent()) {
+                resolvedPrice = countryPrice.get().getAmount();
+                resolvedCurrency = countryPrice.get().getCurrencyCode();
+            } else {
+                // Fallback to INR default price
+                resolvedPrice = c.getPrice();
+                resolvedCurrency = "INR";
+            }
+        } else {
+            resolvedPrice = c.getPrice();
+            resolvedCurrency = "INR";
+        }
 
         // Check for existing enrollment
         Optional<Enrollment> existingOpt = enrollmentRepo.findByUserAndCourse(u, c);
@@ -88,12 +109,11 @@ public class EnrollmentService {
 
             // PENDING status - check if there's an existing payment order (idempotency)
             if (existing.getStatus() == Enrollment.Status.PENDING && existing.getPaymentOrderId() != null) {
-                // Return existing order for retry
-                long amountPaise = Math.round((c.getPrice() == null ? 0.0 : c.getPrice()) * 100);
+                long amount = Math.round((resolvedPrice == null ? 0.0 : resolvedPrice) * 100);
                 EnrollmentResult.RazorpayOrder order = new EnrollmentResult.RazorpayOrder(
                         existing.getPaymentOrderId(),
-                        amountPaise,
-                        "INR",
+                        amount,
+                        resolvedCurrency,
                         paymentProvider.getKeyId()
                 );
                 return new EnrollmentResult(null, order, false, null);
@@ -101,7 +121,7 @@ public class EnrollmentService {
         }
 
         // Free course - direct enrollment
-        if (c.getPrice() == null || c.getPrice() == 0) {
+        if (resolvedPrice == null || resolvedPrice == 0) {
             Enrollment e = enroll(courseId);
             return new EnrollmentResult(e, null, false, null);
         }
@@ -114,12 +134,14 @@ public class EnrollmentService {
                 .status(Enrollment.Status.PENDING)
                 .build());
 
-        // Create payment order
-        long amountPaise = Math.round(c.getPrice() * 100);
-        PaymentOrder po = paymentProvider.createOrder(amountPaise, "enroll-" + (enrollment.getId() != null ? enrollment.getId() : System.currentTimeMillis()));
+        // Create payment order with resolved currency
+        long amountSmallestUnit = Math.round(resolvedPrice * 100);
+        PaymentOrder po = paymentProvider.createOrder(amountSmallestUnit, resolvedCurrency, "enroll-" + (enrollment.getId() != null ? enrollment.getId() : System.currentTimeMillis()));
 
-        // Store order ID for idempotency
+        // Store order ID and payment details
         enrollment.setPaymentOrderId(po.getId());
+        enrollment.setPaymentCurrency(resolvedCurrency);
+        enrollment.setPaymentAmount(resolvedPrice);
         enrollment.setStatus(Enrollment.Status.PENDING);
         enrollmentRepo.save(enrollment);
 
@@ -143,6 +165,11 @@ public class EnrollmentService {
         // Idempotency check - if already enrolled, return success
         if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) {
             return e;
+        }
+
+        // Verify the payment order belongs to this enrollment (prevents IDOR)
+        if (e.getPaymentOrderId() == null || !e.getPaymentOrderId().equals(razorpayOrderId)) {
+            throw new com.uyirgene.exception.PaymentException("Payment order does not match this enrollment");
         }
 
         // Verify payment signature
@@ -195,7 +222,8 @@ public class EnrollmentService {
     public java.util.List<EnrollmentDto> listEnrolledEnrollments() {
         User u = currentUserService.getCurrentUser();
         return enrollmentRepo.findByUser(u).stream()
-                .map(e -> new EnrollmentDto(e.getCourse(), e.getStatus()))
+                .filter(e -> e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED)
+                .map(e -> new EnrollmentDto(CourseDto.fromEntity(e.getCourse()), e.getStatus()))
                 .collect(Collectors.toList());
     }
 

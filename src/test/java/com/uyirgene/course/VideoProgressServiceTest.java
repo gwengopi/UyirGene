@@ -38,7 +38,7 @@ public class VideoProgressServiceTest {
 
         VideoProgressService s = new VideoProgressService(progressRepo, videoRepo, enrollmentRepo, enrollmentService, certificateService, currentUserService);
 
-        VideoProgress p = s.updateProgress(101L, 20L);
+        VideoProgress p = s.updateProgress(101L, 20L, false);
 
         assertThat(p.getLastPositionSeconds()).isEqualTo(20L);
         assertThat(p.getCompleted()).isTrue();

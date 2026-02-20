@@ -39,8 +39,17 @@ public class Enrollment {
     // Defaults to course trainer, can be overridden by admin
     private String trainerName;
 
+    // Bundle reference (if enrolled via bundle purchase)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "bundle_id")
+    private CourseBundle bundle;
+
     // Payment order ID for idempotency
     private String paymentOrderId;
+
+    // Payment currency and amount (for multi-currency tracking)
+    private String paymentCurrency;
+    private Double paymentAmount;
 
     public enum Status {
         PENDING, ENROLLED, COMPLETED

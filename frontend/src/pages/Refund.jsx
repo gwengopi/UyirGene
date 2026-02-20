@@ -1,10 +1,11 @@
 import React from 'react';
 import { Container, Typography, Box, Paper, Alert } from '@mui/material';
-import { Breadcrumb } from '../components/common';
+import { Breadcrumb, SEO } from '../components/common';
 
 function Refund() {
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
+      <SEO title="Refund Policy" description="Refund policy for Uyirgene International courses and services." path="/refund" noindex />
       <Breadcrumb items={[{ label: 'Return & Refund Policy', path: '/refund' }]} />
 
       <Typography variant="h3" component="h1" gutterBottom fontWeight={700}>

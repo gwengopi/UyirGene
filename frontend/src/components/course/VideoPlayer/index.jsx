@@ -45,6 +45,7 @@ function VideoPlayer({
           title={title}
           initialPosition={initialPosition}
           onProgress={onProgress}
+          onComplete={onComplete}
           userEmail={userEmail}
         />
       ) : (

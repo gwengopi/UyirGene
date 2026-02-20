@@ -4,7 +4,7 @@ import AccessibilityNewIcon from '@mui/icons-material/AccessibilityNew';
 import KeyboardIcon from '@mui/icons-material/Keyboard';
 import ContrastIcon from '@mui/icons-material/Contrast';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
-import { Breadcrumb, Button } from '../components/common';
+import { Breadcrumb, Button, SEO } from '../components/common';
 
 function Accessibility() {
   const features = [
@@ -32,6 +32,7 @@ function Accessibility() {
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
+      <SEO title="Accessibility" description="Accessibility statement for Uyirgene International's learning platform." path="/accessibility" noindex />
       <Breadcrumb items={[{ label: 'Accessibility', path: '/accessibility' }]} />
 
       <Box sx={{ textAlign: 'center', mb: 6 }}>

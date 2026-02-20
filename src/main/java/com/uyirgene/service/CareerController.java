@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/careers")
 @RequiredArgsConstructor
+@Slf4j
 public class CareerController {
     private final CareerService service;
     private static final ObjectMapper objectMapper = new ObjectMapper();
@@ -127,6 +129,7 @@ public class CareerController {
         try {
             return objectMapper.readValue(json, new TypeReference<List<String>>() {});
         } catch (Exception e) {
+            log.warn("Failed to parse JSON string list: {}", e.getMessage());
             return null;
         }
     }
@@ -136,6 +139,7 @@ public class CareerController {
         try {
             return objectMapper.readValue(json, new TypeReference<List<CareerDto.Position>>() {});
         } catch (Exception e) {
+            log.warn("Failed to parse JSON position list: {}", e.getMessage());
             return null;
         }
     }

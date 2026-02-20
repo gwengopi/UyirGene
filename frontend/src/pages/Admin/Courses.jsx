@@ -16,7 +16,7 @@ function AdminCourses() {
 
   const loadCourses = async () => {
     try {
-      const data = await courseService.getAllCourses();
+      const data = await courseService.getAdminCourses();
       setCourses(data);
     } catch (error) {
       showError('Failed to load courses');

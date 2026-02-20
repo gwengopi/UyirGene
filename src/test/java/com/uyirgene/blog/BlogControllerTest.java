@@ -8,9 +8,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class BlogControllerTest {
 
     @Test
-    void list_returns_all_blogs() {
-        BlogRepository repo = Mockito.mock(BlogRepository.class);
-        BlogController controller = new BlogController(repo);
-        assertThat(controller.all()).isNotNull();
+    void list_returns_all_published_blogs() {
+        BlogService blogService = Mockito.mock(BlogService.class);
+        BlogController controller = new BlogController(blogService);
+        assertThat(controller.getAllPublishedBlogs()).isNotNull();
     }
 }

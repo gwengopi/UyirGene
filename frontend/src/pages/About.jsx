@@ -6,7 +6,7 @@ import SchoolIcon from '@mui/icons-material/School';
 import BiotechIcon from '@mui/icons-material/Biotech';
 import BusinessIcon from '@mui/icons-material/Business';
 import SettingsIcon from '@mui/icons-material/Settings';
-import { Breadcrumb } from '../components/common';
+import { Breadcrumb, SEO } from '../components/common';
 import { useConfig } from '../store';
 import { IMAGES } from '../utils/constants';
 
@@ -49,6 +49,11 @@ function About() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <SEO
+        title="About Us"
+        description="Uyirgene International is an ISO 9001 certified professional training institute and research laboratory specializing in food safety, quality management, and microbiology."
+        path="/about"
+      />
       <Breadcrumb items={[{ label: 'About Us', path: '/about' }]} />
 
       {/* Hero Section with Image */}

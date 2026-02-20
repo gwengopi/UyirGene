@@ -11,7 +11,7 @@ public interface PaymentProvider {
      * @param receipt Receipt identifier for the order
      * @return PaymentOrder containing order details
      */
-    PaymentOrder createOrder(Long amountPaise, String receipt);
+    PaymentOrder createOrder(Long amountSmallestUnit, String currency, String receipt);
 
     /**
      * Verifies the payment signature to ensure authenticity.

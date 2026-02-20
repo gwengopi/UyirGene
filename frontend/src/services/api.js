@@ -48,12 +48,18 @@ api.interceptors.response.use(
           // 2. There was actually a token (user was logged in)
           // 3. We're not on certain paths that shouldn't trigger redirect
           const currentToken = localStorage.getItem('uyir_auth');
-          const isVideoProgressCall = config?.url?.includes('/progress');
-          const isCertificateCall = config?.url?.includes('/certificate');
+          const requestUrl = config?.url || '';
 
-          // Don't redirect for video progress or certificate calls - these are non-critical
-          if (isVideoProgressCall || isCertificateCall) {
-            console.warn('401 on non-critical call, not redirecting');
+          // Don't redirect for these non-critical calls - let the page handle them gracefully
+          const isNonCriticalCall =
+            requestUrl.includes('/progress') ||
+            requestUrl.includes('/certificate') ||
+            requestUrl.includes('/enrolled') ||
+            requestUrl.includes('/enroll') ||
+            requestUrl.includes('/videos');
+
+          if (isNonCriticalCall) {
+            console.warn('401 on non-critical call, not redirecting:', requestUrl);
             break;
           }
 

@@ -5,6 +5,9 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Course {
@@ -24,10 +27,34 @@ public class Course {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    // Structured description sections (all optional, stored as TEXT)
+    @Column(columnDefinition = "TEXT")
+    private String keyComponents;       // JSON: [{title, points[]}]
+    @Column(columnDefinition = "TEXT")
+    private String targetAudience;
+    @Column(columnDefinition = "TEXT")
+    private String assessment;
+    @Column(columnDefinition = "TEXT")
+    private String outcome;
+    @Column(columnDefinition = "TEXT")
+    private String courseDurationText;
+    @Column(columnDefinition = "TEXT")
+    private String examDetails;         // JSON: ["point1", "point2"]
+
     private String category;
     private Integer durationHours;
     private Double price;
     private Boolean published;
+
+    @Builder.Default
+    private Boolean flagship = false;
+
+    // Display order for controlling course listing position (lower = shown first, null = last)
+    private Integer displayOrder;
+
+    // Course delivery mode: SELF_PACED, LIVE_ONLINE, CLASSROOM
+    @Column(length = 50)
+    private String courseType;
 
     // Course trainer/instructor name
     private String trainerName;
@@ -49,6 +76,11 @@ public class Course {
     @Column(columnDefinition = "BYTEA")
     private byte[] image;
     private String imageContentType;
+
+    // Country-specific prices
+    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @Builder.Default
+    private List<CoursePrice> countryPrices = new ArrayList<>();
 
     // Test/Assessment link (Google Form or external link)
     private String testLink;

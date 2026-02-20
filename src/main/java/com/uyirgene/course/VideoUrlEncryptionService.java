@@ -23,7 +23,7 @@ public class VideoUrlEncryptionService {
     private static final int GCM_TAG_LENGTH = 128;
     private static final int GCM_IV_LENGTH = 12;
 
-    @Value("${app.video.encryption-key:UyirGene2024SecretKey123456789}")
+    @Value("${app.video.encryption-key}")
     private String encryptionKey;
 
     /**
@@ -100,19 +100,15 @@ public class VideoUrlEncryptionService {
     }
 
     /**
-     * Normalize the key to exactly 32 bytes (256-bit) for AES-256
+     * Derive a 32-byte (256-bit) key using SHA-256 hash of the input key.
+     * This ensures consistent key length and full entropy regardless of input length.
      */
     private byte[] normalizeKey(String key) {
-        byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
-        byte[] normalizedKey = new byte[32];
-
-        if (keyBytes.length >= 32) {
-            System.arraycopy(keyBytes, 0, normalizedKey, 0, 32);
-        } else {
-            System.arraycopy(keyBytes, 0, normalizedKey, 0, keyBytes.length);
-            // Pad with zeros if key is shorter
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            return digest.digest(key.getBytes(StandardCharsets.UTF_8));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 not available", e);
         }
-
-        return normalizedKey;
     }
 }

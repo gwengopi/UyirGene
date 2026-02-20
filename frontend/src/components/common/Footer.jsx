@@ -9,6 +9,7 @@ import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import { IMAGES } from '../../utils/constants';
 import { configService } from '../../services';
+import { useUI } from '../../store';
 
 // Default fallback data
 const DEFAULT_TAGLINE = 'Professional Training Institute | ISO 9001 Certified | Training Partner of Skill India Digital Hub (Govt of India)';
@@ -25,16 +26,13 @@ const DEFAULT_SOCIAL_LINKS = [
 const DEFAULT_PLATFORM_LINKS = [
   { label: 'Courses', path: '/courses' },
   { label: 'About Us', path: '/about' },
-  { label: 'Blog', path: '/blogs' },
+  { label: 'Blog', path: '/blog' },
   { label: 'Careers', path: '/careers' },
 ];
 
 const DEFAULT_SUPPORT_LINKS = [
-  { label: 'Help Center', path: '/help' },
   { label: 'Contact Us', path: '/contact' },
   { label: 'FAQs', path: '/faq' },
-  { label: 'Verify Certificate', path: '/verify-certificate' },
-  { label: 'Community', path: '/community' },
 ];
 
 const DEFAULT_LEGAL_LINKS = [
@@ -61,6 +59,7 @@ let footerCacheTime = 0;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 function Footer() {
+  const { isDarkMode } = useUI();
   const currentYear = new Date().getFullYear();
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState({
@@ -216,11 +215,19 @@ function Footer() {
     <Box
       component="footer"
       sx={{
-        backgroundColor: 'background.paper',
+        backgroundColor: isDarkMode ? 'background.paper' : '#1a2027',
         borderTop: 1,
-        borderColor: 'divider',
+        borderColor: isDarkMode ? 'divider' : 'rgba(255,255,255,0.08)',
         mt: 'auto',
         py: 6,
+        ...(isDarkMode ? {} : {
+          color: '#fff',
+          '& .MuiTypography-root': { color: 'rgba(255,255,255,0.85)' },
+          '& .MuiTypography-colorTextSecondary': { color: 'rgba(255,255,255,0.55)' },
+          '& .MuiLink-root': { color: 'rgba(255,255,255,0.55)', '&:hover': { color: '#81d4fa' } },
+          '& .MuiIconButton-root': { color: 'rgba(255,255,255,0.55)', '&:hover': { color: '#81d4fa' } },
+          '& .MuiDivider-root': { borderColor: 'rgba(255,255,255,0.1)' },
+        }),
       }}
     >
       <Container maxWidth="lg">

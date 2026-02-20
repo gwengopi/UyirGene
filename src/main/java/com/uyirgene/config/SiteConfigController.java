@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/config")
@@ -17,6 +18,12 @@ import java.util.Map;
 public class SiteConfigController {
 
     private final SiteConfigService configService;
+
+    // Keys that must never be exposed via the public API
+    private static final Set<String> SENSITIVE_KEYS = Set.of(
+            "GOOGLE_API_KEY", "GOOGLE_PLACE_ID", "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET",
+            "SMTP_PASSWORD", "JWT_SECRET", "ENCRYPTION_KEY"
+    );
 
     // ========== Public endpoints ==========
 
@@ -29,12 +36,19 @@ public class SiteConfigController {
     @GetMapping("/category/{category}")
     @Operation(summary = "Get configurations by category")
     public ResponseEntity<Map<String, String>> getByCategory(@PathVariable("category") String category) {
-        return ResponseEntity.ok(configService.getConfigMapByCategory(category));
+        // Filter out sensitive keys from public category responses
+        Map<String, String> configs = configService.getConfigMapByCategory(category);
+        SENSITIVE_KEYS.forEach(configs::remove);
+        return ResponseEntity.ok(configs);
     }
 
     @GetMapping("/key/{key}")
     @Operation(summary = "Get configuration value by key")
     public ResponseEntity<String> getByKey(@PathVariable("key") String key) {
+        // Block access to sensitive configuration keys
+        if (SENSITIVE_KEYS.contains(key.toUpperCase())) {
+            return ResponseEntity.notFound().build();
+        }
         String value = configService.getConfigValue(key);
         if (value == null) {
             return ResponseEntity.notFound().build();

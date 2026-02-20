@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import HomeIcon from '@mui/icons-material/Home';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useAuth } from '../../store';
-import { clearAuthHeader } from '../../api';
+import { clearAuthHeader } from '../../services/api';
 
 /**
  * Admin page header with navigation and logout
@@ -49,6 +49,7 @@ function AdminHeader() {
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              color: 'rgba(255,255,255,0.85)',
             }}
           >
             {auth?.user?.email}
