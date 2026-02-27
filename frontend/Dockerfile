@@ -4,9 +4,6 @@
 FROM node:18-alpine AS build
 WORKDIR /app
 
-# Limit Node memory for low-RAM environments (t3.micro)
-ENV NODE_OPTIONS=--max-old-space-size=512
-
 # Copy package files and install dependencies (include devDeps for vite build)
 COPY package*.json ./
 RUN npm ci
@@ -14,10 +11,10 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build for production
+# Build for production (1024MB heap to handle large MUI bundle on low-RAM instances)
 ARG VITE_API_URL=http://localhost:8080
 ENV VITE_API_URL=$VITE_API_URL
-RUN npm run build
+RUN NODE_OPTIONS=--max-old-space-size=1024 npm run build
 
 # Production stage with Nginx
 FROM nginx:alpine
