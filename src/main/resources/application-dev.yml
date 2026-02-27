@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:1234/UyirGene
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/UyirGene}
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:Dharani*99}
+    password: ${DB_PASSWORD:postgres}
   jpa:
     hibernate:
       ddl-auto: update
@@ -32,7 +32,7 @@ spring:
             required: true
 
 cors:
-  allowed-origins: http://localhost:5173,http://localhost:3000,http://localhost:5174
+  allowed-origins: http://localhost:5173,http://localhost:3000,http://localhost:5174,http://3.110.45.22:5173,http://3.110.45.22:8080
 
 payment:
   razorpay:
