@@ -1,11 +1,11 @@
 -- V38: Marketing Campaign Mail System
 
 -- User opt-out columns
-ALTER TABLE users ADD COLUMN IF NOT EXISTS marketing_opt_out BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS marketing_opt_out_token VARCHAR(64);
+ALTER TABLE app_user ADD COLUMN IF NOT EXISTS marketing_opt_out BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE app_user ADD COLUMN IF NOT EXISTS marketing_opt_out_token VARCHAR(64);
 
 -- Give each existing user a unique unsubscribe token (md5 available without extensions)
-UPDATE users SET marketing_opt_out_token = md5(random()::text || id::text || clock_timestamp()::text) || md5(clock_timestamp()::text || id::text || random()::text)
+UPDATE app_user SET marketing_opt_out_token = md5(random()::text || id::text || clock_timestamp()::text) || md5(clock_timestamp()::text || id::text || random()::text)
 WHERE marketing_opt_out_token IS NULL;
 
 -- Campaigns table
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS marketing_campaign (
 CREATE TABLE IF NOT EXISTS marketing_mail_log (
     id BIGSERIAL PRIMARY KEY,
     campaign_id BIGINT NOT NULL REFERENCES marketing_campaign(id) ON DELETE CASCADE,
-    user_id BIGINT NOT NULL REFERENCES users(id),
+    user_id BIGINT NOT NULL REFERENCES app_user(id),
     email VARCHAR(255) NOT NULL,
     batch_number INT NOT NULL,
     status VARCHAR(16) NOT NULL DEFAULT 'PENDING',
