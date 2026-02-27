@@ -31,10 +31,10 @@ import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
 import PublishIcon from '@mui/icons-material/Publish';
 import CardMembershipIcon from '@mui/icons-material/CardMembership';
-import DownloadIcon from '@mui/icons-material/Download';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import StarIcon from '@mui/icons-material/Star';
 
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { Button, LoadingSpinner, EmptyState } from '../common';
@@ -91,7 +91,7 @@ function UserEnrollmentsDialog({
   };
 
   const handleUnenroll = async (enrollmentId) => {
-    if (!window.confirm('Are you sure you want to unenroll this user from the course?')) {
+    if (!window.confirm('Are you sure you want to unenroll this user?')) {
       return;
     }
 
@@ -280,7 +280,7 @@ function UserEnrollmentsDialog({
         ) : enrollments.length === 0 ? (
           <EmptyState
             title="No enrollments"
-            description="This user is not enrolled in any courses"
+            description="This user is not enrolled in any courses or flagship programs"
           />
         ) : (
           <TableContainer component={Paper} variant="outlined">
@@ -288,7 +288,7 @@ function UserEnrollmentsDialog({
               <TableHead>
                 <TableRow>
                   <TableCell width={40}></TableCell>
-                  <TableCell>Course</TableCell>
+                  <TableCell>Course / Program</TableCell>
                   <TableCell align="center">Status</TableCell>
                   <TableCell align="center">Marks</TableCell>
                   <TableCell align="center">Certificate</TableCell>
@@ -312,9 +312,20 @@ function UserEnrollmentsDialog({
                         </IconButton>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" fontWeight={500}>
-                          {enrollment.courseName}
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Typography variant="body2" fontWeight={500}>
+                            {enrollment.courseName}
+                          </Typography>
+                          {enrollment.isFlagship && (
+                            <Chip
+                              label="Flagship"
+                              size="small"
+                              color="secondary"
+                              icon={<StarIcon />}
+                              sx={{ height: 18, fontSize: '0.65rem' }}
+                            />
+                          )}
+                        </Box>
                         <Typography variant="caption" color="text.secondary">
                           {enrollment.coursePrice
                             ? formatCurrency(enrollment.coursePrice)

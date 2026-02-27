@@ -3,6 +3,7 @@ package com.uyirgene.course;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CourseRepository extends JpaRepository<Course, Long> {
+    java.util.Optional<Course> findByCourseCodeIgnoreCase(String courseCode);
     java.util.List<Course> findByFlagshipTrue();
     java.util.List<Course> findByPublishedTrueOrderByDisplayOrderAscIdAsc();
     java.util.List<Course> findByFlagshipTrueAndPublishedTrueOrderByDisplayOrderAscIdAsc();

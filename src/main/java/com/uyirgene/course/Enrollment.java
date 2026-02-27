@@ -7,7 +7,10 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "course_id"}))
+@Table(name = "enrollment")
+// Unique constraints replaced by partial indexes in V33 migration:
+//   UNIQUE (user_id, course_id) WHERE course_id IS NOT NULL
+//   UNIQUE (user_id, flagship_program_id) WHERE flagship_program_id IS NOT NULL
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Enrollment {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -16,8 +19,13 @@ public class Enrollment {
     @ManyToOne(optional = false)
     private User user;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = true)
+    @JoinColumn(name = "course_id")
     private Course course;
+
+    @ManyToOne(optional = true, fetch = FetchType.EAGER)
+    @JoinColumn(name = "flagship_program_id")
+    private FlagshipProgram flagshipProgram;
 
     private LocalDateTime enrolledAt;
 
@@ -36,7 +44,6 @@ public class Enrollment {
     private CertificateType certificateType;
 
     // Trainer name at the time of marks entry (for certificate)
-    // Defaults to course trainer, can be overridden by admin
     private String trainerName;
 
     // Bundle reference (if enrolled via bundle purchase)
@@ -51,6 +58,9 @@ public class Enrollment {
     private String paymentCurrency;
     private Double paymentAmount;
 
+    // Set when a completion reminder email has been sent — prevents duplicate sends
+    private LocalDateTime reminderSentAt;
+
     public enum Status {
         PENDING, ENROLLED, COMPLETED
     }
@@ -60,24 +70,13 @@ public class Enrollment {
         PARTICIPATION  // Did not pass but participated
     }
 
-    /**
-     * Check if test results can be viewed (48 hours after test completion)
-     */
     public boolean canViewResults() {
-        if (testCompletedAt == null) {
-            return false;
-        }
-        // Results visible 48 hours after test completion
+        if (testCompletedAt == null) return false;
         return LocalDateTime.now().isAfter(testCompletedAt.plusHours(48));
     }
 
-    /**
-     * Determine certificate type based on marks and pass mark threshold
-     */
     public CertificateType determineCertificateType(double passMarkPercentage) {
-        if (marks == null) {
-            return null;
-        }
+        if (marks == null) return null;
         return marks >= passMarkPercentage ? CertificateType.COMPLETION : CertificateType.PARTICIPATION;
     }
 }

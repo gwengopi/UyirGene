@@ -134,6 +134,164 @@ public class MailService {
         }
     }
 
+    // ==================== Flagship overloads (reuse same templates) ====================
+
+    /**
+     * Send enrollment success email for a flagship program enrollment.
+     */
+    @Async
+    public void sendEnrollmentSuccess(User user, FlagshipProgram program) {
+        try {
+            log.info("Sending enrollment success email for flagship: {}", program.getTitle());
+            MailTemplate tpl = mailTemplateService.findByKey("enrollment-success").orElse(null);
+            String subject = tpl != null
+                    ? applyVars(tpl.getSubject(), Map.of("courseTitle", safe(program.getTitle())))
+                    : "Welcome! You're enrolled in: " + safe(program.getTitle());
+            String content = (tpl != null && tpl.getContent() != null && !tpl.getContent().isBlank())
+                    ? tpl.getContent()
+                    : "Congratulations! You have successfully enrolled in your new program. You can start learning right away by clicking the button below.";
+            String baseHtml = (tpl != null && tpl.getHtmlBody() != null && !tpl.getHtmlBody().isBlank())
+                    ? tpl.getHtmlBody()
+                    : loadTemplate("enrollment-success.html");
+
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setTo(user.getEmail());
+            setFrom(helper);
+            helper.setSubject(subject);
+            helper.setText(buildEnrollmentHtmlForFlagship(user, program, content, baseHtml), true);
+            mailSender.send(msg);
+            log.info("Enrollment success email sent for flagship: {}", program.getTitle());
+        } catch (Exception e) {
+            log.error("Failed to send enrollment success email for flagship {}: {}", program.getTitle(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Send course completion email for a flagship program enrollment.
+     */
+    @Async
+    public void sendCourseCompletion(User user, FlagshipProgram program, Double marks, String certificateType) {
+        try {
+            log.info("Sending course completion email for flagship: {}", program.getTitle());
+            MailTemplate tpl = mailTemplateService.findByKey("course-completion").orElse(null);
+            String subject = tpl != null
+                    ? applyVars(tpl.getSubject(), Map.of("courseTitle", safe(program.getTitle())))
+                    : "Congratulations! You've completed: " + safe(program.getTitle());
+            String content = (tpl != null && tpl.getContent() != null && !tpl.getContent().isBlank())
+                    ? tpl.getContent()
+                    : "Excellent work! You have successfully completed your program. Your dedication and hard work have paid off!";
+            String baseHtml = (tpl != null && tpl.getHtmlBody() != null && !tpl.getHtmlBody().isBlank())
+                    ? tpl.getHtmlBody()
+                    : loadTemplate("course-completion.html");
+
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setTo(user.getEmail());
+            setFrom(helper);
+            helper.setSubject(subject);
+            helper.setText(buildCompletionHtmlForFlagship(user, program, marks, certificateType, content, baseHtml), true);
+            mailSender.send(msg);
+            log.info("Course completion email sent for flagship: {}", program.getTitle());
+        } catch (Exception e) {
+            log.error("Failed to send course completion email for flagship {}: {}", program.getTitle(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Send combined results-published + certificate-ready notification for a flagship program.
+     */
+    @Async
+    public void sendResultPublished(User user, FlagshipProgram program, Enrollment enrollment, Certificate certificate) {
+        try {
+            log.info("Sending results & certificate email for flagship: {}", program.getTitle());
+            MailTemplate tpl = mailTemplateService.findByKey("result-published").orElse(null);
+            String subject = tpl != null
+                    ? applyVars(tpl.getSubject(), Map.of("courseTitle", safe(program.getTitle())))
+                    : "Your Results are Published & Certificate is Ready: " + safe(program.getTitle());
+            String content = (tpl != null && tpl.getContent() != null && !tpl.getContent().isBlank())
+                    ? tpl.getContent()
+                    : "Great news! Your results have been published and your certificate is ready for download. Click the button below to view your score and download your certificate.";
+            String baseHtml = (tpl != null && tpl.getHtmlBody() != null && !tpl.getHtmlBody().isBlank())
+                    ? tpl.getHtmlBody()
+                    : loadTemplate("result-published.html");
+
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setTo(user.getEmail());
+            setFrom(helper);
+            helper.setSubject(subject);
+            helper.setText(buildResultPublishedHtmlForFlagship(user, program, enrollment, certificate, content, baseHtml), true);
+            mailSender.send(msg);
+            log.info("Results & certificate email sent for flagship: {}", program.getTitle());
+        } catch (Exception e) {
+            log.error("Failed to send results & certificate email for flagship {}: {}", program.getTitle(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Send course completion reminder email.
+     * Triggered by the daily scheduler when enrollment SLA has elapsed.
+     */
+    @Async
+    public void sendCourseReminder(User user, Course course, Enrollment enrollment) {
+        try {
+            log.info("Sending course reminder email to {} for course: {}", user.getEmail(), course.getTitle());
+            MailTemplate tpl = mailTemplateService.findByKey("course-reminder").orElse(null);
+            String subject = tpl != null
+                    ? applyVars(tpl.getSubject(), Map.of("courseTitle", safe(course.getTitle())))
+                    : "Don't forget to complete: " + safe(course.getTitle());
+            String content = (tpl != null && tpl.getContent() != null && !tpl.getContent().isBlank())
+                    ? tpl.getContent()
+                    : "You're enrolled in this course but haven't completed it yet. Pick up where you left off — your progress is waiting!";
+            String baseHtml = (tpl != null && tpl.getHtmlBody() != null && !tpl.getHtmlBody().isBlank())
+                    ? tpl.getHtmlBody()
+                    : null;
+
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setTo(user.getEmail());
+            setFrom(helper);
+            helper.setSubject(subject);
+            helper.setText(buildCourseReminderHtml(user, course, enrollment, content, baseHtml), true);
+            mailSender.send(msg);
+            log.info("Course reminder email sent to {} for course: {}", user.getEmail(), course.getTitle());
+        } catch (Exception e) {
+            log.error("Failed to send course reminder email to {} for course {}: {}", user.getEmail(), course.getTitle(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Send course completion reminder email for a flagship program enrollment.
+     */
+    @Async
+    public void sendFlagshipReminder(User user, FlagshipProgram program, Enrollment enrollment) {
+        try {
+            log.info("Sending flagship reminder email to {} for program: {}", user.getEmail(), program.getTitle());
+            MailTemplate tpl = mailTemplateService.findByKey("course-reminder").orElse(null);
+            String subject = tpl != null
+                    ? applyVars(tpl.getSubject(), Map.of("courseTitle", safe(program.getTitle())))
+                    : "Don't forget to complete: " + safe(program.getTitle());
+            String content = (tpl != null && tpl.getContent() != null && !tpl.getContent().isBlank())
+                    ? tpl.getContent()
+                    : "You're enrolled in this program but haven't completed it yet. Pick up where you left off — your progress is waiting!";
+            String baseHtml = (tpl != null && tpl.getHtmlBody() != null && !tpl.getHtmlBody().isBlank())
+                    ? tpl.getHtmlBody()
+                    : null;
+
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setTo(user.getEmail());
+            setFrom(helper);
+            helper.setSubject(subject);
+            helper.setText(buildFlagshipReminderHtml(user, program, content, baseHtml), true);
+            mailSender.send(msg);
+            log.info("Flagship reminder email sent to {} for program: {}", user.getEmail(), program.getTitle());
+        } catch (Exception e) {
+            log.error("Failed to send flagship reminder email to {} for program {}: {}", user.getEmail(), program.getTitle(), e.getMessage(), e);
+        }
+    }
+
     /**
      * Send payment failure notification email
      */
@@ -499,6 +657,193 @@ public class MailService {
             blogUrl,
             unsubscribeUrl,
             appName);
+    }
+
+    private String buildEnrollmentHtmlForFlagship(User user, FlagshipProgram program, String content, String baseHtml) {
+        String tpl = baseHtml != null ? baseHtml : loadTemplate("enrollment-success.html");
+        if (tpl == null) {
+            return String.format("""
+                <html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;">
+                <h2 style="color:#2980B9;">Welcome to %s!</h2>
+                <p>Hi %s,</p>
+                <p>You have successfully enrolled in <strong>%s</strong>.</p>
+                <p><a href="%s" style="background:#2980B9;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;">Go to Program</a></p>
+                <p>Happy learning!<br>The %s Team</p>
+                </body></html>
+                """, appName, user.getName() != null ? user.getName() : user.getEmail(),
+                program.getTitle(), baseUrl + "/flagship/" + program.getId(), appName);
+        }
+        tpl = tpl.replace("{{name}}", user.getName() == null ? user.getEmail() : user.getName());
+        tpl = tpl.replace("{{courseTitle}}", safe(program.getTitle()));
+        tpl = tpl.replace("{{courseDescription}}", program.getTagline() != null ? program.getTagline() :
+                (program.getCardDescription() != null ? program.getCardDescription() : ""));
+        tpl = tpl.replace("{{courseCode}}", safe(program.getProgramCode()));
+        tpl = tpl.replace("{{trainerName}}", program.getTrainerName() != null ? program.getTrainerName() : "");
+        tpl = tpl.replace("{{courseUrl}}", baseUrl + "/flagship/" + program.getId());
+        tpl = tpl.replace("{{appName}}", appName);
+        tpl = tpl.replace("{{content}}", content != null ? content : "");
+        return tpl;
+    }
+
+    private String buildCompletionHtmlForFlagship(User user, FlagshipProgram program, Double marks, String certificateType, String content, String baseHtml) {
+        String tpl = baseHtml != null ? baseHtml : loadTemplate("course-completion.html");
+        if (tpl == null) {
+            return String.format("""
+                <html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;">
+                <h2 style="color:#27AE60;">Congratulations!</h2>
+                <p>Hi %s,</p>
+                <p>You have successfully completed <strong>%s</strong>!</p>
+                <p><a href="%s" style="background:#27AE60;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;">View My Courses</a></p>
+                <p>Best regards,<br>The %s Team</p>
+                </body></html>
+                """, user.getName() != null ? user.getName() : user.getEmail(),
+                program.getTitle(), baseUrl + "/my-courses", appName);
+        }
+        tpl = tpl.replace("{{name}}", user.getName() == null ? user.getEmail() : user.getName());
+        tpl = tpl.replace("{{courseTitle}}", safe(program.getTitle()));
+        tpl = tpl.replace("{{courseCode}}", safe(program.getProgramCode()));
+        tpl = tpl.replace("{{marks}}", marks != null ? String.format("%.1f%%", marks) : "N/A");
+        tpl = tpl.replace("{{certificateType}}", certificateType != null ? certificateType : "COMPLETION");
+        tpl = tpl.replace("{{dashboardUrl}}", baseUrl + "/my-courses");
+        tpl = tpl.replace("{{appName}}", appName);
+        tpl = tpl.replace("{{content}}", content != null ? content : "");
+        return tpl;
+    }
+
+    private String buildResultPublishedHtmlForFlagship(User user, FlagshipProgram program, Enrollment enrollment, Certificate certificate, String content, String baseHtml) {
+        String tpl = baseHtml != null ? baseHtml : loadTemplate("result-published.html");
+        if (tpl == null) {
+            return String.format("""
+                <html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;">
+                <h2 style="color:#27AE60;">Results &amp; Certificate Ready!</h2>
+                <p>Hi %s,</p>
+                <p>The results for <strong>%s</strong> have been published and your certificate is ready for download.</p>
+                <p><a href="%s" style="background:#27AE60;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;">View Results &amp; Download Certificate</a></p>
+                <p>Best regards,<br>The %s Team</p>
+                </body></html>
+                """, user.getName() != null ? user.getName() : user.getEmail(),
+                program.getTitle(), baseUrl + "/my-courses", appName);
+        }
+        tpl = tpl.replace("{{name}}", user.getName() == null ? user.getEmail() : user.getName());
+        tpl = tpl.replace("{{courseTitle}}", safe(program.getTitle()));
+        tpl = tpl.replace("{{courseCode}}", safe(program.getProgramCode()));
+        tpl = tpl.replace("{{marks}}", enrollment.getMarks() != null ? String.format("%.1f%%", enrollment.getMarks()) : "N/A");
+        tpl = tpl.replace("{{certificateType}}", enrollment.getCertificateType() != null ? enrollment.getCertificateType().name() : "");
+        tpl = tpl.replace("{{certificateId}}", certificate != null ? certificate.getCertificateId() : "");
+        tpl = tpl.replace("{{issuedDate}}", (certificate != null && certificate.getIssuedAt() != null) ? certificate.getIssuedAt().format(DATE_FORMATTER) : "");
+        tpl = tpl.replace("{{verifyUrl}}", certificate != null ? baseUrl + "/certificate/" + certificate.getCertificateId() : baseUrl + "/my-courses");
+        tpl = tpl.replace("{{dashboardUrl}}", baseUrl + "/my-courses");
+        tpl = tpl.replace("{{appName}}", appName);
+        tpl = tpl.replace("{{content}}", content != null ? content : "");
+        return tpl;
+    }
+
+    private String buildCourseReminderHtml(User user, Course course, Enrollment enrollment, String content, String baseHtml) {
+        if (baseHtml != null) {
+            String tpl = baseHtml;
+            tpl = tpl.replace("{{name}}", user.getName() == null ? user.getEmail() : user.getName());
+            tpl = tpl.replace("{{courseTitle}}", safe(course.getTitle()));
+            tpl = tpl.replace("{{courseCode}}", safe(course.getCourseCode()));
+            tpl = tpl.replace("{{courseUrl}}", baseUrl + "/courses/" + course.getId());
+            tpl = tpl.replace("{{dashboardUrl}}", baseUrl + "/my-courses");
+            tpl = tpl.replace("{{appName}}", appName);
+            tpl = tpl.replace("{{content}}", content != null ? content : "");
+            return tpl;
+        }
+        String name = user.getName() != null ? user.getName() : user.getEmail();
+        String courseUrl = baseUrl + "/courses/" + course.getId();
+        return String.format("""
+            <html>
+            <body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
+            <table width="100%%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f4f4">
+            <tr><td align="center" style="padding:20px 10px;">
+            <table width="600" cellpadding="0" cellspacing="0" border="0"
+                   style="max-width:600px;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+              <tr>
+                <td style="background:linear-gradient(135deg,#1a237e 0%%,#283593 100%%);padding:32px 40px;text-align:center;">
+                  <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;">%s</h1>
+                  <p style="margin:6px 0 0;color:#c5cae9;font-size:13px;">Professional Food Safety &amp; Quality Training</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:36px 40px 28px;">
+                  <p style="margin:0 0 16px;font-size:16px;color:#333;">Hi %s,</p>
+                  <p style="margin:0 0 20px;font-size:15px;color:#555;">%s</p>
+                  <h2 style="margin:0 0 12px;font-size:18px;color:#1a237e;">%s</h2>
+                  <div style="text-align:center;padding:20px 0;">
+                    <a href="%s" style="display:inline-block;background:#1a237e;color:#ffffff;
+                       padding:14px 36px;border-radius:6px;text-decoration:none;
+                       font-size:15px;font-weight:700;">Continue Learning</a>
+                  </div>
+                </td>
+              </tr>
+              <tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #e0e0e0;margin:0;"></td></tr>
+              <tr>
+                <td style="padding:20px 40px;text-align:center;">
+                  <p style="margin:0;font-size:12px;color:#757575;">
+                    You are receiving this because you are enrolled in this course on %s.
+                  </p>
+                </td>
+              </tr>
+            </table>
+            </td></tr>
+            </table>
+            </body></html>
+            """, appName, name, safe(content), safe(course.getTitle()), courseUrl, appName);
+    }
+
+    private String buildFlagshipReminderHtml(User user, FlagshipProgram program, String content, String baseHtml) {
+        if (baseHtml != null) {
+            String tpl = baseHtml;
+            tpl = tpl.replace("{{name}}", user.getName() == null ? user.getEmail() : user.getName());
+            tpl = tpl.replace("{{courseTitle}}", safe(program.getTitle()));
+            tpl = tpl.replace("{{courseCode}}", safe(program.getProgramCode()));
+            tpl = tpl.replace("{{courseUrl}}", baseUrl + "/flagship/" + program.getId());
+            tpl = tpl.replace("{{dashboardUrl}}", baseUrl + "/my-courses");
+            tpl = tpl.replace("{{appName}}", appName);
+            tpl = tpl.replace("{{content}}", content != null ? content : "");
+            return tpl;
+        }
+        String name = user.getName() != null ? user.getName() : user.getEmail();
+        String programUrl = baseUrl + "/flagship/" + program.getId();
+        return String.format("""
+            <html>
+            <body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
+            <table width="100%%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f4f4">
+            <tr><td align="center" style="padding:20px 10px;">
+            <table width="600" cellpadding="0" cellspacing="0" border="0"
+                   style="max-width:600px;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+              <tr>
+                <td style="background:linear-gradient(135deg,#1a237e 0%%,#283593 100%%);padding:32px 40px;text-align:center;">
+                  <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;">%s</h1>
+                  <p style="margin:6px 0 0;color:#c5cae9;font-size:13px;">Professional Food Safety &amp; Quality Training</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:36px 40px 28px;">
+                  <p style="margin:0 0 16px;font-size:16px;color:#333;">Hi %s,</p>
+                  <p style="margin:0 0 20px;font-size:15px;color:#555;">%s</p>
+                  <h2 style="margin:0 0 12px;font-size:18px;color:#1a237e;">%s</h2>
+                  <div style="text-align:center;padding:20px 0;">
+                    <a href="%s" style="display:inline-block;background:#1a237e;color:#ffffff;
+                       padding:14px 36px;border-radius:6px;text-decoration:none;
+                       font-size:15px;font-weight:700;">Continue Learning</a>
+                  </div>
+                </td>
+              </tr>
+              <tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #e0e0e0;margin:0;"></td></tr>
+              <tr>
+                <td style="padding:20px 40px;text-align:center;">
+                  <p style="margin:0;font-size:12px;color:#757575;">
+                    You are receiving this because you are enrolled in this program on %s.
+                  </p>
+                </td>
+              </tr>
+            </table>
+            </td></tr>
+            </table>
+            </body></html>
+            """, appName, name, safe(content), safe(program.getTitle()), programUrl, appName);
     }
 
     private String truncate(String text, int maxLength) {

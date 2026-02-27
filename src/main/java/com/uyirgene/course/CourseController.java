@@ -121,6 +121,7 @@ public class CourseController {
     public ResponseEntity<CourseDto> create(
             @RequestParam(value = "courseCode", required = false) String courseCode,
             @RequestParam("title") String title,
+            @RequestParam(value = "tagline", required = false) String tagline,
             @RequestParam(value = "shortDescription", required = false) String shortDescription,
             @RequestParam("description") String description,
             @RequestParam(value = "category", required = false) String category,
@@ -142,7 +143,8 @@ public class CourseController {
             @RequestParam(value = "assessment", required = false) String assessment,
             @RequestParam(value = "outcome", required = false) String outcome,
             @RequestParam(value = "courseDurationText", required = false) String courseDurationText,
-            @RequestParam(value = "examDetails", required = false) String examDetails
+            @RequestParam(value = "examDetails", required = false) String examDetails,
+            @RequestParam(value = "reminderDays", required = false) Integer reminderDays
     ) throws IOException {
         // Validate price
         if (price != null && price < 0) {
@@ -158,6 +160,7 @@ public class CourseController {
         Course course = Course.builder()
                 .courseCode(courseCode)
                 .title(title)
+                .tagline(tagline)
                 .shortDescription(shortDescription)
                 .description(description)
                 .keyComponents(keyComponents)
@@ -176,6 +179,7 @@ public class CourseController {
                 .trainerName(trainerName)
                 .testLink(testLink)
                 .testDescription(testDescription)
+                .reminderDays(reminderDays)
                 .build();
 
         // Handle legacy image field
@@ -219,6 +223,7 @@ public class CourseController {
         Course course = Course.builder()
                 .courseCode(c.getCourseCode())
                 .title(c.getTitle())
+                .tagline(c.getTagline())
                 .shortDescription(c.getShortDescription())
                 .description(c.getDescription())
                 .keyComponents(c.getKeyComponents())
@@ -263,6 +268,7 @@ public class CourseController {
             @PathVariable("id") Long id,
             @RequestParam(value = "courseCode", required = false) String courseCode,
             @RequestParam("title") String title,
+            @RequestParam(value = "tagline", required = false) String tagline,
             @RequestParam(value = "shortDescription", required = false) String shortDescription,
             @RequestParam("description") String description,
             @RequestParam(value = "category", required = false) String category,
@@ -287,11 +293,13 @@ public class CourseController {
             @RequestParam(value = "assessment", required = false) String assessment,
             @RequestParam(value = "outcome", required = false) String outcome,
             @RequestParam(value = "courseDurationText", required = false) String courseDurationText,
-            @RequestParam(value = "examDetails", required = false) String examDetails
+            @RequestParam(value = "examDetails", required = false) String examDetails,
+            @RequestParam(value = "reminderDays", required = false) Integer reminderDays
     ) throws IOException {
         return repo.findById(id).map(existing -> {
             existing.setCourseCode(courseCode);
             existing.setTitle(title);
+            existing.setTagline(tagline);
             existing.setShortDescription(shortDescription);
             existing.setDescription(description);
             existing.setKeyComponents(keyComponents);
@@ -310,6 +318,7 @@ public class CourseController {
             existing.setCourseType(courseType);
             existing.setTestLink(testLink);
             existing.setTestDescription(testDescription);
+            existing.setReminderDays(reminderDays);
 
             try {
                 // Handle legacy image
@@ -359,6 +368,7 @@ public class CourseController {
         }
         return repo.findById(id).map(existing -> {
             existing.setTitle(c.getTitle());
+            existing.setTagline(c.getTagline());
             existing.setDescription(c.getDescription());
             existing.setKeyComponents(c.getKeyComponents());
             existing.setTargetAudience(c.getTargetAudience());

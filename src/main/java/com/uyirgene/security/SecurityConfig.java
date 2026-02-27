@@ -51,11 +51,22 @@ public class SecurityConfig {
                             "/api/service-testings/**",
                             "/api/service-diagnostics/**",
                             "/api/careers/**",
+                            "/api/marketing/unsubscribe",
                             "/actuator/health"
                     ).permitAll()
                     // Course & bundle public endpoints (read-only)
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/courses/**").permitAll()
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/bundles", "/api/bundles/{id}", "/api/bundles/{id}/thumbnail").permitAll()
+                    // Flagship program public endpoints (read-only; admin endpoints use @PreAuthorize)
+                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/flagship", "/api/flagship/{id}", "/api/flagship/{id}/image", "/api/flagship/slug/**", "/api/flagship/code/**").permitAll()
+                    // Standards public listing (download requires auth via @PreAuthorize)
+                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/standards").permitAll()
+                    // Public site config & master data (non-admin, no sensitive keys exposed)
+                    .requestMatchers(org.springframework.http.HttpMethod.GET,
+                            "/api/config/images", "/api/config/category/**", "/api/config/key/**").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.GET,
+                            "/api/master-data/type/**", "/api/master-data/types",
+                            "/api/master-data/categories", "/api/master-data/skill-levels").permitAll()
                     // Swagger - only accessible in dev (disabled in prod via springdoc config)
                     .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                     .requestMatchers("/api/admin/**").authenticated()

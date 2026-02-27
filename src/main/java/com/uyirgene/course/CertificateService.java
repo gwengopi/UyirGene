@@ -60,6 +60,90 @@ public class CertificateService {
     }
 
     /**
+     * Generate a certificate for a flagship program enrollment.
+     * Uses the program title in place of a course title; no template lookup (dynamic only).
+     */
+    public Certificate generateCertificateForFlagship(User user, FlagshipProgram program,
+                                                       Certificate.CertificateType type,
+                                                       Double marks, String trainerName) {
+        Optional<Certificate> existing = certRepo.findByUserAndFlagshipProgram(user, program);
+        if (existing.isPresent()) {
+            Certificate oldCert = existing.get();
+            if (oldCert.getFilePath() != null) {
+                try {
+                    boolean deleted = java.nio.file.Files.deleteIfExists(java.nio.file.Path.of(oldCert.getFilePath()));
+                    if (!deleted) {
+                        log.warn("Old flagship certificate file not found: {}", oldCert.getCertificateId());
+                    }
+                } catch (IOException e) {
+                    log.warn("Failed to delete old flagship certificate file {}: {}", oldCert.getCertificateId(), e.getMessage());
+                }
+            }
+            certRepo.delete(oldCert);
+            certRepo.flush();
+        }
+
+        Certificate certificate = Certificate.builder()
+                .user(user)
+                .flagshipProgram(program)
+                .issuedAt(LocalDateTime.now())
+                .certificateId(generateUniqueCertificateId())
+                .type(type)
+                .marks(marks)
+                .trainerName(trainerName)
+                .build();
+
+        try {
+            Path dir = Path.of(certFolder);
+            Files.createDirectories(dir);
+
+            String fileName = certificate.getCertificateId() + ".pdf";
+            Path filePath = dir.resolve(fileName);
+
+            // Look up global certificate template (flagship programs use global/default templates)
+            Optional<CertificateTemplate> templateOpt = templateService.findTemplateForFlagshipCertificate(type);
+            CertificateTemplate template = templateOpt.orElse(null);
+
+            if (template != null && template.getTemplateConfig() != null && !template.getTemplateConfig().isBlank()) {
+                log.info("Using certificate template '{}' for flagship program {}", template.getName(), program.getId());
+                createCertificateFromTemplate(
+                        user.getName(),
+                        program.getTitle(),
+                        null,
+                        null,
+                        certificate.getCertificateId(),
+                        certificate.getIssuedAt(),
+                        type,
+                        marks,
+                        filePath.toString(),
+                        template,
+                        trainerName
+                );
+            } else {
+                createCertificatePdfDynamic(
+                        user.getName(),
+                        program.getTitle(),
+                        null,
+                        null,
+                        certificate.getCertificateId(),
+                        certificate.getIssuedAt(),
+                        type,
+                        marks,
+                        filePath.toString(),
+                        template,
+                        trainerName
+                );
+            }
+
+            certificate.setFilePath(filePath.toString());
+            return certRepo.save(certificate);
+        } catch (Exception ex) {
+            log.error("Failed to generate certificate for user {} and flagship program {}", user.getId(), program.getId(), ex);
+            throw new RuntimeException("Failed to generate certificate", ex);
+        }
+    }
+
+    /**
      * Generate a certificate with specific type, marks, and trainer name
      * @param trainerName - if null, uses course trainer name
      */
@@ -126,7 +210,9 @@ public class CertificateService {
                     template.getBackgroundImage() != null && template.getBackgroundImage().length > 0);
                 createCertificateFromTemplate(
                         user.getName(),
-                        course,
+                        course.getTitle(),
+                        course.getCourseCode(),
+                        course.getShortDescription(),
                         certificate.getCertificateId(),
                         certificate.getIssuedAt(),
                         type,
@@ -140,7 +226,9 @@ public class CertificateService {
                 // Use dynamic generation (legacy method)
                 createCertificatePdfDynamic(
                         user.getName(),
-                        course,
+                        course.getTitle(),
+                        course.getCourseCode(),
+                        course.getShortDescription(),
                         certificate.getCertificateId(),
                         certificate.getIssuedAt(),
                         type,
@@ -170,9 +258,11 @@ public class CertificateService {
     }
 
     /**
-     * Create certificate from PDF template with text overlay
+     * Create certificate from PDF template with text overlay.
+     * Accepts course details as plain strings so it can serve both Course and Flagship enrollments.
      */
-    private void createCertificateFromTemplate(String userName, Course course,
+    private void createCertificateFromTemplate(String userName, String courseTitle,
+                                                String courseCode, String shortDescription,
                                                 String certificateId, LocalDateTime issuedAt,
                                                 Certificate.CertificateType type, Double marks,
                                                 String filePath, CertificateTemplate template,
@@ -249,23 +339,23 @@ public class CertificateService {
             }
 
             // Draw course title
-            if (config.getCourseTitle().isVisible()) {
-                drawText(contentStream, course.getTitle(), config.getCourseTitle(), fontBold, pageWidth, extraFonts);
+            if (config.getCourseTitle().isVisible() && courseTitle != null) {
+                drawText(contentStream, courseTitle, config.getCourseTitle(), fontBold, pageWidth, extraFonts);
             }
 
             // Draw course code
-            if (config.getCourseCode() != null && config.getCourseCode().isVisible() && course.getCourseCode() != null) {
-                drawText(contentStream, course.getCourseCode(), config.getCourseCode(), fontRegular, pageWidth, extraFonts);
+            if (config.getCourseCode() != null && config.getCourseCode().isVisible() && courseCode != null) {
+                drawText(contentStream, courseCode, config.getCourseCode(), fontRegular, pageWidth, extraFonts);
             }
 
-            // Draw trainer name (use provided trainerName, not course.getTrainerName())
+            // Draw trainer name
             if (config.getTrainerName() != null && config.getTrainerName().isVisible() && trainerName != null) {
                 drawText(contentStream, trainerName, config.getTrainerName(), fontRegular, pageWidth, extraFonts);
             }
 
             // Draw short description
-            if (config.getShortDescription() != null && config.getShortDescription().isVisible() && course.getShortDescription() != null) {
-                drawText(contentStream, course.getShortDescription(), config.getShortDescription(), fontRegular, pageWidth, extraFonts);
+            if (config.getShortDescription() != null && config.getShortDescription().isVisible() && shortDescription != null) {
+                drawText(contentStream, shortDescription, config.getShortDescription(), fontRegular, pageWidth, extraFonts);
             }
 
             // Draw marks if available
@@ -460,9 +550,11 @@ public class CertificateService {
     }
 
     /**
-     * Create certificate PDF dynamically (legacy method for backward compatibility)
+     * Create certificate PDF dynamically.
+     * Accepts course details as plain strings so it can serve both Course and Flagship enrollments.
      */
-    private void createCertificatePdfDynamic(String userName, Course course,
+    private void createCertificatePdfDynamic(String userName, String courseTitle,
+                                              String courseCode, String shortDescription,
                                               String certificateId, LocalDateTime issuedAt,
                                               Certificate.CertificateType type, Double marks,
                                               String filePath, CertificateTemplate template,
@@ -586,9 +678,8 @@ public class CertificateService {
             contentStream.showText(completedText);
             contentStream.endText();
 
-            // Course Title
+            // Course / Program Title
             y -= 40;
-            String courseTitle = course.getTitle();
             float courseTitleWidth = fontBold.getStringWidth(courseTitle) / 1000 * 20;
             contentStream.beginText();
             contentStream.setFont(fontBold, 20);
@@ -598,15 +689,14 @@ public class CertificateService {
             contentStream.endText();
 
             // Course Code (if available)
-            if (course.getCourseCode() != null && !course.getCourseCode().isEmpty()) {
+            if (courseCode != null && !courseCode.isEmpty()) {
                 y -= 25;
-                String codeText = course.getCourseCode();
-                float codeWidth = fontRegular.getStringWidth(codeText) / 1000 * 10;
+                float codeWidth = fontRegular.getStringWidth(courseCode) / 1000 * 10;
                 contentStream.beginText();
                 contentStream.setFont(fontRegular, 10);
                 contentStream.setNonStrokingColor(0.59f, 0.59f, 0.59f);
                 contentStream.newLineAtOffset(centerX - codeWidth / 2, y);
-                contentStream.showText(codeText);
+                contentStream.showText(courseCode);
                 contentStream.endText();
             }
 
@@ -624,9 +714,9 @@ public class CertificateService {
             }
 
             // Short Description (if available)
-            if (course.getShortDescription() != null && !course.getShortDescription().isEmpty()) {
+            if (shortDescription != null && !shortDescription.isEmpty()) {
                 y -= 20;
-                String descText = course.getShortDescription();
+                String descText = shortDescription;
                 // Truncate if too long for certificate
                 if (descText.length() > 80) {
                     descText = descText.substring(0, 77) + "...";

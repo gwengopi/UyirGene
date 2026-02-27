@@ -58,6 +58,24 @@ public class CertificateTemplateService {
     }
 
     /**
+     * Find the appropriate certificate template for a flagship program enrollment.
+     * Flagship programs are not course-specific, so only global templates are considered.
+     * Priority:
+     * 1. Global default template with matching type (isDefault = true)
+     * 2. Any active global template with matching type (fallback)
+     */
+    public Optional<CertificateTemplate> findTemplateForFlagshipCertificate(Certificate.CertificateType type) {
+        Optional<CertificateTemplate> globalTemplate = templateRepo.findByTypeAndIsDefaultTrueAndActiveTrue(type);
+        if (globalTemplate.isPresent()) {
+            return globalTemplate;
+        }
+        List<CertificateTemplate> globalTemplates = templateRepo.findByCourseIsNullAndActiveTrue();
+        return globalTemplates.stream()
+                .filter(t -> t.getType() == type)
+                .findFirst();
+    }
+
+    /**
      * Find the appropriate template for a course and certificate type
      * Priority:
      * 1. Course-specific template with matching type

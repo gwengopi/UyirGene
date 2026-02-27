@@ -43,8 +43,14 @@ const AdminSettings = lazy(() => import('./pages/Admin/Settings'));
 const AdminCertificateTemplates = lazy(() => import('./pages/Admin/CertificateTemplates'));
 const AdminBundles = lazy(() => import('./pages/Admin/Bundles'));
 const AdminMailTemplates = lazy(() => import('./pages/Admin/MailTemplates'));
+const AdminFlagshipPrograms = lazy(() => import('./pages/Admin/FlagshipPrograms'));
+const AdminMarketingCampaigns = lazy(() => import('./pages/Admin/MarketingCampaigns'));
+const AdminStandards = lazy(() => import('./pages/Admin/Standards'));
+const Standards = lazy(() => import('./pages/Standards'));
+const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 const BundleDetail = lazy(() => import('./pages/BundleDetail'));
 const FlagshipPage = lazy(() => import('./pages/FlagshipPage'));
+const FlagshipDetail = lazy(() => import('./pages/FlagshipDetail'));
 const CategoryPage = lazy(() => import('./pages/CategoryPage'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Unauthorized = lazy(() => import('./pages/Unauthorized'));
@@ -133,6 +139,7 @@ function AppContent() {
             <Route path="/courses/category/:categoryCode" element={<CategoryPage />} />
             <Route path="/courses/:id" element={<CourseDetail />} />
             <Route path="/bundles/:id" element={<BundleDetail />} />
+            <Route path="/flagship/:id" element={<FlagshipDetail />} />
             <Route path={ROUTES.VERIFY_CERTIFICATE} element={<CertificateVerify />} />
             <Route path="/certificate/:id" element={<CertificateVerify />} />
 
@@ -263,6 +270,30 @@ function AppContent() {
                 </RoleRoute>
               }
             />
+            <Route
+              path={ROUTES.ADMIN.FLAGSHIP_PROGRAMS}
+              element={
+                <RoleRoute allowedRoles={[ROLES.ADMIN]}>
+                  <AdminFlagshipPrograms />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={ROUTES.ADMIN.MARKETING_CAMPAIGNS}
+              element={
+                <RoleRoute allowedRoles={[ROLES.ADMIN]}>
+                  <AdminMarketingCampaigns />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={ROUTES.ADMIN.STANDARDS}
+              element={
+                <RoleRoute allowedRoles={[ROLES.ADMIN]}>
+                  <AdminStandards />
+                </RoleRoute>
+              }
+            />
 
             {/* Static pages */}
             <Route path="/services" element={<Services />} />
@@ -287,6 +318,8 @@ function AppContent() {
             <Route path="/cookies" element={<Cookies />} />
             <Route path="/accessibility" element={<Accessibility />} />
             <Route path="/refund" element={<Refund />} />
+            <Route path={ROUTES.STANDARDS} element={<Standards />} />
+            <Route path={ROUTES.UNSUBSCRIBE} element={<Unsubscribe />} />
 
             {/* Error pages */}
             <Route path={ROUTES.UNAUTHORIZED} element={<Unauthorized />} />

@@ -7,6 +7,8 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: false
+  flyway:
+    validate-on-migrate: false   # dev only — prevents checksum mismatch errors when migrations are tweaked
   mail:
     # =======================================================================
     # SMTP Configuration - defaults to Gmail SMTP
@@ -47,8 +49,18 @@ google:
 app:
   mail:
     from: ${MAIL_FROM:${MAIL_USERNAME:UyirGene}}
+  marketing:
+    mail:
+      host: ${MARKETING_MAIL_HOST:}
+      port: ${MARKETING_MAIL_PORT:587}
+      username: ${MARKETING_MAIL_USERNAME:}
+      password: ${MARKETING_MAIL_PASSWORD:}
   video:
     encryption-key: ${VIDEO_ENCRYPTION_KEY:dev-only-encryption-key-change-in-prod}
+
+server:
+  error:
+    include-message: always   # dev only — expose actual exception messages for debugging
 
 logging:
   level:

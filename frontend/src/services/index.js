@@ -17,3 +17,6 @@ export { default as serviceTestingService } from './serviceTestingService';
 export { default as serviceDiagnosticsService } from './serviceDiagnosticsService';
 export { default as careerService } from './careerService';
 export { default as bundleService } from './bundleService';
+export { flagshipService } from './flagshipService';
+export { default as marketingService } from './marketingService';
+export { default as standardsService } from './standardsService';

@@ -222,6 +222,31 @@ function CourseDetail() {
     }
   };
 
+
+  // Mark video as completed when user clicks play in the video player
+  const handleVideoPlay = useCallback(async () => {
+    if (!currentVideo) return;
+    try {
+      await videoService.updateProgress(currentVideo.id, currentVideo.durationSeconds || 0, true);
+      setProgressMap((prev) => {
+        if (prev[currentVideo.id]?.completed) return prev; // already marked
+        const updated = {
+          ...prev,
+          [currentVideo.id]: { ...(prev[currentVideo.id] || {}), completed: true },
+        };
+        const allDone = videos.length > 0 && videos.every((v) => updated[v.id]?.completed);
+        if (allDone) {
+          setEnrollmentStatus('COMPLETED');
+          showSuccess('Course completed! All videos finished.');
+        }
+        return updated;
+      });
+    } catch (err) {
+      console.error('Failed to mark video complete:', err);
+      showError('Could not save video progress. Please check your connection.');
+    }
+  }, [currentVideo, videos, showSuccess, showError]);
+
   // Handle video progress
   const handleVideoProgress = useCallback(
     async (positionSeconds) => {
@@ -352,6 +377,7 @@ function CourseDetail() {
                 initialPosition={progressMap[currentVideo.id]?.lastPositionSeconds || 0}
                 onProgress={handleVideoProgress}
                 onComplete={handleVideoComplete}
+                onPlay={handleVideoPlay}
                 userEmail={user?.email}
               />
               <Typography variant="h5" sx={{ mt: 2, mb: 1 }} fontWeight={600}>
@@ -384,6 +410,35 @@ function CourseDetail() {
                 <Typography variant="h5" gutterBottom fontWeight={600}>
                   {course.title}
                 </Typography>
+
+                {course.tagline && (
+                  <Box
+                    sx={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      px: 2,
+                      py: 0.75,
+                      mb: 2.5,
+                      borderRadius: 2,
+                      bgcolor: 'primary.main',
+                      background: (theme) =>
+                        `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                    }}
+                  >
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: '#fff',
+                        fontWeight: 600,
+                        letterSpacing: 0.3,
+                        fontSize: '0.9rem',
+                      }}
+                    >
+                      {course.tagline}
+                    </Typography>
+                  </Box>
+                )}
 
                 {/* Overview */}
                 {course.description && (

@@ -102,6 +102,7 @@ export async function createCourse(courseData, imageOptions = {}) {
 
   const formData = new FormData();
   formData.append('title', courseOnly.title);
+  if (courseOnly.tagline) formData.append('tagline', courseOnly.tagline);
   if (courseOnly.courseCode) formData.append('courseCode', courseOnly.courseCode);
   if (courseOnly.trainerName) formData.append('trainerName', courseOnly.trainerName);
   if (courseOnly.shortDescription) formData.append('shortDescription', courseOnly.shortDescription);
@@ -115,6 +116,7 @@ export async function createCourse(courseData, imageOptions = {}) {
   if (courseOnly.courseType) formData.append('courseType', courseOnly.courseType);
   if (courseOnly.testLink) formData.append('testLink', courseOnly.testLink);
   if (courseOnly.testDescription) formData.append('testDescription', courseOnly.testDescription);
+  if (courseOnly.reminderDays != null) formData.append('reminderDays', courseOnly.reminderDays);
 
   // Structured description sections
   if (courseOnly.keyComponents && courseOnly.keyComponents.length > 0) {
@@ -181,6 +183,7 @@ export async function updateCourse(id, courseData, imageOptions = {}) {
 
   const formData = new FormData();
   formData.append('title', courseOnly.title);
+  if (courseOnly.tagline !== undefined) formData.append('tagline', courseOnly.tagline || '');
   if (courseOnly.courseCode !== undefined) formData.append('courseCode', courseOnly.courseCode || '');
   if (courseOnly.trainerName !== undefined) formData.append('trainerName', courseOnly.trainerName || '');
   if (courseOnly.shortDescription !== undefined) formData.append('shortDescription', courseOnly.shortDescription || '');
@@ -194,6 +197,8 @@ export async function updateCourse(id, courseData, imageOptions = {}) {
   if (courseOnly.courseType) formData.append('courseType', courseOnly.courseType);
   if (courseOnly.testLink !== undefined) formData.append('testLink', courseOnly.testLink || '');
   if (courseOnly.testDescription !== undefined) formData.append('testDescription', courseOnly.testDescription || '');
+  // Send reminderDays — send empty string to clear, or the integer value to set
+  if (courseOnly.reminderDays != null) formData.append('reminderDays', courseOnly.reminderDays);
 
   // Structured description sections
   if (courseOnly.keyComponents !== undefined) {

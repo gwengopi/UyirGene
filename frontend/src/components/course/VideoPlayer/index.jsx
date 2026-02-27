@@ -25,6 +25,8 @@ function VideoPlayer({
   initialPosition = 0,
   onProgress,
   onComplete,
+  onPlay,
+  durationSeconds,
   autoPlay = false,
   userEmail,
 }) {
@@ -46,6 +48,8 @@ function VideoPlayer({
           initialPosition={initialPosition}
           onProgress={onProgress}
           onComplete={onComplete}
+          onPlay={onPlay}
+          durationSeconds={durationSeconds}
           userEmail={userEmail}
         />
       ) : (
@@ -56,6 +60,7 @@ function VideoPlayer({
           initialPosition={initialPosition}
           onProgress={onProgress}
           onComplete={onComplete}
+          onPlay={onPlay}
           autoPlay={autoPlay}
           userEmail={userEmail}
         />

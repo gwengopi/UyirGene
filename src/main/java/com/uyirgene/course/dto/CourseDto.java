@@ -22,6 +22,7 @@ public class CourseDto {
     private Long id;
     private String courseCode;
     private String title;
+    private String tagline;
     private String shortDescription;
     private String description;
     private List<KeyComponent> keyComponents;
@@ -57,6 +58,9 @@ public class CourseDto {
     // Test/Assessment
     private String testLink;
     private String testDescription;
+
+    // Completion reminder SLA (days after enrollment)
+    private Integer reminderDays;
 
     @Data
     @NoArgsConstructor
@@ -106,6 +110,7 @@ public class CourseDto {
                 .id(course.getId())
                 .courseCode(course.getCourseCode())
                 .title(course.getTitle())
+                .tagline(course.getTagline())
                 .shortDescription(course.getShortDescription())
                 .description(course.getDescription())
                 .keyComponents(parseKeyComponents(course.getKeyComponents()))
@@ -136,6 +141,7 @@ public class CourseDto {
                         : Collections.emptyList())
                 .testLink(course.getTestLink())
                 .testDescription(course.getTestDescription())
+                .reminderDays(course.getReminderDays())
                 .build();
     }
 }

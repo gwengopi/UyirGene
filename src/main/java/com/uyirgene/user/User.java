@@ -31,6 +31,13 @@ public class User {
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "marketing_opt_out")
+    @Builder.Default
+    private boolean marketingOptOut = false;
+
+    @Column(name = "marketing_opt_out_token", length = 64)
+    private String marketingOptOutToken;
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {

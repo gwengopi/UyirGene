@@ -20,6 +20,7 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
 
   const [formData, setFormData] = useState({
     title: '',
+    tagline: '',
     courseCode: '',
     trainerName: '',
     shortDescription: '',
@@ -32,11 +33,11 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
     durationHours: '',
     price: '',
     published: false,
-    flagship: false,
     displayOrder: '',
     courseType: '',
     testLink: '',
     testDescription: '',
+    reminderDays: '',
   });
 
   // Key Components state - array of {title, points[]}
@@ -49,7 +50,7 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
   const [errors, setErrors] = useState({});
 
   // Videos state - array of video objects
-  const [videos, setVideos] = useState([{ title: '', url: '' }]);
+  const [videos, setVideos] = useState([{ title: '', url: '', durationSeconds: '' }]);
 
   // Image states - separate for thumbnail and description image
   const [thumbnailFile, setThumbnailFile] = useState(null);
@@ -64,6 +65,7 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
     if (course) {
       setFormData({
         title: course.title || '',
+        tagline: course.tagline || '',
         courseCode: course.courseCode || '',
         trainerName: course.trainerName || '',
         shortDescription: course.shortDescription || '',
@@ -76,11 +78,11 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
         durationHours: course.durationHours?.toString() || '',
         price: course.price?.toString() || '',
         published: course.published || false,
-        flagship: course.flagship || false,
         displayOrder: course.displayOrder?.toString() || '',
         courseType: course.courseType || '',
         testLink: course.testLink || '',
         testDescription: course.testDescription || '',
+        reminderDays: course.reminderDays?.toString() || '',
       });
 
       // Set existing key components
@@ -99,7 +101,7 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
 
       // Set existing videos or default empty video
       if (Array.isArray(course.videos) && course.videos.length > 0) {
-        setVideos(course.videos.map(v => ({ title: v.title || '', url: v.url || '', id: v.id })));
+        setVideos(course.videos.map(v => ({ title: v.title || '', url: v.url || '', durationSeconds: v.durationSeconds != null ? v.durationSeconds.toString() : '', id: v.id })));
       } else {
         setVideos([{ title: '', url: '' }]);
       }
@@ -152,13 +154,13 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
   };
 
   const addVideo = () => {
-    setVideos([...videos, { title: '', url: '' }]);
+    setVideos([...videos, { title: '', url: '', durationSeconds: '' }]);
   };
 
   const removeVideo = (index) => {
     if (videos.length === 1) {
       // Keep at least one empty video field
-      setVideos([{ title: '', url: '' }]);
+      setVideos([{ title: '', url: '', durationSeconds: '' }]);
     } else {
       const newVideos = videos.filter((_, i) => i !== index);
       setVideos(newVideos);
@@ -373,6 +375,7 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
 
     const dataToSave = {
       title: formData.title,
+      tagline: formData.tagline || null,
       courseCode: formData.courseCode || null,
       trainerName: formData.trainerName || null,
       shortDescription: formData.shortDescription || null,
@@ -387,17 +390,18 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
       durationHours: formData.durationHours ? parseInt(formData.durationHours, 10) : null,
       price: formData.price ? parseFloat(formData.price) : null,
       published: formData.published,
-      flagship: formData.flagship,
       displayOrder: formData.displayOrder ? parseInt(formData.displayOrder, 10) : null,
       courseType: formData.courseType || null,
       testLink: formData.testLink || null,
       testDescription: formData.testDescription || null,
+      reminderDays: formData.reminderDays ? parseInt(formData.reminderDays, 10) : null,
       countryPrices: validCountryPrices,
       videos: validVideos.map((v, index) => ({
         id: v.id || null,
         title: v.title || formData.title,
         url: v.url,
         orderIndex: index,
+        durationSeconds: v.durationSeconds ? parseInt(v.durationSeconds, 10) : null,
       })),
     };
 
@@ -626,6 +630,18 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
             error={errors.title}
             required
             placeholder="Enter course title"
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <FormField
+            name="tagline"
+            label="Tagline"
+            value={formData.tagline}
+            onChange={handleChange}
+            placeholder="A short marketing tagline shown below the title (optional)"
+            helperText="Max 300 characters"
+            inputProps={{ maxLength: 300 }}
           />
         </Grid>
 
@@ -912,13 +928,6 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
               onChange={handleChange}
               helperText="Published courses are visible to students"
             />
-            <Checkbox
-              name="flagship"
-              label="Flagship Programme"
-              checked={formData.flagship}
-              onChange={handleChange}
-              helperText="Flagship courses are featured on the home page"
-            />
           </Box>
         </Grid>
 
@@ -1041,6 +1050,19 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
           />
         </Grid>
 
+        <Grid item xs={12} sm={6}>
+          <FormField
+            name="reminderDays"
+            label="Completion Reminder (days after enrollment)"
+            type="number"
+            value={formData.reminderDays}
+            onChange={handleChange}
+            placeholder="e.g., 7, 14, 30"
+            helperText="Send a reminder email if the user hasn't completed the course after this many days. Leave empty to disable."
+            inputProps={{ min: 1, step: 1 }}
+          />
+        </Grid>
+
         {/* Videos Section */}
         <Grid item xs={12}>
           <Divider sx={{ my: 2 }} />
@@ -1100,7 +1122,19 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
                       size="small"
                     />
                   </Grid>
-                  <Grid item xs={12} sm={7}>
+                  <Grid item xs={6} sm={3}>
+                    <FormField
+                      name={`videoDuration-${index}`}
+                      label="Duration (seconds)"
+                      type="number"
+                      value={video.durationSeconds}
+                      onChange={(e) => handleVideoChange(index, 'durationSeconds', e.target.value)}
+                      placeholder="e.g. 3600"
+                      size="small"
+                      helperText="For 80% completion tracking on Drive/Vimeo"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
                     <FormField
                       name={`videoUrl-${index}`}
                       label="Video URL"

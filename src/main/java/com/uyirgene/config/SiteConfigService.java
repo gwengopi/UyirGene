@@ -34,7 +34,7 @@ public class SiteConfigService {
     }
 
     /**
-     * Get configuration by key
+     * Get configuration by key (cached).
      */
     @Cacheable(value = "siteConfigs", key = "#key")
     public String getConfigValue(String key) {
@@ -45,11 +45,30 @@ public class SiteConfigService {
     }
 
     /**
-     * Get configuration by key with default value
+     * Get configuration by key with default value (cached).
      */
     public String getConfigValue(String key, String defaultValue) {
         String value = getConfigValue(key);
         return value != null ? value : defaultValue;
+    }
+
+    /**
+     * Get configuration by key directly from DB, bypassing cache.
+     * Use this when the value may have been updated at runtime (e.g. during batch processing).
+     */
+    public String getConfigValueFresh(String key) {
+        return repository.findByKey(key)
+                .filter(SiteConfig::getActive)
+                .map(SiteConfig::getValue)
+                .orElse(null);
+    }
+
+    /**
+     * Get configuration by key directly from DB with default, bypassing cache.
+     */
+    public String getConfigValueFresh(String key, String defaultValue) {
+        String value = getConfigValueFresh(key);
+        return (value != null && !value.isBlank()) ? value : defaultValue;
     }
 
     /**
@@ -202,6 +221,11 @@ public class SiteConfigService {
         createIfNotExists("GOOGLE_REVIEW_LINK", "", "URL", "REVIEW", "Google Maps review page link (for Leave a Review button)");
         createIfNotExists("GOOGLE_PLACE_ID", "", "TEXT", "REVIEW", "Google Place ID for fetching reviews via Places API");
         createIfNotExists("GOOGLE_API_KEY", "", "TEXT", "REVIEW", "Google Places API key for fetching reviews");
+
+        // Marketing Email Configuration
+        createIfNotExists("marketingFromEmail", "", "TEXT", "MARKETING", "From email address for marketing campaigns (leave blank to use default mail.from)");
+        createIfNotExists("marketingFromName", "UyirGene", "TEXT", "MARKETING", "Sender display name for marketing campaigns");
+        createIfNotExists("marketingFooterAddress", "", "TEXT", "MARKETING", "Physical address shown in marketing email footer (leave blank to use CONTACT_ADDRESS)");
     }
 
     private void createIfNotExists(String key, String value, String type, String category, String description) {

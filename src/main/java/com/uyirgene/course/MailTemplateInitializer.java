@@ -29,6 +29,7 @@ public class MailTemplateInitializer implements ApplicationRunner {
         {"result-published",          "result-published.html"},
         {"bundle-enrollment-success", "bundle-enrollment-success.html"},
         {"payment-failed",            "payment-failed.html"},
+        {"course-reminder",           "course-reminder.html"},
     };
 
     @Override

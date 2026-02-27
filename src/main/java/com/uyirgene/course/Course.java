@@ -20,6 +20,10 @@ public class Course {
 
     private String title;
 
+    // Short marketing tagline shown below the title on the detail page
+    @Column(length = 300)
+    private String tagline;
+
     // Short description for certificate and previews
     @Column(length = 500)
     private String shortDescription;
@@ -87,4 +91,7 @@ public class Course {
 
     @Column(length = 500)
     private String testDescription;
+
+    // Days after enrollment to send a completion reminder (null = no reminder)
+    private Integer reminderDays;
 }

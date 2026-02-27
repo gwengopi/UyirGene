@@ -1,5 +1,6 @@
 package com.uyirgene.course;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.uyirgene.user.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -15,8 +16,13 @@ public class Certificate {
     @ManyToOne(optional = false)
     private User user;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = true)
     private Course course;
+
+    @ManyToOne(optional = true, fetch = FetchType.LAZY)
+    @JoinColumn(name = "flagship_program_id")
+    @JsonIgnore
+    private FlagshipProgram flagshipProgram;
 
     private LocalDateTime issuedAt;
     private String certificateId;

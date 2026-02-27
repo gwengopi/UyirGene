@@ -22,11 +22,26 @@ function DirectVideoPlayer({
   initialPosition = 0,
   onProgress,
   onComplete,
+  onPlay,
   autoPlay = false,
   userEmail,
 }) {
   const containerRef = useRef(null);
   const controlsTimeoutRef = useRef(null);
+  const hasPlayedRef = useRef(false);
+
+  // Reset hasPlayedRef whenever a new video src is loaded
+  useEffect(() => {
+    hasPlayedRef.current = false;
+  }, [src]);
+
+  // Native HTML5 play event — fires reliably when video actually starts playing
+  const handleNativePlay = useCallback(() => {
+    if (!hasPlayedRef.current) {
+      hasPlayedRef.current = true;
+      onPlay?.();
+    }
+  }, [onPlay]);
 
   const {
     isPlaying,
@@ -255,6 +270,7 @@ function DirectVideoPlayer({
         src={src}
         poster={poster}
         onClick={togglePlay}
+        onPlay={handleNativePlay}
         onLoadedMetadata={handleLoadedMetadata}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
@@ -289,7 +305,14 @@ function DirectVideoPlayer({
 
       {/* Play button overlay */}
       {!isPlaying && !isLoading && (
-        <BrandedPlayButton onClick={togglePlay} />
+        <BrandedPlayButton onClick={() => {
+          // Direct call as primary trigger (most reliable)
+          if (!hasPlayedRef.current) {
+            hasPlayedRef.current = true;
+            onPlay?.();
+          }
+          togglePlay();
+        }} />
       )}
 
       {/* Watermark */}

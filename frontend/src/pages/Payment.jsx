@@ -7,6 +7,7 @@ import {
 import { useToast } from '../store';
 import { enrollmentService } from '../services';
 import * as bundleService from '../services/bundleService';
+import { flagshipService } from '../services/flagshipService';
 import { formatCurrency } from '../utils/formatters';
 import { ROUTES } from '../utils/constants';
 
@@ -21,10 +22,12 @@ function Payment() {
   const order = state?.order;
   const courseId = state?.courseId;
   const bundleId = state?.bundleId;
+  const flagshipProgramId = state?.flagshipProgramId;
   const courseName = state?.courseName || state?.bundleName || 'course';
   const isBundle = !!bundleId;
+  const isFlagship = !!flagshipProgramId;
 
-  if (!order || (!courseId && !bundleId)) {
+  if (!order || (!courseId && !bundleId && !flagshipProgramId)) {
     return (
       <Container maxWidth="sm" sx={{ py: 8 }}>
         <Alert severity="error">Payment information missing. Please retry enrollment from the course page.</Alert>
@@ -38,6 +41,8 @@ function Payment() {
   const confirmPayment = async (paymentData) => {
     if (isBundle) {
       await bundleService.confirmBundlePayment(bundleId, paymentData);
+    } else if (isFlagship) {
+      await flagshipService.confirmPayment(flagshipProgramId, paymentData);
     } else {
       await enrollmentService.confirmPayment(courseId, paymentData);
     }
@@ -71,7 +76,8 @@ function Payment() {
         enrollmentService.notifyPaymentFailed(
           courseId ? Number(courseId) : null,
           bundleId ? Number(bundleId) : null,
-          msg
+          msg,
+          flagshipProgramId ? Number(flagshipProgramId) : null
         );
       }
     } finally {

@@ -42,6 +42,7 @@ public class AdminController {
     private final CertificateRepository certificateRepository;
     private final SiteConfigService siteConfigService;
     private final MailService mailService;
+    private final com.uyirgene.course.CourseReminderScheduler courseReminderScheduler;
 
     @Value("${app.certificate.folder:uploads/certificates}")
     private String certFolder;
@@ -116,7 +117,9 @@ public class AdminController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get enrollments for a specific user")
     public ResponseEntity<List<EnrollmentResponse>> getUserEnrollments(@PathVariable("id") Long userId) {
-        List<Enrollment> enrollments = enrollmentRepository.findByUserId(userId);
+        List<Enrollment> enrollments = enrollmentRepository.findByUserId(userId).stream()
+                .filter(e -> e.getStatus() != Enrollment.Status.PENDING)
+                .collect(Collectors.toList());
         List<EnrollmentResponse> response = enrollments.stream()
                 .map(this::mapToEnrollmentResponse)
                 .collect(Collectors.toList());
@@ -165,26 +168,35 @@ public class AdminController {
                     boolean isFirstTimeMarks = enrollment.getTestCompletedAt() == null;
 
                     // Always delete existing certificate when marks are saved (admin must regenerate/re-upload)
-                    if (enrollment.getUser() != null && enrollment.getCourse() != null) {
-                        var existingCert = certificateRepository.findByUserAndCourse(enrollment.getUser(), enrollment.getCourse());
-                        if (existingCert.isPresent()) {
-                            // Delete file from disk
+                    if (enrollment.getUser() != null) {
+                        Optional<Certificate> existingCertOpt;
+                        if (enrollment.getFlagshipProgram() != null) {
+                            existingCertOpt = certificateRepository.findByUserAndFlagshipProgram(
+                                    enrollment.getUser(), enrollment.getFlagshipProgram());
+                        } else if (enrollment.getCourse() != null) {
+                            existingCertOpt = certificateRepository.findByUserAndCourse(
+                                    enrollment.getUser(), enrollment.getCourse());
+                        } else {
+                            existingCertOpt = Optional.empty();
+                        }
+                        if (existingCertOpt.isPresent()) {
                             try {
-                                java.io.File oldFile = new java.io.File(existingCert.get().getFilePath());
+                                java.io.File oldFile = new java.io.File(existingCertOpt.get().getFilePath());
                                 if (oldFile.exists()) oldFile.delete();
                             } catch (Exception ignored) {}
-                            certificateRepository.delete(existingCert.get());
+                            certificateRepository.delete(existingCertOpt.get());
                             certificateRepository.flush();
                         }
                     }
 
                     enrollment.setMarks(req.getMarks());
 
-                    // Set trainer name - use provided name or default to course trainer
+                    // Set trainer name - use provided name or default to program/course trainer
                     String trainerName = req.getTrainerName();
                     if (trainerName == null || trainerName.isBlank()) {
-                        // Default to course trainer name if not provided
-                        if (enrollment.getCourse() != null && enrollment.getCourse().getTrainerName() != null) {
+                        if (enrollment.getFlagshipProgram() != null && enrollment.getFlagshipProgram().getTrainerName() != null) {
+                            trainerName = enrollment.getFlagshipProgram().getTrainerName();
+                        } else if (enrollment.getCourse() != null && enrollment.getCourse().getTrainerName() != null) {
                             trainerName = enrollment.getCourse().getTrainerName();
                         }
                     }
@@ -212,9 +224,12 @@ public class AdminController {
                     if (isFirstTimeMarks) {
                         try {
                             User user = saved.getUser();
-                            Course course = saved.getCourse();
-                            if (user != null && course != null) {
-                                mailService.sendCourseCompletion(user, course, req.getMarks(), certTypeName);
+                            if (user != null) {
+                                if (saved.getFlagshipProgram() != null) {
+                                    mailService.sendCourseCompletion(user, saved.getFlagshipProgram(), req.getMarks(), certTypeName);
+                                } else if (saved.getCourse() != null) {
+                                    mailService.sendCourseCompletion(user, saved.getCourse(), req.getMarks(), certTypeName);
+                                }
                             }
                         } catch (Exception e) {
                             // Log but don't fail the operation
@@ -239,10 +254,14 @@ public class AdminController {
                     // Send combined results + certificate email notification
                     try {
                         User user = saved.getUser();
-                        Course course = saved.getCourse();
-                        if (user != null && course != null) {
-                            Certificate certificate = certificateRepository.findByUserAndCourse(user, course).orElse(null);
-                            mailService.sendResultPublished(user, course, saved, certificate);
+                        if (user != null) {
+                            if (saved.getFlagshipProgram() != null) {
+                                Certificate certificate = certificateRepository.findByUserAndFlagshipProgram(user, saved.getFlagshipProgram()).orElse(null);
+                                mailService.sendResultPublished(user, saved.getFlagshipProgram(), saved, certificate);
+                            } else if (saved.getCourse() != null) {
+                                Certificate certificate = certificateRepository.findByUserAndCourse(user, saved.getCourse()).orElse(null);
+                                mailService.sendResultPublished(user, saved.getCourse(), saved, certificate);
+                            }
                         }
                     } catch (Exception e) {
                         // Log but don't fail the operation
@@ -275,20 +294,35 @@ public class AdminController {
                             ? Certificate.CertificateType.COMPLETION
                             : Certificate.CertificateType.PARTICIPATION;
 
-                    // Get trainer name from enrollment (set during marks entry) or fallback to course trainer
+                    // Get trainer name from enrollment (set during marks entry) or fallback to program/course trainer
                     String trainerName = enrollment.getTrainerName();
                     if (trainerName == null || trainerName.isBlank()) {
-                        trainerName = enrollment.getCourse() != null ? enrollment.getCourse().getTrainerName() : null;
+                        if (enrollment.getFlagshipProgram() != null) {
+                            trainerName = enrollment.getFlagshipProgram().getTrainerName();
+                        } else if (enrollment.getCourse() != null) {
+                            trainerName = enrollment.getCourse().getTrainerName();
+                        }
                     }
 
-                    // Generate certificate with trainer name
-                    Certificate certificate = certificateService.generateCertificateWithType(
-                            enrollment.getUser(),
-                            enrollment.getCourse(),
-                            certType,
-                            enrollment.getMarks(),
-                            trainerName
-                    );
+                    // Generate certificate — flagship or course path
+                    Certificate certificate;
+                    if (enrollment.getFlagshipProgram() != null) {
+                        certificate = certificateService.generateCertificateForFlagship(
+                                enrollment.getUser(),
+                                enrollment.getFlagshipProgram(),
+                                certType,
+                                enrollment.getMarks(),
+                                trainerName
+                        );
+                    } else {
+                        certificate = certificateService.generateCertificateWithType(
+                                enrollment.getUser(),
+                                enrollment.getCourse(),
+                                certType,
+                                enrollment.getMarks(),
+                                trainerName
+                        );
+                    }
 
                     // Update enrollment
                     enrollment.setCertificateType(Enrollment.CertificateType.valueOf(certType.name()));
@@ -310,12 +344,21 @@ public class AdminController {
     public ResponseEntity<?> downloadCertificate(@PathVariable("id") Long enrollmentId) {
         return enrollmentRepository.findById(enrollmentId)
                 .map(enrollment -> {
-                    if (enrollment.getUser() == null || enrollment.getCourse() == null) {
+                    if (enrollment.getUser() == null) {
                         return ResponseEntity.notFound().build();
                     }
 
-                    var certOpt = certificateRepository.findByUserAndCourse(
-                            enrollment.getUser(), enrollment.getCourse());
+                    Optional<Certificate> certOpt;
+                    if (enrollment.getFlagshipProgram() != null) {
+                        certOpt = certificateRepository.findByUserAndFlagshipProgram(
+                                enrollment.getUser(), enrollment.getFlagshipProgram());
+                    } else if (enrollment.getCourse() != null) {
+                        certOpt = certificateRepository.findByUserAndCourse(
+                                enrollment.getUser(), enrollment.getCourse());
+                    } else {
+                        return ResponseEntity.notFound().build();
+                    }
+
                     if (certOpt.isEmpty()) {
                         return ResponseEntity.status(404)
                                 .body((Object) Map.of("error", "Certificate not found for this enrollment"));
@@ -387,15 +430,22 @@ public class AdminController {
 
         return enrollmentRepository.findById(enrollmentId)
                 .map(enrollment -> {
-                    if (enrollment.getUser() == null || enrollment.getCourse() == null) {
+                    boolean isFlagshipUpload = enrollment.getFlagshipProgram() != null;
+                    if (enrollment.getUser() == null || (!isFlagshipUpload && enrollment.getCourse() == null)) {
                         return ResponseEntity.badRequest()
                                 .body((Object) Map.of("error", "Invalid enrollment"));
                     }
 
                     try {
                         // Delete existing certificate if present
-                        var existingCert = certificateRepository.findByUserAndCourse(
-                                enrollment.getUser(), enrollment.getCourse());
+                        Optional<Certificate> existingCert;
+                        if (isFlagshipUpload) {
+                            existingCert = certificateRepository.findByUserAndFlagshipProgram(
+                                    enrollment.getUser(), enrollment.getFlagshipProgram());
+                        } else {
+                            existingCert = certificateRepository.findByUserAndCourse(
+                                    enrollment.getUser(), enrollment.getCourse());
+                        }
                         if (existingCert.isPresent()) {
                             try {
                                 java.io.File oldFile = new java.io.File(existingCert.get().getFilePath());
@@ -424,21 +474,28 @@ public class AdminController {
                         // Get trainer name
                         String trainerName = enrollment.getTrainerName();
                         if (trainerName == null || trainerName.isBlank()) {
-                            trainerName = enrollment.getCourse() != null ? enrollment.getCourse().getTrainerName() : null;
+                            if (isFlagshipUpload && enrollment.getFlagshipProgram() != null) {
+                                trainerName = enrollment.getFlagshipProgram().getTrainerName();
+                            } else if (enrollment.getCourse() != null) {
+                                trainerName = enrollment.getCourse().getTrainerName();
+                            }
                         }
 
                         // Create certificate record
-                        Certificate certificate = Certificate.builder()
+                        Certificate.CertificateBuilder certBuilder = Certificate.builder()
                                 .user(enrollment.getUser())
-                                .course(enrollment.getCourse())
                                 .certificateId(certId)
                                 .filePath(filePath)
                                 .issuedAt(LocalDateTime.now())
                                 .type(certType)
                                 .marks(enrollment.getMarks())
-                                .trainerName(trainerName)
-                                .build();
-                        certificateRepository.save(certificate);
+                                .trainerName(trainerName);
+                        if (isFlagshipUpload) {
+                            certBuilder.flagshipProgram(enrollment.getFlagshipProgram());
+                        } else {
+                            certBuilder.course(enrollment.getCourse());
+                        }
+                        certificateRepository.save(certBuilder.build());
 
                         // Update enrollment
                         enrollment.setCertificateType(Enrollment.CertificateType.valueOf(certType.name()));
@@ -473,27 +530,53 @@ public class AdminController {
     }
 
     private EnrollmentResponse mapToEnrollmentResponse(Enrollment e) {
+        boolean isFlagship = e.getFlagshipProgram() != null;
+
         // Check if certificate exists for this enrollment
         boolean hasCertificate = false;
         String certificateId = null;
-        if (e.getUser() != null && e.getCourse() != null) {
-            var cert = certificateRepository.findByUserAndCourse(e.getUser(), e.getCourse());
-            if (cert.isPresent()) {
+        if (e.getUser() != null) {
+            Optional<Certificate> certOpt;
+            if (isFlagship) {
+                certOpt = certificateRepository.findByUserAndFlagshipProgram(e.getUser(), e.getFlagshipProgram());
+            } else if (e.getCourse() != null) {
+                certOpt = certificateRepository.findByUserAndCourse(e.getUser(), e.getCourse());
+            } else {
+                certOpt = Optional.empty();
+            }
+            if (certOpt.isPresent()) {
                 hasCertificate = true;
-                certificateId = cert.get().getCertificateId();
+                certificateId = certOpt.get().getCertificateId();
             }
         }
 
-        // Check if course has a test link
-        boolean hasTestLink = e.getCourse() != null && e.getCourse().getTestLink() != null
-                && !e.getCourse().getTestLink().isEmpty();
+        // Resolve test link / description
+        boolean hasTestLink;
+        String testLink;
+        String testDescription;
+        if (isFlagship) {
+            FlagshipProgram fp = e.getFlagshipProgram();
+            hasTestLink = fp.getTestLink() != null && !fp.getTestLink().isEmpty();
+            testLink = fp.getTestLink();
+            testDescription = fp.getTestDescription();
+        } else {
+            hasTestLink = e.getCourse() != null && e.getCourse().getTestLink() != null
+                    && !e.getCourse().getTestLink().isEmpty();
+            testLink = e.getCourse() != null ? e.getCourse().getTestLink() : null;
+            testDescription = e.getCourse() != null ? e.getCourse().getTestDescription() : null;
+        }
 
-        // Determine pass mark
         double passMarkPercentage = getPassMarkPercentage();
 
-        // Get trainer name from enrollment or default to course trainer
         String trainerName = e.getTrainerName();
-        String defaultTrainerName = e.getCourse() != null ? e.getCourse().getTrainerName() : null;
+        String defaultTrainerName = isFlagship
+                ? (e.getFlagshipProgram().getTrainerName())
+                : (e.getCourse() != null ? e.getCourse().getTrainerName() : null);
+
+        String displayName = isFlagship ? e.getFlagshipProgram().getTitle()
+                : (e.getCourse() != null ? e.getCourse().getTitle() : "Unknown");
+        Double displayPrice = isFlagship ? e.getFlagshipProgram().getPrice()
+                : (e.getCourse() != null ? e.getCourse().getPrice() : null);
 
         return EnrollmentResponse.builder()
                 .id(e.getId())
@@ -501,9 +584,9 @@ public class AdminController {
                 .userName(e.getUser() != null ? e.getUser().getName() : "Unknown")
                 .userEmail(e.getUser() != null ? e.getUser().getEmail() : "Unknown")
                 .courseId(e.getCourse() != null ? e.getCourse().getId() : null)
-                .courseName(e.getCourse() != null ? e.getCourse().getTitle() : "Unknown")
+                .courseName(displayName)
                 .status(e.getStatus() != null ? e.getStatus().name() : "UNKNOWN")
-                .coursePrice(e.getCourse() != null ? e.getCourse().getPrice() : null)
+                .coursePrice(displayPrice)
                 .enrolledAt(e.getEnrolledAt() != null ? e.getEnrolledAt().toString() : null)
                 .marks(e.getMarks())
                 .passMarkPercentage(passMarkPercentage)
@@ -514,11 +597,14 @@ public class AdminController {
                 .hasCertificate(hasCertificate)
                 .certificateId(certificateId)
                 .hasTestLink(hasTestLink)
-                .testLink(e.getCourse() != null ? e.getCourse().getTestLink() : null)
-                .testDescription(e.getCourse() != null ? e.getCourse().getTestDescription() : null)
+                .testLink(testLink)
+                .testDescription(testDescription)
                 .canGenerateCertificate(e.getMarks() != null)
                 .trainerName(trainerName)
                 .defaultTrainerName(defaultTrainerName)
+                .isFlagship(isFlagship)
+                .flagshipProgramId(isFlagship ? e.getFlagshipProgram().getId() : null)
+                .flagshipProgramName(isFlagship ? e.getFlagshipProgram().getTitle() : null)
                 .build();
     }
 
@@ -796,5 +882,17 @@ public class AdminController {
         private String trainerName;
         // Default trainer name from course (for UI to show as default)
         private String defaultTrainerName;
+        // Flagship program fields
+        private Boolean isFlagship;
+        private Long flagshipProgramId;
+        private String flagshipProgramName;
+    }
+
+    @PostMapping("/trigger-reminders")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Manually trigger course completion reminder emails (for testing)")
+    public ResponseEntity<Map<String, String>> triggerReminders() {
+        courseReminderScheduler.sendCourseReminders();
+        return ResponseEntity.ok(Map.of("message", "Reminder job triggered. Check server logs for details."));
     }
 }

@@ -80,6 +80,7 @@ export default defineConfig({
       '@utils': path.resolve(__dirname, './src/utils'),
       '@styles': path.resolve(__dirname, './src/styles'),
     },
+    dedupe: ['@emotion/react', '@emotion/styled', '@mui/material'],
   },
   server: {
     port: 5173,

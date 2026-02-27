@@ -14,6 +14,7 @@ import java.util.List;
 public class VideoProgressService {
     private final VideoProgressRepository progressRepo;
     private final VideoRepository videoRepo;
+    private final FlagshipVideoRepository flagshipVideoRepo;
     private final EnrollmentRepository enrollmentRepo;
     private final EnrollmentService enrollmentService;
     private final CertificateService certificateService;
@@ -53,5 +54,31 @@ public class VideoProgressService {
         User user = currentUserService.getCurrentUser();
         Video v = videoRepo.findById(videoId).orElseThrow(() -> new IllegalArgumentException("Video not found"));
         return progressRepo.findByUserAndVideo(user, v).orElse(null);
+    }
+
+    @Transactional
+    public VideoProgress updateFlagshipVideoProgress(Long flagshipVideoId, Long lastPositionSeconds, boolean markCompleted) {
+        User user = currentUserService.getCurrentUser();
+        FlagshipVideo fv = flagshipVideoRepo.findById(flagshipVideoId)
+                .orElseThrow(() -> new IllegalArgumentException("Flagship video not found"));
+
+        VideoProgress p = progressRepo.findByUserAndFlagshipVideo(user, fv)
+                .orElseGet(() -> VideoProgress.builder().user(user).flagshipVideo(fv).build());
+        if (lastPositionSeconds != null) {
+            p.setLastPositionSeconds(lastPositionSeconds);
+        }
+        p.setLastSeenAt(LocalDateTime.now());
+        if (markCompleted || (fv.getDurationSeconds() != null && lastPositionSeconds != null
+                && lastPositionSeconds >= fv.getDurationSeconds())) {
+            p.setCompleted(true);
+        }
+        return progressRepo.save(p);
+    }
+
+    public VideoProgress getFlagshipVideoProgress(Long flagshipVideoId) {
+        User user = currentUserService.getCurrentUser();
+        FlagshipVideo fv = flagshipVideoRepo.findById(flagshipVideoId)
+                .orElseThrow(() -> new IllegalArgumentException("Flagship video not found"));
+        return progressRepo.findByUserAndFlagshipVideo(user, fv).orElse(null);
     }
 }

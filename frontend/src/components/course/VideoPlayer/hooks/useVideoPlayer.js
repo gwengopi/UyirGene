@@ -38,6 +38,7 @@ export function useVideoPlayer({
     if (video) {
       video.play().catch(console.error);
       setIsPlaying(true);
+      // Note: onPlay is fired via native HTML5 'play' event in DirectVideoPlayer
     }
   }, [setIsPlaying]);
 

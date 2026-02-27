@@ -67,6 +67,23 @@ public class VideoController {
         return ResponseEntity.ok(p);
     }
 
+    @PostMapping("/api/flagship-videos/{id}/progress")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Update last played position for a flagship video")
+    public ResponseEntity<VideoProgress> updateFlagshipProgress(@PathVariable("id") Long id, @RequestBody ProgressUpdateDto dto) {
+        VideoProgress p = progressService.updateFlagshipVideoProgress(id, dto.getLastPositionSeconds(), Boolean.TRUE.equals(dto.getCompleted()));
+        return ResponseEntity.ok(p);
+    }
+
+    @GetMapping("/api/flagship-videos/{id}/progress")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Get last played position for a flagship video")
+    public ResponseEntity<VideoProgress> getFlagshipProgress(@PathVariable("id") Long id) {
+        VideoProgress p = progressService.getFlagshipVideoProgress(id);
+        if (p == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(p);
+    }
+
     @Data
     public static class DecryptUrlRequest {
         private String encryptedUrl;

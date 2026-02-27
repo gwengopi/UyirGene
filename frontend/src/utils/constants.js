@@ -85,6 +85,7 @@ export const ROUTES = {
   COURSES_CATEGORY: (code) => `/courses/category/${code}`,
   COURSE_DETAIL: (id) => `/courses/${id}`,
   BUNDLE_DETAIL: (id) => `/bundles/${id}`,
+  FLAGSHIP_DETAIL: (id) => `/flagship/${id}`,
   MY_COURSES: '/my-courses',
   DASHBOARD: '/dashboard',
   PROFILE: '/profile',
@@ -100,13 +101,18 @@ export const ROUTES = {
     CERTIFICATE_TEMPLATES: '/admin/certificate-templates',
     BUNDLES: '/admin/bundles',
     MAIL_TEMPLATES: '/admin/mail-templates',
+    FLAGSHIP_PROGRAMS: '/admin/flagship-programs',
+    MARKETING_CAMPAIGNS: '/admin/marketing-campaigns',
+    STANDARDS: '/admin/standards',
   },
+  STANDARDS: '/standards',
   INSTRUCTOR: {
     COURSES: '/instructor/courses',
   },
   UNAUTHORIZED: '/unauthorized',
   PAYMENT: '/payment',
   NOT_FOUND: '/404',
+  UNSUBSCRIBE: '/unsubscribe',
 };
 
 // Default values

@@ -19,6 +19,7 @@ public class PaymentController {
     private final MailService mailService;
     private final CourseRepository courseRepository;
     private final CourseBundleRepository bundleRepository;
+    private final FlagshipProgramRepository flagshipProgramRepository;
     private final CurrentUserService currentUserService;
 
     @Value("${app.base-url:http://localhost:8080}")
@@ -28,6 +29,7 @@ public class PaymentController {
     public static class PaymentFailedRequest {
         private Long courseId;
         private Long bundleId;
+        private Long flagshipId;
         private String reason;
     }
 
@@ -48,6 +50,10 @@ public class PaymentController {
                 CourseBundle bundle = bundleRepository.findById(req.getBundleId()).orElse(null);
                 courseTitle = bundle != null ? bundle.getTitle() : "your bundle";
                 retryUrl = baseUrl + "/bundles/" + req.getBundleId();
+            } else if (req.getFlagshipId() != null) {
+                FlagshipProgram program = flagshipProgramRepository.findById(req.getFlagshipId()).orElse(null);
+                courseTitle = program != null ? program.getTitle() : "your program";
+                retryUrl = baseUrl + "/flagship/" + req.getFlagshipId();
             } else {
                 courseTitle = "your course";
                 retryUrl = baseUrl + "/courses";

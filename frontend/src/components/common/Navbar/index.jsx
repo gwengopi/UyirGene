@@ -109,6 +109,7 @@ function Navbar() {
   const publicNavItems = [
     { label: 'Home', path: ROUTES.HOME, icon: <HomeIcon /> },
     { label: 'Courses', path: ROUTES.COURSES, icon: <SchoolIcon /> },
+    { label: 'Standards', path: ROUTES.STANDARDS, icon: <MenuBookIcon /> },
     { label: 'Verify Certificate', path: ROUTES.VERIFY_CERTIFICATE, icon: <VerifiedUserIcon /> },
   ];
 

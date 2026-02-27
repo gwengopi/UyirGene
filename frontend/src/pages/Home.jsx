@@ -22,7 +22,6 @@ import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
 import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
-import StarHalfIcon from '@mui/icons-material/StarHalf';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import GoogleIcon from '@mui/icons-material/Google';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
@@ -36,23 +35,14 @@ import SecurityIcon from '@mui/icons-material/Security';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation, Pagination, Autoplay } from 'swiper/modules';
-import 'swiper/css';
-import 'swiper/css/navigation';
-import 'swiper/css/pagination';
 import { Button, SEO } from '../components/common';
 import { organizationSchema } from '../components/common/SEO';
-import { CourseCard } from '../components/course';
-import { courseService, reviewService } from '../services';
+import FlagshipProgramCard from '../components/course/FlagshipProgramCard';
+import { reviewService } from '../services';
+import { flagshipService } from '../services/flagshipService';
 import { useAuth, useToast, useConfig, useUI } from '../store';
 import { useScrollAnimation, useAnimatedCounter } from '../hooks';
 import { ROUTES, IMAGES } from '../utils/constants';
-import { formatCurrency, formatDurationHours } from '../utils/formatters';
-import { getApiBaseUrl } from '../services/api';
 
 // Stat counter sub-component
 function StatItem({ value, suffix, label, icon, isVisible }) {
@@ -76,7 +66,7 @@ function Home() {
   const { showError } = useToast();
   const { getImage } = useConfig();
   const { isDarkMode } = useUI();
-  const [flagshipCourses, setFlagshipCourses] = useState([]);
+  const [flagshipPrograms, setFlagshipPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState([]);
   const [googleReviewLink, setGoogleReviewLink] = useState('');
@@ -91,17 +81,17 @@ function Home() {
   const ctaAnim = useScrollAnimation({ threshold: 0.2 });
 
   useEffect(() => {
-    const loadFlagshipCourses = async () => {
+    const loadFlagshipPrograms = async () => {
       try {
-        const courses = await courseService.getFlagshipCourses();
-        setFlagshipCourses(courses);
-      } catch (error) {
-        showError('Failed to load courses');
+        const programs = await flagshipService.getActivePrograms();
+        setFlagshipPrograms(programs);
+      } catch {
+        // Non-critical — section will be hidden
       } finally {
         setLoading(false);
       }
     };
-    loadFlagshipCourses();
+    loadFlagshipPrograms();
 
     const loadReviews = async () => {
       try {
@@ -920,35 +910,6 @@ function Home() {
           opacity: coursesAnim.isVisible ? 1 : 0,
           transform: coursesAnim.isVisible ? 'translateY(0)' : 'translateY(30px)',
           transition: 'opacity 0.8s ease, transform 0.8s ease',
-          /* Swiper theme overrides */
-          '& .flagship-swiper': {
-            pb: 6,
-            overflow: 'hidden',
-          },
-          '& .flagship-swiper .swiper-wrapper': {
-            alignItems: 'stretch',
-          },
-          '& .flagship-swiper .swiper-slide': {
-            height: 'auto',
-          },
-          '& .flagship-swiper .swiper-pagination': {
-            bottom: 0,
-          },
-          '& .flagship-swiper .swiper-pagination-bullet': {
-            width: 10,
-            height: 10,
-            bgcolor: isDarkMode ? 'rgba(255,255,255,0.25)' : 'rgba(69,90,100,0.25)',
-            opacity: 1,
-            transition: 'all 0.3s ease',
-          },
-          '& .flagship-swiper .swiper-pagination-bullet-active': {
-            bgcolor: 'primary.main',
-            width: 28,
-            borderRadius: '5px',
-          },
-          '& .flagship-swiper .swiper-button-prev, & .flagship-swiper .swiper-button-next': {
-            display: 'none',
-          },
         }}
       >
         <Container maxWidth="lg">
@@ -979,320 +940,31 @@ function Home() {
             <Button
               variant="outlined"
               endIcon={<ArrowForwardIcon />}
-              onClick={() => navigate(ROUTES.COURSES)}
+              onClick={() => navigate(ROUTES.COURSES_FLAGSHIP)}
               sx={{ borderRadius: 2, fontWeight: 600, flexShrink: 0 }}
             >
-              View All Courses
+              View All Programs
             </Button>
           </Box>
 
-          {/* Flagship Carousel */}
-          <Box sx={{ position: 'relative' }}>
-            {loading ? (
-              <Grid container spacing={2}>
-                {[1, 2, 3].map((i) => (
-                  <Grid item xs={12} sm={6} md={4} key={i}>
-                    <Paper elevation={0} sx={{ borderRadius: 3, overflow: 'hidden', bgcolor: isDarkMode ? 'rgba(255,255,255,0.04)' : '#fff' }}>
-                      <Skeleton variant="rectangular" height={160} animation="wave" />
-                      <Box sx={{ p: 2 }}>
-                        <Skeleton variant="text" width="40%" height={20} animation="wave" />
-                        <Skeleton variant="text" width="90%" height={28} animation="wave" sx={{ mt: 1 }} />
-                        <Skeleton variant="text" width="100%" animation="wave" sx={{ mt: 1 }} />
-                        <Skeleton variant="text" width="70%" animation="wave" />
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-                          <Skeleton variant="text" width={60} animation="wave" />
-                          <Skeleton variant="rectangular" width={100} height={32} animation="wave" sx={{ borderRadius: 1 }} />
-                        </Box>
-                      </Box>
-                    </Paper>
-                  </Grid>
-                ))}
-              </Grid>
-            ) : flagshipCourses.length > 0 ? (
-              <>
-                <Swiper
-                  className="flagship-swiper"
-                  modules={[Navigation, Pagination, Autoplay]}
-                  slidesPerView={1.15}
-                  spaceBetween={16}
-                  breakpoints={{
-                    600: { slidesPerView: 1.5, spaceBetween: 16 },
-                    900: { slidesPerView: 2.5, spaceBetween: 20 },
-                    1200: { slidesPerView: 2.5, spaceBetween: 24 },
-                  }}
-                  navigation={{
-                    prevEl: '.flagship-prev',
-                    nextEl: '.flagship-next',
-                  }}
-                  pagination={{ clickable: true }}
-                  autoplay={{ delay: 4000, disableOnInteraction: false, pauseOnMouseEnter: true }}
-                  loop={flagshipCourses.length > 2}
-                  speed={500}
-                >
-                  {flagshipCourses.map((course) => {
-                    const imagePath = course.thumbnailImageUrl || course.imageUrl;
-                    const imageUrl = imagePath
-                      ? `${getApiBaseUrl()}${imagePath}`
-                      : IMAGES.COURSE_PLACEHOLDER;
-                    const isFree = !course.price || course.price === 0;
-
-                    return (
-                      <SwiperSlide key={course.id}>
-                        <Paper
-                          elevation={0}
-                          onClick={() => navigate(ROUTES.COURSE_DETAIL(course.id))}
-                          sx={{
-                            borderRadius: 3,
-                            overflow: 'hidden',
-                            cursor: 'pointer',
-                            height: '100%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            background: isDarkMode ? 'rgba(255,255,255,0.04)' : '#ffffff',
-                            border: '1px solid',
-                            borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(69,90,100,0.1)',
-                            transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-                            '&:hover': {
-                              transform: 'translateY(-4px)',
-                              boxShadow: isDarkMode
-                                ? '0 12px 32px rgba(0,0,0,0.4)'
-                                : '0 12px 32px rgba(69,90,100,0.15)',
-                            },
-                            '&:hover .flagship-image': {
-                              transform: 'scale(1.06)',
-                            },
-                          }}
-                        >
-                          {/* Image */}
-                          <Box sx={{ position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
-                            <CardMedia
-                              component="img"
-                              image={imageUrl}
-                              alt={course.title}
-                              className="flagship-image"
-                              sx={{
-                                height: 170,
-                                width: '100%',
-                                objectFit: 'cover',
-                                transition: 'transform 0.5s ease',
-                              }}
-                            />
-                            {/* Bottom gradient on image */}
-                            <Box
-                              sx={{
-                                position: 'absolute',
-                                bottom: 0, left: 0, right: 0,
-                                height: '50%',
-                                background: 'linear-gradient(to top, rgba(0,0,0,0.4), transparent)',
-                              }}
-                            />
-                            {/* Flagship badge on image */}
-                            <Box
-                              sx={{
-                                position: 'absolute',
-                                top: 12,
-                                left: 12,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 0.5,
-                                px: 1,
-                                py: 0.3,
-                                borderRadius: 1,
-                                bgcolor: 'rgba(0,0,0,0.55)',
-                                backdropFilter: 'blur(8px)',
-                                color: '#fff',
-                              }}
-                            >
-                              <EmojiEventsIcon sx={{ fontSize: 13 }} />
-                              <Typography variant="caption" sx={{ fontWeight: 700, fontSize: '0.6rem', letterSpacing: 0.8, textTransform: 'uppercase' }}>
-                                Flagship
-                              </Typography>
-                            </Box>
-                            {/* Category chip */}
-                            {course.category && (
-                              <Chip
-                                label={course.category}
-                                size="small"
-                                sx={{
-                                  position: 'absolute',
-                                  top: 12,
-                                  right: 12,
-                                  bgcolor: 'rgba(0,0,0,0.55)',
-                                  color: '#fff',
-                                  fontWeight: 600,
-                                  backdropFilter: 'blur(8px)',
-                                  fontSize: '0.65rem',
-                                  height: 24,
-                                }}
-                              />
-                            )}
-                            {/* Price tag on image */}
-                            <Typography
-                              sx={{
-                                position: 'absolute',
-                                bottom: 10,
-                                right: 12,
-                                fontWeight: 700,
-                                fontSize: '0.95rem',
-                                color: '#fff',
-                                textShadow: '0 1px 6px rgba(0,0,0,0.5)',
-                              }}
-                            >
-                              {formatCurrency(course.price)}
-                            </Typography>
-                          </Box>
-
-                          {/* Content */}
-                          <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', flex: 1 }}>
-                            <Typography
-                              variant="subtitle1"
-                              component="h3"
-                              fontWeight={700}
-                              sx={{
-                                lineHeight: 1.3,
-                                mb: 0.75,
-                                display: '-webkit-box',
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: 'vertical',
-                                overflow: 'hidden',
-                                fontSize: '0.95rem',
-                              }}
-                            >
-                              {course.title}
-                            </Typography>
-
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              sx={{
-                                lineHeight: 1.6,
-                                mb: 2,
-                                flex: 1,
-                                display: '-webkit-box',
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: 'vertical',
-                                overflow: 'hidden',
-                                fontSize: '0.8rem',
-                              }}
-                            >
-                              {course.shortDescription || course.description}
-                            </Typography>
-
-                            {/* Meta row */}
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5, flexWrap: 'wrap' }}>
-                              {course.durationHours && (
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                  <AccessTimeIcon sx={{ fontSize: 15, color: 'text.secondary' }} />
-                                  <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                                    {formatDurationHours(course.durationHours)}
-                                  </Typography>
-                                </Box>
-                              )}
-                              {course.trainerName && (
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                  <SchoolIcon sx={{ fontSize: 15, color: 'text.secondary' }} />
-                                  <Typography variant="caption" color="text.secondary" fontWeight={500} noWrap sx={{ maxWidth: 120 }}>
-                                    {course.trainerName}
-                                  </Typography>
-                                </Box>
-                              )}
-                            </Box>
-
-                            {/* CTA */}
-                            <Button
-                              variant="contained"
-                              size="small"
-                              fullWidth
-                              endIcon={<ArrowForwardIcon sx={{ fontSize: 16 }} />}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(ROUTES.COURSE_DETAIL(course.id));
-                              }}
-                              sx={{
-                                borderRadius: 1.5,
-                                fontWeight: 600,
-                                fontSize: '0.8rem',
-                                py: 0.8,
-                                mt: 'auto',
-                              }}
-                            >
-                              {isFree ? 'Enroll Free' : 'Enroll & Get Certified'}
-                            </Button>
-                          </Box>
-                        </Paper>
-                      </SwiperSlide>
-                    );
-                  })}
-                </Swiper>
-
-                {/* Custom Navigation Arrows */}
-                {flagshipCourses.length > 2 && (
-                  <>
-                    <Box
-                      className="flagship-prev"
-                      sx={{
-                        position: 'absolute',
-                        left: { xs: 8, md: 8 },
-                        top: '40%',
-                        transform: 'translateY(-50%)',
-                        zIndex: 10,
-                        width: { xs: 32, md: 40 },
-                        height: { xs: 32, md: 40 },
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: isDarkMode ? 'rgba(255,255,255,0.12)' : '#ffffff',
-                        border: '1px solid',
-                        borderColor: isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(69,90,100,0.15)',
-                        boxShadow: isDarkMode
-                          ? '0 4px 12px rgba(0,0,0,0.4)'
-                          : '0 4px 12px rgba(69,90,100,0.15)',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease',
-                        '&:hover': {
-                          bgcolor: isDarkMode ? 'rgba(255,255,255,0.2)' : '#f5f5f5',
-                          transform: 'translateY(-50%) scale(1.1)',
-                        },
-                      }}
-                    >
-                      <ChevronLeftIcon sx={{ fontSize: { xs: 18, md: 24 }, color: isDarkMode ? '#fff' : '#37474f' }} />
-                    </Box>
-                    <Box
-                      className="flagship-next"
-                      sx={{
-                        position: 'absolute',
-                        right: { xs: 8, md: 8 },
-                        top: '40%',
-                        transform: 'translateY(-50%)',
-                        zIndex: 10,
-                        width: { xs: 32, md: 40 },
-                        height: { xs: 32, md: 40 },
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: isDarkMode ? 'rgba(255,255,255,0.12)' : '#ffffff',
-                        border: '1px solid',
-                        borderColor: isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(69,90,100,0.15)',
-                        boxShadow: isDarkMode
-                          ? '0 4px 12px rgba(0,0,0,0.4)'
-                          : '0 4px 12px rgba(69,90,100,0.15)',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease',
-                        '&:hover': {
-                          bgcolor: isDarkMode ? 'rgba(255,255,255,0.2)' : '#f5f5f5',
-                          transform: 'translateY(-50%) scale(1.1)',
-                        },
-                      }}
-                    >
-                      <ChevronRightIcon sx={{ fontSize: { xs: 18, md: 24 }, color: isDarkMode ? '#fff' : '#37474f' }} />
-                    </Box>
-                  </>
-                )}
-              </>
-            ) : null}
-          </Box>
+          {/* Flagship Programs Grid */}
+          {loading ? (
+            <Grid container spacing={3}>
+              {[1, 2, 3].map((i) => (
+                <Grid item xs={12} sm={6} md={4} key={i}>
+                  <Skeleton variant="rectangular" height={360} sx={{ borderRadius: 3 }} animation="wave" />
+                </Grid>
+              ))}
+            </Grid>
+          ) : flagshipPrograms.length > 0 ? (
+            <Grid container spacing={3}>
+              {flagshipPrograms.slice(0, 3).map((program) => (
+                <Grid item xs={12} sm={6} md={4} key={program.id}>
+                  <FlagshipProgramCard program={program} />
+                </Grid>
+              ))}
+            </Grid>
+          ) : null}
         </Container>
       </Box>
 

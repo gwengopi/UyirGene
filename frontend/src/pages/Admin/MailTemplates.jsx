@@ -25,8 +25,9 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import EmailIcon from '@mui/icons-material/Email';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import AdminLayout from '../../components/admin/AdminLayout';
-import { getMailTemplates, updateMailTemplate } from '../../services/mailTemplateService';
+import { getMailTemplates, updateMailTemplate, triggerReminders } from '../../services/mailTemplateService';
 
 // Sample values shown in the preview in place of real variables
 const COURSE_LIST_SAMPLE = `
@@ -81,6 +82,7 @@ export default function AdminMailTemplates() {
   const [saving, setSaving] = useState(false);
 
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [triggeringReminders, setTriggeringReminders] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -122,6 +124,18 @@ export default function AdminMailTemplates() {
       setSnackbar({ open: true, message: 'Failed to save template.', severity: 'error' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTriggerReminders = async () => {
+    try {
+      setTriggeringReminders(true);
+      await triggerReminders();
+      setSnackbar({ open: true, message: 'Reminder job triggered. Check server logs for details.', severity: 'success' });
+    } catch {
+      setSnackbar({ open: true, message: 'Failed to trigger reminder job.', severity: 'error' });
+    } finally {
+      setTriggeringReminders(false);
     }
   };
 
@@ -202,6 +216,29 @@ export default function AdminMailTemplates() {
           </Table>
         </TableContainer>
       )}
+
+      {/* Reminder trigger panel */}
+      <Paper variant="outlined" sx={{ mt: 4, p: 3 }}>
+        <Stack direction="row" alignItems="flex-start" spacing={2}>
+          <NotificationsActiveIcon color="action" sx={{ mt: 0.5 }} />
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+              Course Completion Reminders
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              The reminder job runs automatically every day at 9:00 AM. Click below to trigger it manually right now (useful for testing). Check the server logs after clicking to see which enrollments were processed.
+            </Typography>
+            <Button
+              variant="outlined"
+              startIcon={triggeringReminders ? <CircularProgress size={16} /> : <NotificationsActiveIcon />}
+              onClick={handleTriggerReminders}
+              disabled={triggeringReminders}
+            >
+              {triggeringReminders ? 'Running…' : 'Send Reminders Now'}
+            </Button>
+          </Box>
+        </Stack>
+      </Paper>
 
       {/* Edit Dialog — wider when preview is available */}
       <Dialog

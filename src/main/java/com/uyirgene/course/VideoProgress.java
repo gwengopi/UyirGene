@@ -19,8 +19,13 @@ public class VideoProgress {
     private User user;
 
     @JsonIgnore
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = true)
     private Video video;
+
+    @JsonIgnore
+    @ManyToOne(optional = true)
+    @JoinColumn(name = "flagship_video_id")
+    private FlagshipVideo flagshipVideo;
 
     private Long lastPositionSeconds;
     private LocalDateTime lastSeenAt;
@@ -29,7 +34,9 @@ public class VideoProgress {
 
     @JsonProperty("videoId")
     public Long getVideoId() {
-        return video != null ? video.getId() : null;
+        if (video != null) return video.getId();
+        if (flagshipVideo != null) return flagshipVideo.getId();
+        return null;
     }
 
     @JsonProperty("userId")

@@ -166,9 +166,9 @@ export async function processRazorpayPayment(options) {
  * Notify backend of a payment failure so a failure email can be sent to the user.
  * Non-throwing — failure to notify should not block the UI.
  */
-export async function notifyPaymentFailed(courseId, bundleId, reason) {
+export async function notifyPaymentFailed(courseId, bundleId, reason, flagshipId) {
   try {
-    await api.post('/api/payment/failed', { courseId, bundleId, reason });
+    await api.post('/api/payment/failed', { courseId, bundleId, flagshipId, reason });
   } catch (e) {
     // Non-critical — don't propagate
   }

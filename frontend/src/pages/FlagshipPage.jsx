@@ -1,90 +1,22 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Container, Typography, Box, CircularProgress, Alert } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Container, Typography, Box, CircularProgress, Alert, Grid } from '@mui/material';
 import StarIcon from '@mui/icons-material/Star';
 import { Breadcrumb, SEO } from '../components/common';
-import { CourseList } from '../components/course';
-import { courseService, enrollmentService } from '../services';
-import { useAuth, useToast } from '../store';
+import FlagshipProgramCard from '../components/course/FlagshipProgramCard';
+import { flagshipService } from '../services/flagshipService';
 import { ROUTES } from '../utils/constants';
 
 function FlagshipPage() {
-  const { isAuthenticated } = useAuth();
-  const { showSuccess, showError } = useToast();
-  const navigate = useNavigate();
-
-  const [courses, setCourses] = useState([]);
-  const [enrolledIds, setEnrolledIds] = useState([]);
+  const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [enrollingId, setEnrollingId] = useState(null);
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const data = await courseService.getFlagshipCourses();
-        setCourses(data);
-
-        if (isAuthenticated()) {
-          try {
-            const enrolled = await enrollmentService.getEnrolledCourses();
-            const confirmed = enrolled.filter(
-              (e) => e.status === 'ENROLLED' || e.status === 'COMPLETED'
-            );
-            setEnrolledIds(confirmed.map((e) => e.course?.id || e.id));
-          } catch {
-            // Non-critical
-          }
-        }
-      } catch {
-        setError('Failed to load flagship courses.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [isAuthenticated]);
-
-  const handleEnroll = useCallback(
-    async (courseId) => {
-      if (!isAuthenticated()) {
-        showError('Please login to enroll in courses');
-        return;
-      }
-      if (enrolledIds.includes(courseId)) {
-        showError('You are already enrolled in this course');
-        return;
-      }
-      setEnrollingId(courseId);
-      try {
-        const result = await enrollmentService.startEnrollment(courseId);
-        const order = result && (result.order ? result.order : result.orderId ? result : null);
-        if (order) {
-          navigate(ROUTES.PAYMENT, {
-            state: {
-              courseId,
-              courseName: courses.find((c) => c.id === courseId)?.title,
-              order,
-            },
-          });
-          return;
-        }
-        setEnrolledIds((prev) => [...prev, courseId]);
-        showSuccess('Successfully enrolled in the course!');
-      } catch (err) {
-        if (err.message === 'Payment cancelled') return;
-        if (err.response?.status === 401) {
-          showError('Session expired. Please login again.');
-        } else {
-          showError(err.message || 'Failed to enroll');
-        }
-      } finally {
-        setEnrollingId(null);
-      }
-    },
-    [isAuthenticated, enrolledIds, courses, showSuccess, showError, navigate]
-  );
+    flagshipService.getActivePrograms()
+      .then(setPrograms)
+      .catch(() => setError('Failed to load flagship programs.'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const breadcrumbItems = [
     { label: 'Courses', path: ROUTES.COURSES },
@@ -118,16 +50,18 @@ function FlagshipPage() {
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
           <CircularProgress />
         </Box>
+      ) : programs.length === 0 ? (
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <Typography color="text.secondary">No flagship programs available yet. Check back soon!</Typography>
+        </Box>
       ) : (
-        <CourseList
-          courses={courses}
-          enrolledIds={enrolledIds}
-          onEnroll={handleEnroll}
-          loading={loading}
-          enrollingId={enrollingId}
-          emptyTitle="No flagship courses available"
-          emptyDescription="Check back later for new flagship programs."
-        />
+        <Grid container spacing={3}>
+          {programs.map((program) => (
+            <Grid item xs={12} sm={6} md={4} key={program.id}>
+              <FlagshipProgramCard program={program} />
+            </Grid>
+          ))}
+        </Grid>
       )}
     </Container>
   );
