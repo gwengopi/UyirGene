@@ -6,12 +6,14 @@ import Watermark from './Watermark';
 import { PROGRESS_SAVE_INTERVAL } from '../utils/constants';
 
 /**
- * Embedded video player for YouTube, Vimeo, Google Drive
- * Uses iframe with overlay protections
+ * Embedded video player for YouTube, Vimeo, Google Drive.
  *
- * Completion detection:
- *  - YouTube: listens for postMessage onStateChange event (state 1 = playing)
- *  - Others: transparent first-click interceptor overlay
+ * Completion detection — transparent click interceptor overlay:
+ *   - Sits above the iframe (zIndex 9), below branding overlays (zIndex 10+).
+ *   - First click anywhere on the video fires onPlay (marks complete) and
+ *     removes itself so future clicks reach the iframe.
+ *   - For YouTube (enablejsapi=1 already in URL): also sends a postMessage
+ *     playVideo command so the video starts automatically on first click.
  */
 function EmbeddedPlayer({ src, title, onProgress, onComplete, onPlay, initialPosition = 0, userEmail }) {
   const containerRef = useRef(null);
@@ -19,7 +21,6 @@ function EmbeddedPlayer({ src, title, onProgress, onComplete, onPlay, initialPos
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const hasPlayedRef = useRef(false);
-  // For non-YouTube: whether the transparent click overlay is still active
   const [overlayActive, setOverlayActive] = useState(true);
   const progressRef = useRef(initialPosition);
 
@@ -34,71 +35,49 @@ function EmbeddedPlayer({ src, title, onProgress, onComplete, onPlay, initialPos
 
   // Handle fullscreen changes
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
+    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // ── YouTube: detect play via postMessage ───────────────────────────────────
-  // YouTube IFrame API fires window.message events when state changes.
-  // State 1 = PLAYING. The embed URL already has enablejsapi=1.
+  // Detect isPlaying via window blur/focus (for progress interval only)
   useEffect(() => {
-    if (!isYouTube) return;
-
-    const handleMessage = (event) => {
-      if (hasPlayedRef.current) return;
-      try {
-        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        // YouTube state change: info 1 = playing
-        if (data && data.event === 'onStateChange' && data.info === 1) {
-          hasPlayedRef.current = true;
-          setIsPlaying(true);
-          onPlay?.();
-        }
-      } catch (_) {
-        // Not a YouTube message, ignore
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [isYouTube, onPlay]);
-
-  // ── Non-YouTube: track isPlaying via window blur/focus ────────────────────
-  // (used only for progress tracking interval, not for completion)
-  useEffect(() => {
-    if (isYouTube) return;
-
     const handleBlur = () => setIsPlaying(true);
     const handleFocus = () => {
       setTimeout(() => {
-        if (document.activeElement !== iframeRef.current) {
-          setIsPlaying(false);
-        }
+        if (document.activeElement !== iframeRef.current) setIsPlaying(false);
       }, 200);
     };
-
     window.addEventListener('blur', handleBlur);
     window.addEventListener('focus', handleFocus);
     return () => {
       window.removeEventListener('blur', handleBlur);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [isYouTube]);
+  }, []);
 
-  // ── First-click overlay handler (non-YouTube) ─────────────────────────────
+  // First-click overlay: marks complete, removes itself, auto-plays YouTube
   const handleOverlayClick = useCallback(() => {
-    // Fire onPlay exactly once
+    // Mark as complete exactly once
     if (!hasPlayedRef.current) {
       hasPlayedRef.current = true;
       onPlay?.();
     }
-    // Remove overlay so future clicks reach the iframe
+    // Remove overlay so future clicks go straight to the iframe
     setOverlayActive(false);
     setIsPlaying(true);
-  }, [onPlay]);
+
+    // For YouTube: send playVideo command so the video starts automatically
+    // (enablejsapi=1 is already in the embed URL, so this command is accepted)
+    if (isYouTube && iframeRef.current) {
+      try {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: 'command', func: 'playVideo', args: [] }),
+          '*'
+        );
+      } catch (_) {}
+    }
+  }, [onPlay, isYouTube]);
 
   const toggleFullscreen = useCallback(() => {
     const container = containerRef.current;
@@ -123,9 +102,7 @@ function EmbeddedPlayer({ src, title, onProgress, onComplete, onPlay, initialPos
   // Save progress on unmount
   useEffect(() => {
     return () => {
-      if (progressRef.current > 0 && onProgress) {
-        onProgress(progressRef.current);
-      }
+      if (progressRef.current > 0 && onProgress) onProgress(progressRef.current);
     };
   }, [onProgress]);
 
@@ -146,7 +123,7 @@ function EmbeddedPlayer({ src, title, onProgress, onComplete, onPlay, initialPos
         WebkitTouchCallout: 'none',
       }}
     >
-      {/* Aspect ratio container */}
+      {/* 16:9 aspect ratio container */}
       <Box sx={{ position: 'relative', paddingTop: '56.25%', width: '100%' }}>
 
         {/* Iframe */}
@@ -155,16 +132,29 @@ function EmbeddedPlayer({ src, title, onProgress, onComplete, onPlay, initialPos
           src={src}
           title={title}
           style={{
-            position: 'absolute',
-            top: 0, left: 0,
-            width: '100%', height: '100%',
-            border: 'none',
+            position: 'absolute', top: 0, left: 0,
+            width: '100%', height: '100%', border: 'none',
           }}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
           allowFullScreen
         />
 
-        {/* ── Branding overlays ── */}
+        {/* ── Transparent first-click interceptor ── */}
+        {/* Covers the whole player (below branding overlays at z=10+).    */}
+        {/* First click → onPlay fired + overlay removed + YouTube plays.  */}
+        {overlayActive && (
+          <Box
+            sx={{
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              zIndex: 9,
+              cursor: 'pointer',
+              backgroundColor: 'transparent',
+            }}
+            onClick={handleOverlayClick}
+          />
+        )}
+
+        {/* ── Branding overlays (always on top of the interceptor) ── */}
 
         {/* TOP: Block channel name, title, share buttons */}
         <Box sx={{
@@ -211,22 +201,6 @@ function EmbeddedPlayer({ src, title, onProgress, onComplete, onPlay, initialPos
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
           onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
         />
-
-        {/* ── Non-YouTube: transparent click interceptor for first click ── */}
-        {/* Sits above iframe (z=9) but below branding overlays (z=10+).    */}
-        {/* After first click it removes itself so subsequent clicks reach   */}
-        {/* the iframe normally.                                             */}
-        {!isYouTube && overlayActive && (
-          <Box
-            sx={{
-              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              zIndex: 9,
-              cursor: 'pointer',
-              backgroundColor: 'transparent',
-            }}
-            onClick={handleOverlayClick}
-          />
-        )}
 
         {/* Watermark */}
         <Watermark userEmail={userEmail} />
