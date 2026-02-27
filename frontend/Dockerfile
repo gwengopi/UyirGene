@@ -4,9 +4,12 @@
 FROM node:18-alpine AS build
 WORKDIR /app
 
-# Copy package files and install dependencies
+# Limit Node memory for low-RAM environments (t3.micro)
+ENV NODE_OPTIONS=--max-old-space-size=512
+
+# Copy package files and install dependencies (include devDeps for vite build)
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy source code
 COPY . .
