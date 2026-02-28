@@ -57,6 +57,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ${API_URL:-https://api.yourdomain.com}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     container_name: uyirgene-frontend-prod
     ports:
       - "80:80"
