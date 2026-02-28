@@ -13,7 +13,9 @@ COPY . .
 
 # Build for production (1024MB heap to handle large MUI bundle on low-RAM instances)
 ARG VITE_API_URL=http://localhost:8080
+ARG VITE_GOOGLE_CLIENT_ID=
 ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 RUN NODE_OPTIONS=--max-old-space-size=1024 npm run build
 
 # Production stage with Nginx
