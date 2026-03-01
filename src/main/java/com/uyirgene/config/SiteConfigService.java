@@ -3,20 +3,27 @@ package com.uyirgene.config;
 import com.uyirgene.exception.EntityNotFoundException;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SiteConfigService {
 
     private final SiteConfigRepository repository;
+    private final JdbcTemplate jdbcTemplate;
 
     /**
      * Get all active configurations
@@ -153,6 +160,154 @@ public class SiteConfigService {
     }
 
     /**
+     * Atomically increment the certificate sequence counter and return the
+     * formatted certificate number using the configured format pattern.
+     *
+     * Uses a PostgreSQL sequence (cert_number_seq) via NEXTVAL — sequences are
+     * atomic, never repeat, and are completely independent of any JPA session,
+     * Spring transaction, or OSIV EntityManager on the calling thread.
+     *
+     * Supported tokens in the format string:
+     *   {YEAR}   – 4-digit year        e.g. 2026
+     *   {YY}     – 2-digit year        e.g. 26
+     *   {MONTH}  – 2-digit month       e.g. 02
+     *   {DD}     – 2-digit day         e.g. 28
+     *   {SEQ}    – sequence (no pad)   e.g. 42
+     *   {SEQ:N}  – sequence zero-padded to N digits  e.g. 00042
+     */
+    public String getNextFormattedCertNumber() {
+        // Use direct JDBC — bypasses any Hibernate L1/L2 cache so we always see
+        // the format the admin saved, not a cached copy from an earlier request.
+        String format = null;
+        try {
+            format = jdbcTemplate.queryForObject(
+                    "SELECT config_value FROM site_config WHERE config_key = 'certNumberFormat' AND is_active = true",
+                    String.class);
+        } catch (Exception e) {
+            log.warn("[CertSeq] Could not read certNumberFormat from DB: {}", e.getMessage());
+        }
+        if (format == null || format.isBlank()) {
+            format = "UG-{YEAR}-{SEQ:5}";
+            log.warn("[CertSeq] certNumberFormat not found in DB — using default '{}'", format);
+        }
+
+        // Safety net: create the sequence inline in case @PostConstruct failed silently.
+        // CREATE SEQUENCE IF NOT EXISTS is idempotent, so this adds no overhead on the happy path.
+        try {
+            jdbcTemplate.execute("CREATE SEQUENCE IF NOT EXISTS cert_number_seq");
+        } catch (Exception ignored) {}
+
+        Long nextSeq = jdbcTemplate.queryForObject("SELECT NEXTVAL('cert_number_seq')", Long.class);
+        String result = applyCertFormat(format, nextSeq);
+        log.info("[CertSeq] format='{}' NEXTVAL={} → certificateId='{}'", format, nextSeq, result);
+        return result;
+    }
+
+    /**
+     * Returns the last sequence value that was handed out (i.e. the number on the
+     * most recently generated certificate).  Returns 0 if no certificate has been
+     * generated yet since the sequence was created/reset.
+     */
+    public long getCurrentCertSeq() {
+        return jdbcTemplate.query(
+                "SELECT last_value, is_called FROM cert_number_seq",
+                rs -> {
+                    if (rs.next()) {
+                        long lastValue = rs.getLong("last_value");
+                        boolean isCalled = rs.getBoolean("is_called");
+                        // is_called=true  → last_value IS the last number handed out
+                        // is_called=false → sequence hasn't been used; last_value is the
+                        //                   next value that NEXTVAL would return, so "current" = last_value - 1
+                        return isCalled ? lastValue : lastValue - 1;
+                    }
+                    return 0L;
+                }
+        );
+    }
+
+    /**
+     * Reset the certificate sequence so the NEXT certificate gets number (value + 1).
+     * Equivalent to the old behaviour where the admin stored N and the first cert was N+1.
+     */
+    public void resetCertSeq(long value) {
+        // SETVAL(seq, N, true) → next NEXTVAL returns N+1
+        jdbcTemplate.queryForObject("SELECT SETVAL('cert_number_seq', ?, true)", Long.class, value);
+    }
+
+    /**
+     * Preview what a certificate number will look like for a given format and sequence.
+     * Does NOT increment the counter.
+     */
+    public String previewCertNumber(String format, long seq) {
+        return applyCertFormat(format, seq);
+    }
+
+    private String applyCertFormat(String format, long seq) {
+        LocalDateTime now = LocalDateTime.now();
+        String result = format;
+
+        result = result.replace("{YEAR}",  String.valueOf(now.getYear()));
+        result = result.replace("{YY}",    String.format("%02d", now.getYear() % 100));
+        result = result.replace("{MONTH}", String.format("%02d", now.getMonthValue()));
+        result = result.replace("{DD}",    String.format("%02d", now.getDayOfMonth()));
+
+        // {SEQ:N} with zero-padding — must be replaced before bare {SEQ}
+        Pattern padded = Pattern.compile("\\{SEQ:(\\d+)\\}");
+        Matcher m = padded.matcher(result);
+        if (m.find()) {
+            int width = Integer.parseInt(m.group(1));
+            result = result.replace(m.group(0), String.format("%0" + width + "d", seq));
+        }
+
+        // Bare {SEQ} without padding
+        result = result.replace("{SEQ}", String.valueOf(seq));
+
+        return result;
+    }
+
+    /**
+     * Ensure cert_number_seq exists every time the application starts.
+     * This is a safety net in case the V44 Flyway migration did not run
+     * (e.g., was marked failed in flyway_schema_history).
+     * CREATE SEQUENCE IF NOT EXISTS is idempotent — safe to call repeatedly.
+     */
+    @PostConstruct
+    public void ensureCertSequenceExists() {
+        try {
+            jdbcTemplate.execute("CREATE SEQUENCE IF NOT EXISTS cert_number_seq");
+
+            // If the sequence has never been called, seed from certNumberSeq site_config row
+            // so the first certificate number continues from wherever the admin left off.
+            Boolean isCalled = jdbcTemplate.query(
+                    "SELECT is_called FROM cert_number_seq",
+                    rs -> rs.next() ? rs.getBoolean("is_called") : false
+            );
+            if (Boolean.FALSE.equals(isCalled)) {
+                repository.findByKey("certNumberSeq").ifPresent(cfg -> {
+                    try {
+                        long seed = Long.parseLong(cfg.getValue().trim());
+                        if (seed > 0) {
+                            jdbcTemplate.queryForObject(
+                                    "SELECT SETVAL('cert_number_seq', ?, true)", Long.class, seed);
+                            log.info("[CertSeq] Sequence seeded from certNumberSeq config: {}", seed);
+                        }
+                    } catch (NumberFormatException ignored) { }
+                });
+            }
+
+            // Log current sequence state for diagnostic visibility
+            jdbcTemplate.query("SELECT last_value, is_called FROM cert_number_seq", rs -> {
+                if (rs.next()) {
+                    log.info("[CertSeq] cert_number_seq ready: last_value={}, is_called={}",
+                            rs.getLong("last_value"), rs.getBoolean("is_called"));
+                }
+            });
+        } catch (Exception ex) {
+            log.error("[CertSeq] Failed to ensure cert_number_seq exists: {}", ex.getMessage(), ex);
+        }
+    }
+
+    /**
      * Seed default configurations
      */
     @Transactional
@@ -226,6 +381,11 @@ public class SiteConfigService {
         createIfNotExists("marketingFromEmail", "", "TEXT", "MARKETING", "From email address for marketing campaigns (leave blank to use default mail.from)");
         createIfNotExists("marketingFromName", "UyirGene", "TEXT", "MARKETING", "Sender display name for marketing campaigns");
         createIfNotExists("marketingFooterAddress", "", "TEXT", "MARKETING", "Physical address shown in marketing email footer (leave blank to use CONTACT_ADDRESS)");
+
+        // Certificate Number Settings
+        // certNumberSeq is intentionally NOT seeded here — the counter is now maintained
+        // by the PostgreSQL sequence cert_number_seq (see migration V44).
+        createIfNotExists("certNumberFormat", "UG-{YEAR}-{SEQ:5}", "TEXT", "CERTIFICATE", "Format for auto-generated certificate numbers. Tokens: {YEAR},{YY},{MONTH},{DD},{SEQ},{SEQ:N}");
     }
 
     private void createIfNotExists(String key, String value, String type, String category, String description) {

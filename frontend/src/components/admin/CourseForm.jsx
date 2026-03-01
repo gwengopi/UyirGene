@@ -5,6 +5,7 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { FormField, Select, Checkbox, Button } from '../common';
+import ManualSection from '../course/ManualSection';
 import { validateForm, hasErrors } from '../../utils/validators';
 import { useConfig } from '../../store';
 import { COURSE_CATEGORIES, SUPPORTED_COUNTRIES } from '../../utils/constants';
@@ -35,8 +36,6 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
     published: false,
     displayOrder: '',
     courseType: '',
-    testLink: '',
-    testDescription: '',
     reminderDays: '',
   });
 
@@ -44,6 +43,11 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
   const [keyComponents, setKeyComponents] = useState([]);
   // Exam Details state - array of strings
   const [examDetails, setExamDetails] = useState([]);
+  // Assessment Links state - array of {title, url}
+  const [assessmentLinks, setAssessmentLinks] = useState([]);
+  // Pre-Assessment Links state - array of {title, url}
+  const [preAssessmentLinks, setPreAssessmentLinks] = useState([]);
+  const [preAssessmentInstructions, setPreAssessmentInstructions] = useState('Complete the pre-assessment before starting your learning journey. This helps us understand your baseline knowledge and customize your learning experience.');
 
   // Country pricing state - array of { countryCode, currencyCode, amount }
   const [countryPrices, setCountryPrices] = useState([]);
@@ -80,8 +84,6 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
         published: course.published || false,
         displayOrder: course.displayOrder?.toString() || '',
         courseType: course.courseType || '',
-        testLink: course.testLink || '',
-        testDescription: course.testDescription || '',
         reminderDays: course.reminderDays?.toString() || '',
       });
 
@@ -116,6 +118,27 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
       } else {
         setCountryPrices([]);
       }
+
+      // Set existing assessment links
+      if (course.assessmentLinks) {
+        try {
+          const parsed = JSON.parse(course.assessmentLinks);
+          setAssessmentLinks(Array.isArray(parsed) ? parsed.map(l => ({ title: l.title || '', url: l.url || '' })) : []);
+        } catch { setAssessmentLinks([]); }
+      } else {
+        setAssessmentLinks([]);
+      }
+
+      // Set existing pre-assessment links
+      if (course.preAssessmentLinks) {
+        try {
+          const parsed = JSON.parse(course.preAssessmentLinks);
+          setPreAssessmentLinks(Array.isArray(parsed) ? parsed.map(l => ({ title: l.title || '', url: l.url || '' })) : []);
+        } catch { setPreAssessmentLinks([]); }
+      } else {
+        setPreAssessmentLinks([]);
+      }
+      setPreAssessmentInstructions(course.preAssessmentInstructions || '');
 
       // Set existing thumbnail preview
       if (course.hasThumbnailImage && course.thumbnailImageUrl) {
@@ -247,6 +270,36 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
     setExamDetails(updated);
   };
 
+  // Assessment Link handlers
+  const addAssessmentLink = () => {
+    setAssessmentLinks([...assessmentLinks, { title: '', url: '' }]);
+  };
+
+  const removeAssessmentLink = (index) => {
+    setAssessmentLinks(assessmentLinks.filter((_, i) => i !== index));
+  };
+
+  const handleAssessmentLinkChange = (index, field, value) => {
+    const updated = [...assessmentLinks];
+    updated[index] = { ...updated[index], [field]: value };
+    setAssessmentLinks(updated);
+  };
+
+  // Pre-Assessment Link handlers
+  const addPreAssessmentLink = () => {
+    setPreAssessmentLinks([...preAssessmentLinks, { title: '', url: '' }]);
+  };
+
+  const removePreAssessmentLink = (index) => {
+    setPreAssessmentLinks(preAssessmentLinks.filter((_, i) => i !== index));
+  };
+
+  const handlePreAssessmentLinkChange = (index, field, value) => {
+    const updated = [...preAssessmentLinks];
+    updated[index] = { ...updated[index], [field]: value };
+    setPreAssessmentLinks(updated);
+  };
+
   const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
   // Image handlers
@@ -328,14 +381,6 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
       category: { required: true, label: 'Category' },
       durationHours: { positive: true, label: 'Duration' },
       price: { positive: true, label: 'Price' },
-      testLink: {
-        custom: (value) => {
-          if (value && value.trim() && !/^https?:\/\/.+/.test(value.trim())) {
-            return 'Test link must be a valid URL (starting with http:// or https://)';
-          }
-          return null;
-        },
-      },
     };
 
     const validationErrors = validateForm(schema, formData);
@@ -373,6 +418,16 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
     // Filter out empty exam details
     const validExamDetails = examDetails.filter(ed => ed && ed.trim()).map(ed => ed.trim());
 
+    // Filter out assessment links with no URL
+    const validAssessmentLinks = assessmentLinks
+      .filter(l => l.url && l.url.trim())
+      .map(l => ({ title: l.title.trim(), url: l.url.trim() }));
+
+    // Filter out pre-assessment links with no URL
+    const validPreAssessmentLinks = preAssessmentLinks
+      .filter(l => l.url && l.url.trim())
+      .map(l => ({ title: l.title.trim(), url: l.url.trim() }));
+
     const dataToSave = {
       title: formData.title,
       tagline: formData.tagline || null,
@@ -392,8 +447,9 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
       published: formData.published,
       displayOrder: formData.displayOrder ? parseInt(formData.displayOrder, 10) : null,
       courseType: formData.courseType || null,
-      testLink: formData.testLink || null,
-      testDescription: formData.testDescription || null,
+      assessmentLinks: JSON.stringify(validAssessmentLinks),
+      preAssessmentLinks: JSON.stringify(validPreAssessmentLinks),
+      preAssessmentInstructions: preAssessmentInstructions.trim() || null,
       reminderDays: formData.reminderDays ? parseInt(formData.reminderDays, 10) : null,
       countryPrices: validCountryPrices,
       videos: validVideos.map((v, index) => ({
@@ -1019,36 +1075,106 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
           );
         })}
 
-        {/* Test/Assessment Section */}
+        {/* Assessment Links Section */}
         <Grid item xs={12}>
           <Divider sx={{ my: 2 }} />
-          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-            Test / Assessment (Optional)
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="subtitle1" fontWeight={600}>
+              Assessment Links (Optional)
+            </Typography>
+            <Button variant="outlined" startIcon={<AddIcon />} onClick={addAssessmentLink} size="small">
+              Add Link
+            </Button>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Each link appears as a separate "Take Assessment" button on the course detail page.
           </Typography>
         </Grid>
 
-        <Grid item xs={12} sm={6}>
-          <FormField
-            name="testLink"
-            label="Test Link"
-            value={formData.testLink}
-            onChange={handleChange}
-            placeholder="https://forms.google.com/... or external test URL"
-            helperText="Link to Google Form or external assessment"
-          />
+        {assessmentLinks.map((link, index) => (
+          <Grid item xs={12} key={`al-${index}`}>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.default' }}>
+              <FormField
+                name={`alTitle-${index}`}
+                label="Button Label"
+                value={link.title}
+                onChange={(e) => handleAssessmentLinkChange(index, 'title', e.target.value)}
+                placeholder="e.g. Pre-Assessment"
+                size="small"
+                sx={{ width: 200 }}
+              />
+              <FormField
+                name={`alUrl-${index}`}
+                label="URL"
+                value={link.url}
+                onChange={(e) => handleAssessmentLinkChange(index, 'url', e.target.value)}
+                placeholder="https://forms.google.com/..."
+                size="small"
+                sx={{ flex: 1 }}
+              />
+              <IconButton size="small" color="error" onClick={() => removeAssessmentLink(index)}>
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          </Grid>
+        ))}
+
+        {/* Pre-Assessment Links Section */}
+        <Grid item xs={12}>
+          <Divider sx={{ my: 2 }} />
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="subtitle1" fontWeight={600}>
+              Pre-Assessment Links (Practice)
+            </Typography>
+            <Button variant="outlined" startIcon={<AddIcon />} onClick={addPreAssessmentLink} size="small">
+              Add Link
+            </Button>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Practice links shown below the video player. Students complete these before the main assessment.
+          </Typography>
         </Grid>
 
-        <Grid item xs={12} sm={6}>
+        <Grid item xs={12}>
           <FormField
-            name="testDescription"
-            label="Test Instructions"
-            value={formData.testDescription}
-            onChange={handleChange}
-            placeholder="Instructions for students taking the test"
+            name="preAssessmentInstructions"
+            label="Pre-Assessment Instructions"
+            value={preAssessmentInstructions}
+            onChange={(e) => setPreAssessmentInstructions(e.target.value)}
+            placeholder="e.g. Complete the pre-assessment before starting your learning journey. This helps us understand your baseline knowledge."
+            helperText="Shown above the pre-assessment buttons. Leave blank to use the default instruction."
             multiline
             rows={2}
           />
         </Grid>
+
+        {preAssessmentLinks.map((link, index) => (
+          <Grid item xs={12} key={`pal-${index}`}>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.default' }}>
+              <FormField
+                name={`palTitle-${index}`}
+                label="Button Label"
+                value={link.title}
+                onChange={(e) => handlePreAssessmentLinkChange(index, 'title', e.target.value)}
+                placeholder="e.g. Pre-Assessment"
+                size="small"
+                sx={{ width: 200 }}
+              />
+              <FormField
+                name={`palUrl-${index}`}
+                label="URL"
+                value={link.url}
+                onChange={(e) => handlePreAssessmentLinkChange(index, 'url', e.target.value)}
+                placeholder="https://forms.google.com/..."
+                size="small"
+                sx={{ flex: 1 }}
+              />
+              <IconButton size="small" color="error" onClick={() => removePreAssessmentLink(index)}>
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          </Grid>
+        ))}
 
         <Grid item xs={12} sm={6}>
           <FormField
@@ -1150,6 +1276,16 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
           </React.Fragment>
         ))}
       </Grid>
+
+      {/* Manuals — only available when editing an existing course */}
+      {course?.id && (
+        <Box sx={{ mt: 4 }}>
+          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>
+            Manuals &amp; Documents
+          </Typography>
+          <ManualSection courseId={course.id} isAdmin title="Manuals &amp; Documents" />
+        </Box>
+      )}
 
       {hasErrors(errors) && (
         <Alert severity="error" sx={{ mt: 3 }}>

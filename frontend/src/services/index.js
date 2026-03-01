@@ -20,3 +20,4 @@ export { default as bundleService } from './bundleService';
 export { flagshipService } from './flagshipService';
 export { default as marketingService } from './marketingService';
 export { default as standardsService } from './standardsService';
+export { default as manualService } from './manualService';

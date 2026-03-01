@@ -1,6 +1,7 @@
 package com.uyirgene.course;
 
 import com.google.zxing.WriterException;
+import com.uyirgene.config.SiteConfigService;
 import com.uyirgene.course.dto.TemplateConfigDto;
 import com.uyirgene.user.User;
 import com.uyirgene.util.QRCodeGenerator;
@@ -35,7 +36,7 @@ import java.util.UUID;
 public class CertificateService {
     private final CertificateRepository certRepo;
     private final CertificateTemplateService templateService;
-    private final MailService mailService;
+    private final SiteConfigService siteConfigService;
 
     @Value("${app.certificate.folder:uploads/certificates}")
     private String certFolder;
@@ -67,31 +68,50 @@ public class CertificateService {
                                                        Certificate.CertificateType type,
                                                        Double marks, String trainerName) {
         Optional<Certificate> existing = certRepo.findByUserAndFlagshipProgram(user, program);
+
+        // Cert ID stability rule (same as course certs):
+        //   • filePath != null → a PDF exists with this ID; preserve it and just replace the file.
+        //   • filePath == null → no PDF yet; delete stale entity and assign fresh ID from current format.
+        final Certificate certificate;
         if (existing.isPresent()) {
             Certificate oldCert = existing.get();
             if (oldCert.getFilePath() != null) {
+                // A real PDF was issued — keep the cert ID stable.
                 try {
-                    boolean deleted = java.nio.file.Files.deleteIfExists(java.nio.file.Path.of(oldCert.getFilePath()));
-                    if (!deleted) {
-                        log.warn("Old flagship certificate file not found: {}", oldCert.getCertificateId());
-                    }
+                    java.nio.file.Files.deleteIfExists(java.nio.file.Path.of(oldCert.getFilePath()));
                 } catch (IOException e) {
                     log.warn("Failed to delete old flagship certificate file {}: {}", oldCert.getCertificateId(), e.getMessage());
                 }
+                oldCert.setType(type);
+                oldCert.setMarks(marks);
+                oldCert.setTrainerName(trainerName);
+                oldCert.setIssuedAt(LocalDateTime.now());
+                oldCert.setFilePath(null);
+                certificate = oldCert;
+            } else {
+                // No PDF — delete the stale entity and generate a fresh ID using current format.
+                certRepo.deleteById(oldCert.getId());
+                certificate = Certificate.builder()
+                        .user(user)
+                        .flagshipProgram(program)
+                        .issuedAt(LocalDateTime.now())
+                        .certificateId(generateUniqueCertificateId())
+                        .type(type)
+                        .marks(marks)
+                        .trainerName(trainerName)
+                        .build();
             }
-            certRepo.delete(oldCert);
-            certRepo.flush();
+        } else {
+            certificate = Certificate.builder()
+                    .user(user)
+                    .flagshipProgram(program)
+                    .issuedAt(LocalDateTime.now())
+                    .certificateId(generateUniqueCertificateId())
+                    .type(type)
+                    .marks(marks)
+                    .trainerName(trainerName)
+                    .build();
         }
-
-        Certificate certificate = Certificate.builder()
-                .user(user)
-                .flagshipProgram(program)
-                .issuedAt(LocalDateTime.now())
-                .certificateId(generateUniqueCertificateId())
-                .type(type)
-                .marks(marks)
-                .trainerName(trainerName)
-                .build();
 
         try {
             Path dir = Path.of(certFolder);
@@ -149,37 +169,56 @@ public class CertificateService {
      */
     public Certificate generateCertificateWithType(User user, Course course, Certificate.CertificateType type, Double marks, String trainerName) {
         Optional<Certificate> existing = certRepo.findByUserAndCourse(user, course);
-        if (existing.isPresent()) {
-            // Clean up old certificate file before regenerating
-            Certificate oldCert = existing.get();
-            if (oldCert.getFilePath() != null) {
-                try {
-                    boolean deleted = Files.deleteIfExists(Path.of(oldCert.getFilePath()));
-                    if (!deleted) {
-                        log.warn("Old certificate file not found for cleanup: {}", oldCert.getCertificateId());
-                    }
-                } catch (IOException e) {
-                    log.warn("Failed to delete old certificate file for {}: {}", oldCert.getCertificateId(), e.getMessage());
-                }
-            }
-            certRepo.delete(oldCert);
-            certRepo.flush();
-        }
 
         // Use provided trainer name or fallback to course trainer
         String effectiveTrainerName = (trainerName != null && !trainerName.isBlank())
                 ? trainerName
                 : course.getTrainerName();
 
-        Certificate certificate = Certificate.builder()
-                .user(user)
-                .course(course)
-                .issuedAt(LocalDateTime.now())
-                .certificateId(generateUniqueCertificateId())
-                .type(type)
-                .marks(marks)
-                .trainerName(effectiveTrainerName)
-                .build();
+        // Cert ID stability rule:
+        //   • If a PDF already exists (filePath != null) → preserve the cert ID; just replace the PDF file.
+        //   • If no PDF yet (filePath == null, e.g. after a marks update) → delete the stale entity and
+        //     assign a fresh ID from the configured format so the new cert uses the current number scheme.
+        final Certificate certificate;
+        if (existing.isPresent()) {
+            Certificate oldCert = existing.get();
+            if (oldCert.getFilePath() != null) {
+                // A real PDF was issued with this ID — keep the cert ID stable.
+                try {
+                    Files.deleteIfExists(Path.of(oldCert.getFilePath()));
+                } catch (IOException e) {
+                    log.warn("Failed to delete old certificate file for {}: {}", oldCert.getCertificateId(), e.getMessage());
+                }
+                oldCert.setType(type);
+                oldCert.setMarks(marks);
+                oldCert.setTrainerName(effectiveTrainerName);
+                oldCert.setIssuedAt(LocalDateTime.now());
+                oldCert.setFilePath(null);
+                certificate = oldCert;
+            } else {
+                // No PDF exists — delete the stale entity and generate a fresh ID using current format.
+                certRepo.deleteById(oldCert.getId());
+                certificate = Certificate.builder()
+                        .user(user)
+                        .course(course)
+                        .issuedAt(LocalDateTime.now())
+                        .certificateId(generateUniqueCertificateId())
+                        .type(type)
+                        .marks(marks)
+                        .trainerName(effectiveTrainerName)
+                        .build();
+            }
+        } else {
+            certificate = Certificate.builder()
+                    .user(user)
+                    .course(course)
+                    .issuedAt(LocalDateTime.now())
+                    .certificateId(generateUniqueCertificateId())
+                    .type(type)
+                    .marks(marks)
+                    .trainerName(effectiveTrainerName)
+                    .build();
+        }
 
         try {
             Path dir = Path.of(certFolder);
@@ -254,7 +293,13 @@ public class CertificateService {
     }
 
     private String generateUniqueCertificateId() {
-        return "CERT-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase();
+        try {
+            return siteConfigService.getNextFormattedCertNumber();
+        } catch (Exception ex) {
+            // Log the full stack trace so we know exactly why the sequence call failed
+            log.error("[CertSeq] NEXTVAL failed — falling back to UUID. Root cause:", ex);
+            return "CERT-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase();
+        }
     }
 
     /**
@@ -531,6 +576,13 @@ public class CertificateService {
     private void drawText(PDPageContentStream contentStream, String text,
                           TemplateConfigDto.TextElement elem, PDFont fallbackFont,
                           float pageWidth, java.util.Map<String, PDFont> extraFonts) throws IOException {
+        // Strip control characters (\r \n \t etc.) that PDFBox Type1/WinAnsiEncoding cannot encode.
+        // These can appear when template text was copy-pasted or entered with line breaks.
+        if (text == null) return;
+        text = text.replace("\r\n", " ").replace('\r', ' ').replace('\n', ' ')
+                   .replaceAll("\\p{Cntrl}", "").trim();
+        if (text.isEmpty()) return;
+
         PDFont font = resolveFont(elem, fallbackFont, extraFonts);
         float[] color = TemplateConfigDto.parseColor(elem.getFontColor());
 
@@ -553,12 +605,24 @@ public class CertificateService {
      * Create certificate PDF dynamically.
      * Accepts course details as plain strings so it can serve both Course and Flagship enrollments.
      */
+    private static String sanitizePdfText(String text) {
+        if (text == null) return "";
+        return text.replace("\r\n", " ").replace('\r', ' ').replace('\n', ' ')
+                   .replaceAll("\\p{Cntrl}", "").trim();
+    }
+
     private void createCertificatePdfDynamic(String userName, String courseTitle,
                                               String courseCode, String shortDescription,
                                               String certificateId, LocalDateTime issuedAt,
                                               Certificate.CertificateType type, Double marks,
                                               String filePath, CertificateTemplate template,
                                               String trainerName) throws IOException, WriterException {
+        // Sanitize all text inputs to prevent control-character encoding errors
+        userName = sanitizePdfText(userName);
+        courseTitle = sanitizePdfText(courseTitle);
+        courseCode = sanitizePdfText(courseCode);
+        shortDescription = sanitizePdfText(shortDescription);
+        trainerName = sanitizePdfText(trainerName);
 
         PDDocument document = new PDDocument();
 

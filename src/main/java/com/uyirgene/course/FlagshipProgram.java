@@ -63,6 +63,18 @@ public class FlagshipProgram {
     @Column(name = "test_description", columnDefinition = "TEXT")
     private String testDescription;
 
+    /** JSON array of assessment links: [{"title":"...","url":"..."}] */
+    @Column(name = "assessment_links", columnDefinition = "TEXT")
+    private String assessmentLinks;
+
+    /** JSON array of pre-assessment (practice) links: [{"title":"...","url":"..."}] */
+    @Column(name = "pre_assessment_links", columnDefinition = "TEXT")
+    private String preAssessmentLinks;
+
+    /** Admin-configurable instruction text shown above pre-assessment buttons */
+    @Column(name = "pre_assessment_instructions", columnDefinition = "TEXT")
+    private String preAssessmentInstructions;
+
     /** Days after enrollment to send a completion reminder (null = no reminder) */
     @Column(name = "reminder_days")
     private Integer reminderDays;

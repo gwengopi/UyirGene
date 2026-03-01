@@ -54,11 +54,16 @@ public class SecurityConfig {
                             "/api/marketing/unsubscribe",
                             "/actuator/health"
                     ).permitAll()
+                    // Page-view tracking (public, fire-and-forget)
+                    .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/analytics/pageview").permitAll()
                     // Course & bundle public endpoints (read-only)
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/courses/**").permitAll()
-                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/bundles", "/api/bundles/{id}", "/api/bundles/{id}/thumbnail").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/bundles", "/api/bundles/{id}", "/api/bundles/{id}/thumbnail", "/api/bundles/by-course/{courseId}").permitAll()
                     // Flagship program public endpoints (read-only; admin endpoints use @PreAuthorize)
-                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/flagship", "/api/flagship/{id}", "/api/flagship/{id}/image", "/api/flagship/slug/**", "/api/flagship/code/**").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.GET,
+                            "/api/flagship", "/api/flagship/{id}", "/api/flagship/{id}/image",
+                            "/api/flagship/slug/**", "/api/flagship/code/**",
+                            "/api/flagship/{id}/manuals", "/api/flagship/{id}/manuals/{manualId}/download").permitAll()
                     // Standards public listing (download requires auth via @PreAuthorize)
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/standards").permitAll()
                     // Public site config & master data (non-admin, no sensitive keys exposed)

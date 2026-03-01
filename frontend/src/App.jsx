@@ -4,6 +4,7 @@ import { ThemeProvider, CssBaseline, Box } from '@mui/material';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { darkTheme, lightTheme } from './styles/theme';
 import { GOOGLE_CLIENT_ID } from './utils/constants';
+import { trackPageView } from './services/analyticsTrackingService';
 import './styles/global.css';
 
 // Store providers
@@ -46,6 +47,8 @@ const AdminMailTemplates = lazy(() => import('./pages/Admin/MailTemplates'));
 const AdminFlagshipPrograms = lazy(() => import('./pages/Admin/FlagshipPrograms'));
 const AdminMarketingCampaigns = lazy(() => import('./pages/Admin/MarketingCampaigns'));
 const AdminStandards = lazy(() => import('./pages/Admin/Standards'));
+const AdminCertSettings = lazy(() => import('./pages/Admin/CertSettings'));
+const AdminVisitorStats = lazy(() => import('./pages/Admin/VisitorStats'));
 const Standards = lazy(() => import('./pages/Standards'));
 const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 const BundleDetail = lazy(() => import('./pages/BundleDetail'));
@@ -113,6 +116,11 @@ function AppContent() {
 
     // Scroll to top on route change
     window.scrollTo(0, 0);
+
+    // Track page view (exclude admin routes)
+    if (!location.pathname.startsWith('/admin')) {
+      trackPageView(location.pathname);
+    }
   }, [location.pathname]);
 
   return (
@@ -291,6 +299,22 @@ function AppContent() {
               element={
                 <RoleRoute allowedRoles={[ROLES.ADMIN]}>
                   <AdminStandards />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={ROUTES.ADMIN.CERT_SETTINGS}
+              element={
+                <RoleRoute allowedRoles={[ROLES.ADMIN]}>
+                  <AdminCertSettings />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={ROUTES.ADMIN.VISITORS}
+              element={
+                <RoleRoute allowedRoles={[ROLES.ADMIN]}>
+                  <AdminVisitorStats />
                 </RoleRoute>
               }
             />

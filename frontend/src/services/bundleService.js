@@ -2,9 +2,12 @@ import api from './api';
 
 const BUNDLE_ENDPOINTS = {
   LIST: '/api/bundles',
+  BY_COURSE: (courseId) => `/api/bundles/by-course/${courseId}`,
   DETAIL: (id) => `/api/bundles/${id}`,
   ENROLL: (id) => `/api/bundles/${id}/enroll`,
   CONFIRM: (id) => `/api/bundles/${id}/enroll/confirm`,
+  MULTI_ENROLL: '/api/bundles/enroll/multi',
+  MULTI_CONFIRM: '/api/bundles/enroll/multi/confirm',
   ADMIN_LIST: '/api/bundles/admin',
   ADMIN_CREATE: '/api/bundles/admin',
   ADMIN_UPDATE: (id) => `/api/bundles/admin/${id}`,
@@ -13,6 +16,11 @@ const BUNDLE_ENDPOINTS = {
 };
 
 // ==================== Public ====================
+
+export async function getBundlesByCourse(courseId) {
+  const response = await api.get(BUNDLE_ENDPOINTS.BY_COURSE(courseId));
+  return response.data;
+}
 
 export async function getPublishedBundles() {
   const response = await api.get(BUNDLE_ENDPOINTS.LIST);
@@ -39,6 +47,16 @@ export async function startBundleEnrollment(bundleId, countryCode) {
 
 export async function confirmBundlePayment(bundleId, paymentData) {
   const response = await api.post(BUNDLE_ENDPOINTS.CONFIRM(bundleId), paymentData);
+  return response.data;
+}
+
+export async function startMultiBundleEnrollment(bundleIds, countryCode) {
+  const response = await api.post(BUNDLE_ENDPOINTS.MULTI_ENROLL, { bundleIds, countryCode });
+  return response.data;
+}
+
+export async function confirmMultiBundlePayment(bundleIds, paymentData) {
+  const response = await api.post(BUNDLE_ENDPOINTS.MULTI_CONFIRM, { bundleIds, ...paymentData });
   return response.data;
 }
 
@@ -101,9 +119,12 @@ export async function togglePublish(id) {
 
 export default {
   getPublishedBundles,
+  getBundlesByCourse,
   getBundleById,
   startBundleEnrollment,
   confirmBundlePayment,
+  startMultiBundleEnrollment,
+  confirmMultiBundlePayment,
   getAllBundles,
   createBundle,
   updateBundle,

@@ -1,21 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, Box, CircularProgress, Alert, Grid } from '@mui/material';
+import { Container, Typography, Box, CircularProgress, Alert, Grid, Divider } from '@mui/material';
 import StarIcon from '@mui/icons-material/Star';
 import { Breadcrumb, SEO } from '../components/common';
 import FlagshipProgramCard from '../components/course/FlagshipProgramCard';
+import { CourseCard } from '../components/course';
 import { flagshipService } from '../services/flagshipService';
+import { courseService } from '../services';
 import { ROUTES } from '../utils/constants';
 
 function FlagshipPage() {
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [allCourses, setAllCourses] = useState([]);
 
   useEffect(() => {
     flagshipService.getActivePrograms()
       .then(setPrograms)
       .catch(() => setError('Failed to load flagship programs.'))
       .finally(() => setLoading(false));
+    courseService.getAllCourses()
+      .then((courses) => setAllCourses(courses || []))
+      .catch(() => {});
   }, []);
 
   const breadcrumbItems = [
@@ -62,6 +68,23 @@ function FlagshipPage() {
             </Grid>
           ))}
         </Grid>
+      )}
+
+      {/* All Courses */}
+      {allCourses.length > 0 && (
+        <Box sx={{ mt: 6 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+            <Typography variant="h5" fontWeight={700}>Explore Our Courses</Typography>
+          </Box>
+          <Divider sx={{ mb: 3 }} />
+          <Grid container spacing={3}>
+            {allCourses.map((course) => (
+              <Grid item xs={12} sm={6} md={4} key={course.id}>
+                <CourseCard course={course} />
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
       )}
     </Container>
   );

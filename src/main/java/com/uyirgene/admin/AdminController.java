@@ -167,7 +167,8 @@ public class AdminController {
                 .map(enrollment -> {
                     boolean isFirstTimeMarks = enrollment.getTestCompletedAt() == null;
 
-                    // Always delete existing certificate when marks are saved (admin must regenerate/re-upload)
+                    // When marks change the existing PDF is outdated — delete the file but KEEP the
+                    // cert entity so its certificate_id is preserved for the next regeneration.
                     if (enrollment.getUser() != null) {
                         Optional<Certificate> existingCertOpt;
                         if (enrollment.getFlagshipProgram() != null) {
@@ -180,12 +181,14 @@ public class AdminController {
                             existingCertOpt = Optional.empty();
                         }
                         if (existingCertOpt.isPresent()) {
-                            try {
-                                java.io.File oldFile = new java.io.File(existingCertOpt.get().getFilePath());
-                                if (oldFile.exists()) oldFile.delete();
-                            } catch (Exception ignored) {}
-                            certificateRepository.delete(existingCertOpt.get());
-                            certificateRepository.flush();
+                            Certificate existingCert = existingCertOpt.get();
+                            if (existingCert.getFilePath() != null) {
+                                try {
+                                    java.nio.file.Files.deleteIfExists(java.nio.file.Path.of(existingCert.getFilePath()));
+                                } catch (Exception ignored) {}
+                                existingCert.setFilePath(null);
+                                certificateRepository.save(existingCert);
+                            }
                         }
                     }
 
@@ -281,57 +284,66 @@ public class AdminController {
             @ApiResponse(responseCode = "404", description = "Enrollment not found")
     })
     public ResponseEntity<?> generateCertificate(@PathVariable("id") Long enrollmentId) {
-        return enrollmentRepository.findById(enrollmentId)
-                .map(enrollment -> {
-                    // Validate marks are entered
-                    if (enrollment.getMarks() == null) {
-                        return ResponseEntity.badRequest().body("Marks must be entered before generating certificate");
-                    }
+        Enrollment enrollment = enrollmentRepository.findById(enrollmentId).orElse(null);
+        if (enrollment == null) {
+            return ResponseEntity.notFound().build();
+        }
 
-                    // Determine certificate type
-                    double passMarkPercentage = getPassMarkPercentage();
-                    Certificate.CertificateType certType = enrollment.getMarks() >= passMarkPercentage
-                            ? Certificate.CertificateType.COMPLETION
-                            : Certificate.CertificateType.PARTICIPATION;
+        // Validate marks are entered
+        if (enrollment.getMarks() == null) {
+            return ResponseEntity.badRequest().body("Marks must be entered before generating certificate");
+        }
 
-                    // Get trainer name from enrollment (set during marks entry) or fallback to program/course trainer
-                    String trainerName = enrollment.getTrainerName();
-                    if (trainerName == null || trainerName.isBlank()) {
-                        if (enrollment.getFlagshipProgram() != null) {
-                            trainerName = enrollment.getFlagshipProgram().getTrainerName();
-                        } else if (enrollment.getCourse() != null) {
-                            trainerName = enrollment.getCourse().getTrainerName();
-                        }
-                    }
+        // Determine certificate type
+        double passMarkPercentage = getPassMarkPercentage();
+        Certificate.CertificateType certType = enrollment.getMarks() >= passMarkPercentage
+                ? Certificate.CertificateType.COMPLETION
+                : Certificate.CertificateType.PARTICIPATION;
 
-                    // Generate certificate — flagship or course path
-                    Certificate certificate;
-                    if (enrollment.getFlagshipProgram() != null) {
-                        certificate = certificateService.generateCertificateForFlagship(
-                                enrollment.getUser(),
-                                enrollment.getFlagshipProgram(),
-                                certType,
-                                enrollment.getMarks(),
-                                trainerName
-                        );
-                    } else {
-                        certificate = certificateService.generateCertificateWithType(
-                                enrollment.getUser(),
-                                enrollment.getCourse(),
-                                certType,
-                                enrollment.getMarks(),
-                                trainerName
-                        );
-                    }
+        // Get trainer name from enrollment (set during marks entry) or fallback to program/course trainer
+        String trainerName = enrollment.getTrainerName();
+        if (trainerName == null || trainerName.isBlank()) {
+            if (enrollment.getFlagshipProgram() != null) {
+                trainerName = enrollment.getFlagshipProgram().getTrainerName();
+            } else if (enrollment.getCourse() != null) {
+                trainerName = enrollment.getCourse().getTrainerName();
+            }
+        }
 
-                    // Update enrollment
-                    enrollment.setCertificateType(Enrollment.CertificateType.valueOf(certType.name()));
-                    enrollment.setStatus(Enrollment.Status.COMPLETED);
-                    enrollmentRepository.save(enrollment);
+        try {
+            // Generate certificate — flagship or course path
+            Certificate certificate;
+            if (enrollment.getFlagshipProgram() != null) {
+                certificate = certificateService.generateCertificateForFlagship(
+                        enrollment.getUser(),
+                        enrollment.getFlagshipProgram(),
+                        certType,
+                        enrollment.getMarks(),
+                        trainerName
+                );
+            } else {
+                certificate = certificateService.generateCertificateWithType(
+                        enrollment.getUser(),
+                        enrollment.getCourse(),
+                        certType,
+                        enrollment.getMarks(),
+                        trainerName
+                );
+            }
 
-                    return ResponseEntity.ok(certificate);
-                })
-                .orElse(ResponseEntity.notFound().build());
+            // Update enrollment
+            enrollment.setCertificateType(Enrollment.CertificateType.valueOf(certType.name()));
+            enrollment.setStatus(Enrollment.Status.COMPLETED);
+            enrollmentRepository.save(enrollment);
+
+            return ResponseEntity.ok(certificate);
+        } catch (Exception e) {
+            // Log the full stack trace so we can diagnose the root cause
+            org.slf4j.LoggerFactory.getLogger(AdminController.class)
+                    .error("Failed to generate certificate for enrollment {}: {}", enrollmentId, e.getMessage(), e);
+            return ResponseEntity.status(500)
+                    .body(Map.of("error", "Certificate generation failed: " + e.getMessage()));
+        }
     }
 
     @GetMapping("/enrollments/{id}/certificate/download")
@@ -365,6 +377,10 @@ public class AdminController {
                     }
 
                     Certificate cert = certOpt.get();
+                    if (cert.getFilePath() == null) {
+                        return ResponseEntity.status(404)
+                                .body((Object) Map.of("error", "Certificate PDF has not been generated yet"));
+                    }
                     java.io.File file = new java.io.File(cert.getFilePath());
 
                     // Path traversal prevention
@@ -544,7 +560,7 @@ public class AdminController {
             } else {
                 certOpt = Optional.empty();
             }
-            if (certOpt.isPresent()) {
+            if (certOpt.isPresent() && certOpt.get().getFilePath() != null) {
                 hasCertificate = true;
                 certificateId = certOpt.get().getCertificateId();
             }

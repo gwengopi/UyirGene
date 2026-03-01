@@ -8,6 +8,8 @@ import {
   Paper,
   Divider,
   Alert,
+  Chip,
+  CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -29,7 +31,8 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import QuizIcon from '@mui/icons-material/Quiz';
 import { Button, Breadcrumb, LoadingSpinner, SEO } from '../components/common';
 import { courseSchema } from '../components/common/SEO';
-import { VideoPlayer, VideoList } from '../components/course';
+import { VideoPlayer, VideoList, ManualSection, EnrollmentUpsellDialog } from '../components/course';
+import { getBundlesByCourse, startMultiBundleEnrollment } from '../services/bundleService';
 import { ProgressTracker } from '../components/user';
 import { courseService, enrollmentService, videoService, certificateService } from '../services';
 import { useAuth, useToast } from '../store';
@@ -63,6 +66,9 @@ function CourseDetail() {
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [unenrollDialogOpen, setUnenrollDialogOpen] = useState(false);
+  const [upsellOpen, setUpsellOpen] = useState(false);
+  const [availableBundles, setAvailableBundles] = useState([]);
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState(new Set());
   const [certificateErrorOpen, setCertificateErrorOpen] = useState(false);
   const [certificateError, setCertificateError] = useState('');
   const [enrollmentErrorOpen, setEnrollmentErrorOpen] = useState(false);
@@ -91,10 +97,25 @@ function CourseDetail() {
         const courseData = await courseService.getCourse(id);
         setCourse(courseData);
 
+        // Fetch bundles for this course (public endpoint — always)
+        try {
+          const bundles = await getBundlesByCourse(id);
+          setAvailableBundles(bundles || []);
+        } catch { /* non-critical */ }
+
         if (isAuthenticated()) {
           try {
             // Check enrollment
             const enrolled = await enrollmentService.getEnrolledCourses();
+
+            // Collect all enrolled course IDs for ownership check in upsell dialog
+            const ids = new Set(
+              enrolled
+                .filter((e) => e.status === 'ENROLLED' || e.status === 'COMPLETED')
+                .map((e) => (e.course || e).id)
+            );
+            setEnrolledCourseIds(ids);
+
             const enrollmentData = enrolled.find((c) => {
               const courseObj = c.course || c;
               return courseObj.id === parseInt(id);
@@ -163,7 +184,65 @@ function CourseDetail() {
     decryptVideoUrl();
   }, [currentVideo, showError]);
 
-  // Handle enrollment
+  // Proceed directly with single-course enrollment (called from upsell dialog skip or when no bundles)
+  const handleEnrollSingleCourse = async () => {
+    setUpsellOpen(false);
+    setEnrolling(true);
+    try {
+      const result = await enrollmentService.startEnrollment(id, selectedCountry);
+      const order = result && (result.order ? result.order : result.orderId ? result : null);
+      if (order) {
+        navigate(ROUTES.PAYMENT, {
+          state: { courseId: id, courseName: course?.title, order },
+        });
+        return;
+      }
+      setIsEnrolled(true);
+      showSuccess('Successfully enrolled!');
+      const videosData = await courseService.getCourseVideos(id);
+      setVideos(videosData);
+      setCurrentVideo(videosData[0]);
+    } catch (error) {
+      if (error.message !== 'Payment cancelled') {
+        setEnrollmentError(
+          error.response?.status === 401
+            ? 'Session expired. Please login again to enroll.'
+            : error.message || 'Failed to enroll'
+        );
+        setEnrollmentErrorOpen(true);
+      }
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
+  // Enroll in multiple bundles via single Razorpay payment
+  const handleEnrollBundles = async (bundleIds) => {
+    setUpsellOpen(false);
+    setEnrolling(true);
+    try {
+      const result = await startMultiBundleEnrollment(bundleIds, selectedCountry);
+      const order = result?.order;
+      if (order) {
+        navigate(ROUTES.PAYMENT, {
+          state: {
+            bundleIds,
+            courseName: `${bundleIds.length} bundle${bundleIds.length > 1 ? 's' : ''}`,
+            order,
+          },
+        });
+      }
+    } catch (error) {
+      if (error.message !== 'Payment cancelled') {
+        setEnrollmentError(error.message || 'Failed to start bundle enrollment');
+        setEnrollmentErrorOpen(true);
+      }
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
+  // Handle enrollment — shows upsell dialog if bundles exist
   const handleEnroll = async () => {
     if (!isAuthenticated()) {
       navigate(ROUTES.REGISTER);
@@ -179,6 +258,12 @@ function CourseDetail() {
     if (isEnrolled) {
       setEnrollmentError('You are already enrolled in this course');
       setEnrollmentErrorOpen(true);
+      return;
+    }
+
+    // Show bundle upsell dialog if bundles are available
+    if (availableBundles.length > 0) {
+      setUpsellOpen(true);
       return;
     }
 
@@ -302,13 +387,12 @@ function CourseDetail() {
       await certificateService.downloadAndSaveCertificate(id, course?.title);
       showSuccess('Certificate downloaded!');
     } catch (error) {
-      // Check if it's a result not published error
       if (error.response?.status === 403) {
-        setCertificateError('The certificate will be issued within 24–48 hours following the completion of the examination.');
+        setCertificateError('Please ensure you have completed both the Pre-Assessment and Assessment. Your result will be reviewed and the certificate will be issued within 24–48 hours after completion of both assessments.');
       } else if (error.response?.status === 404) {
-        setCertificateError('The certificate will be issued within 24–48 hours following the completion of the examination.');
+        setCertificateError('Your certificate is being prepared. Please ensure you have completed both the Pre-Assessment and Assessment. The certificate will be issued within 24–48 hours after your results are reviewed.');
       } else {
-        setCertificateError('The certificate will be issued within 24–48 hours following the completion of the examination.');
+        setCertificateError('Please ensure you have completed both the Pre-Assessment and Assessment. Your result will be reviewed and the certificate will be issued within 24–48 hours.');
       }
       setCertificateErrorOpen(true);
     }
@@ -353,8 +437,15 @@ function CourseDetail() {
     { label: course.title, path: ROUTES.COURSE_DETAIL(id) },
   ];
 
+  const imgPath = course.descriptionImageUrl || course.thumbnailImageUrl || course.imageUrl;
+
+  const isValidUrl = (url) => {
+    try { const u = new URL(url); return u.protocol === 'http:' || u.protocol === 'https:'; }
+    catch { return false; }
+  };
+
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <>
       {course && (
         <SEO
           title={course.title}
@@ -364,220 +455,259 @@ function CourseDetail() {
           structuredData={courseSchema(course)}
         />
       )}
-      <Breadcrumb items={breadcrumbItems} />
 
-      <Grid container spacing={4}>
-        {/* Main content */}
-        <Grid item xs={12} md={8}>
-          {isEnrolled && learnMode && currentVideo && currentVideoUrl ? (
-            <>
-              <VideoPlayer
-                src={currentVideoUrl}
-                title={currentVideo.title}
-                initialPosition={progressMap[currentVideo.id]?.lastPositionSeconds || 0}
-                onProgress={handleVideoProgress}
-                onComplete={handleVideoComplete}
-                onPlay={handleVideoPlay}
-                userEmail={user?.email}
-              />
-              <Typography variant="h5" sx={{ mt: 2, mb: 1 }} fontWeight={600}>
-                {currentVideo.title}
+      {/* ── Hero Banner ────────────────────────────────────────────────────── */}
+      <Box
+        sx={{
+          position: 'relative',
+          minHeight: { xs: 240, md: 320 },
+          display: 'flex',
+          alignItems: 'flex-end',
+          overflow: 'hidden',
+        }}
+      >
+        {imgPath ? (
+          <Box
+            component="img"
+            src={`${getApiBaseUrl()}${imgPath}`}
+            alt={course.title}
+            sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : (
+          <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #1565C0 0%, #0D47A1 100%)' }} />
+        )}
+        <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.78) 100%)' }} />
+        <Container maxWidth="lg" sx={{ position: 'relative', pb: { xs: 4, md: 5 }, pt: { xs: 8, md: 10 } }}>
+          {course.category && (
+            <Chip
+              icon={<CategoryIcon sx={{ color: 'rgba(255,255,255,0.85) !important', fontSize: '14px !important' }} />}
+              label={course.category}
+              size="small"
+              sx={{ mb: 2, bgcolor: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)' }}
+            />
+          )}
+          <Typography
+            variant="h3"
+            component="h1"
+            sx={{ color: '#fff', fontWeight: 800, mb: 1.5, textShadow: '0 2px 8px rgba(0,0,0,0.4)', lineHeight: 1.2, fontSize: { xs: '1.75rem', md: '2.5rem' } }}
+          >
+            {course.title}
+          </Typography>
+          {course.tagline && (
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                px: 2,
+                py: 0.5,
+                mb: 2,
+                borderRadius: 2,
+                background: 'linear-gradient(135deg, #1976D2 0%, #1565C0 100%)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+              }}
+            >
+              <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600, letterSpacing: 0.3 }}>
+                {course.tagline}
               </Typography>
-            </>
-          ) : isEnrolled && learnMode && currentVideo && !currentVideoUrl ? (
-            <Paper sx={{ p: 4, textAlign: 'center' }}>
-              <Typography color="text.secondary">Loading video...</Typography>
-            </Paper>
-          ) : (
-            <Paper sx={{ overflow: 'hidden' }}>
-              {(() => {
-                const imgPath = course.descriptionImageUrl || course.thumbnailImageUrl || course.imageUrl;
-                return imgPath ? (
-                  <Box
-                    component="img"
-                    src={`${getApiBaseUrl()}${imgPath}`}
-                    alt={course.title}
-                    sx={{
-                      width: '100%',
-                      maxHeight: 400,
-                      objectFit: 'cover',
-                      display: 'block',
-                    }}
-                  />
-                ) : null;
-              })()}
-              <Box sx={{ p: 4 }}>
-                <Typography variant="h5" gutterBottom fontWeight={600}>
-                  {course.title}
-                </Typography>
+            </Box>
+          )}
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            {course.durationHours && (
+              <Chip
+                icon={<AccessTimeIcon sx={{ color: 'rgba(255,255,255,0.85) !important', fontSize: '14px !important' }} />}
+                label={formatDurationHours(course.durationHours)}
+                size="small"
+                sx={{ bgcolor: 'rgba(255,255,255,0.12)', color: '#fff', border: '1px solid rgba(255,255,255,0.25)' }}
+              />
+            )}
+            {course.courseType && (
+              <Chip
+                icon={<ComputerIcon sx={{ color: 'rgba(255,255,255,0.85) !important', fontSize: '14px !important' }} />}
+                label={COURSE_TYPE_LABELS[course.courseType] || course.courseType}
+                size="small"
+                sx={{ bgcolor: 'rgba(255,255,255,0.12)', color: '#fff', border: '1px solid rgba(255,255,255,0.25)' }}
+              />
+            )}
+          </Box>
+        </Container>
+      </Box>
 
-                {course.tagline && (
-                  <Box
-                    sx={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      px: 2,
-                      py: 0.75,
-                      mb: 2.5,
-                      borderRadius: 2,
-                      bgcolor: 'primary.main',
-                      background: (theme) =>
-                        `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                    }}
+      {/* ── Body ──────────────────────────────────────────────────────────── */}
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Breadcrumb items={breadcrumbItems} />
+
+        <Grid container spacing={4} sx={{ mt: 0.5 }}>
+          {/* ── Main content ── */}
+          <Grid item xs={12} md={8}>
+            {isEnrolled && learnMode && currentVideo && currentVideoUrl ? (
+              <>
+                <VideoPlayer
+                  src={currentVideoUrl}
+                  title={currentVideo.title}
+                  initialPosition={progressMap[currentVideo.id]?.lastPositionSeconds || 0}
+                  onProgress={handleVideoProgress}
+                  onComplete={handleVideoComplete}
+                  onPlay={handleVideoPlay}
+                  userEmail={user?.email}
+                />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2, mb: 1 }}>
+                  <Typography variant="h5" fontWeight={600} sx={{ flex: 1 }}>{currentVideo.title}</Typography>
+                  {progressMap[currentVideo.id]?.completed && (
+                    <Chip icon={<CheckCircleOutlineIcon />} label="Completed" color="success" variant="outlined" size="small" />
+                  )}
+                </Box>
+
+                {/* Pre-Assessment Section */}
+                {(() => {
+                  let links = [];
+                  try { if (course.preAssessmentLinks) links = JSON.parse(course.preAssessmentLinks); } catch {}
+                  const validLinks = links.filter(l => l.url && isValidUrl(l.url));
+                  if (validLinks.length === 0) return null;
+                  const instructions = course.preAssessmentInstructions?.trim()
+                    || 'Complete the pre-assessment before starting your learning journey. This helps us understand your baseline knowledge.';
+                  return (
+                    <Paper variant="outlined" sx={{ p: 3, mt: 3, borderRadius: 2, borderColor: 'primary.light', bgcolor: 'rgba(25,118,210,0.04)' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                        <AssignmentIcon color="primary" />
+                        <Typography variant="h6" fontWeight={700} color="primary">Pre-Assessment</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 2 }}>
+                        <InfoOutlinedIcon sx={{ fontSize: 17, color: 'primary.main', mt: 0.2, flexShrink: 0 }} />
+                        <Typography variant="body2" color="text.secondary">{instructions}</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {validLinks.map((link, i) => (
+                          <Button key={i} variant="outlined" color="primary" href={link.url} target="_blank" rel="noopener noreferrer" startIcon={<AssignmentIcon />}>
+                            {link.title || 'Take Pre-Assessment'}
+                          </Button>
+                        ))}
+                      </Box>
+                    </Paper>
+                  );
+                })()}
+              </>
+            ) : isEnrolled && learnMode && currentVideo && !currentVideoUrl ? (
+              <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 3 }}>
+                <CircularProgress size={36} sx={{ display: 'block', mx: 'auto', mb: 2 }} />
+                <Typography color="text.secondary">Loading video...</Typography>
+              </Paper>
+            ) : (
+              <Box>
+                {/* Short description callout */}
+                {course.shortDescription && (
+                  <Paper
+                    variant="outlined"
+                    sx={{ p: 3, mb: 3, borderRadius: 2, borderLeft: '4px solid', borderLeftColor: 'primary.main', bgcolor: 'rgba(25,118,210,0.04)' }}
                   >
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: '#fff',
-                        fontWeight: 600,
-                        letterSpacing: 0.3,
-                        fontSize: '0.9rem',
-                      }}
-                    >
-                      {course.tagline}
+                    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.8, fontStyle: 'italic' }}>
+                      {course.shortDescription}
                     </Typography>
-                  </Box>
+                  </Paper>
                 )}
 
                 {/* Overview */}
                 {course.description && (
-                  <Box sx={{ mb: 3 }}>
-                    <Typography variant="h6" gutterBottom fontWeight={600} color="primary">
-                      Overview
-                    </Typography>
-                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
+                  <Paper elevation={0} variant="outlined" sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                    <Typography variant="h6" fontWeight={700} color="primary" gutterBottom>Overview</Typography>
+                    <Divider sx={{ mb: 2 }} />
+                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>
                       {course.description}
                     </Typography>
-                  </Box>
+                  </Paper>
                 )}
 
                 {/* Key Components */}
                 {course.keyComponents && course.keyComponents.length > 0 && (
-                  <Box sx={{ mb: 3 }}>
+                  <Paper elevation={0} variant="outlined" sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                    <Typography variant="h6" fontWeight={700} color="primary" gutterBottom>Key Components</Typography>
                     <Divider sx={{ mb: 2 }} />
-                    <Typography variant="h6" gutterBottom fontWeight={600} color="primary">
-                      Key Components
-                    </Typography>
                     {course.keyComponents.map((comp, idx) => (
-                      <Box key={idx} sx={{ mb: 2 }}>
-                        <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.5 }}>
-                          {comp.title}
-                        </Typography>
+                      <Box key={idx} sx={{ mb: 2.5 }}>
+                        <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.75 }}>{comp.title}</Typography>
                         {comp.points && comp.points.length > 0 && (
                           <Box component="ul" sx={{ pl: 0, listStyle: 'none', m: 0 }}>
                             {comp.points.map((point, pIdx) => (
-                              <Box
-                                component="li"
-                                key={pIdx}
-                                sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 0.5 }}
-                              >
+                              <Box component="li" key={pIdx} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 0.5 }}>
                                 <CheckCircleOutlineIcon sx={{ fontSize: 18, color: 'success.main', mt: 0.3, flexShrink: 0 }} />
-                                <Typography variant="body2" color="text.secondary">
-                                  {point}
-                                </Typography>
+                                <Typography variant="body2" color="text.secondary">{point}</Typography>
                               </Box>
                             ))}
                           </Box>
                         )}
                       </Box>
                     ))}
-                  </Box>
+                  </Paper>
                 )}
 
                 {/* Target Audience */}
                 {course.targetAudience && (
-                  <Box sx={{ mb: 3 }}>
-                    <Divider sx={{ mb: 2 }} />
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <Paper elevation={0} variant="outlined" sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                       <PeopleIcon color="primary" />
-                      <Typography variant="h6" fontWeight={600} color="primary">
-                        Target Audience
-                      </Typography>
+                      <Typography variant="h6" fontWeight={700} color="primary">Target Audience</Typography>
                     </Box>
-                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
-                      {course.targetAudience}
-                    </Typography>
-                  </Box>
+                    <Divider sx={{ mb: 2 }} />
+                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>{course.targetAudience}</Typography>
+                  </Paper>
                 )}
 
                 {/* Assessment */}
                 {course.assessment && (
-                  <Box sx={{ mb: 3 }}>
-                    <Divider sx={{ mb: 2 }} />
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <Paper elevation={0} variant="outlined" sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                       <AssignmentIcon color="primary" />
-                      <Typography variant="h6" fontWeight={600} color="primary">
-                        Assessment
-                      </Typography>
+                      <Typography variant="h6" fontWeight={700} color="primary">Assessment</Typography>
                     </Box>
-                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
-                      {course.assessment}
-                    </Typography>
-                  </Box>
+                    <Divider sx={{ mb: 2 }} />
+                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>{course.assessment}</Typography>
+                  </Paper>
                 )}
 
                 {/* Outcome */}
                 {course.outcome && (
-                  <Box sx={{ mb: 3 }}>
-                    <Divider sx={{ mb: 2 }} />
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <Paper elevation={0} variant="outlined" sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                       <EmojiEventsIcon color="primary" />
-                      <Typography variant="h6" fontWeight={600} color="primary">
-                        Outcome
-                      </Typography>
+                      <Typography variant="h6" fontWeight={700} color="primary">Outcome</Typography>
                     </Box>
-                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
-                      {course.outcome}
-                    </Typography>
-                  </Box>
+                    <Divider sx={{ mb: 2 }} />
+                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>{course.outcome}</Typography>
+                  </Paper>
                 )}
 
                 {/* Course Duration */}
                 {course.courseDurationText && (
-                  <Box sx={{ mb: 3 }}>
-                    <Divider sx={{ mb: 2 }} />
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <Paper elevation={0} variant="outlined" sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                       <ScheduleIcon color="primary" />
-                      <Typography variant="h6" fontWeight={600} color="primary">
-                        Course Duration
-                      </Typography>
+                      <Typography variant="h6" fontWeight={700} color="primary">Course Duration</Typography>
                     </Box>
-                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
-                      {course.courseDurationText}
-                    </Typography>
-                  </Box>
+                    <Divider sx={{ mb: 2 }} />
+                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>{course.courseDurationText}</Typography>
+                  </Paper>
                 )}
 
                 {/* Exam Details */}
                 {course.examDetails && course.examDetails.length > 0 && (
-                  <Box sx={{ mb: 3 }}>
-                    <Divider sx={{ mb: 2 }} />
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <Paper elevation={0} variant="outlined" sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                       <QuizIcon color="primary" />
-                      <Typography variant="h6" fontWeight={600} color="primary">
-                        Exam Details
-                      </Typography>
+                      <Typography variant="h6" fontWeight={700} color="primary">Exam Details</Typography>
                     </Box>
+                    <Divider sx={{ mb: 2 }} />
                     <Box component="ul" sx={{ pl: 0, listStyle: 'none', m: 0 }}>
                       {course.examDetails.map((detail, idx) => (
-                        <Box
-                          component="li"
-                          key={idx}
-                          sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 0.5 }}
-                        >
+                        <Box component="li" key={idx} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 0.5 }}>
                           <CheckCircleOutlineIcon sx={{ fontSize: 18, color: 'success.main', mt: 0.3, flexShrink: 0 }} />
-                          <Typography variant="body2" color="text.secondary">
-                            {detail}
-                          </Typography>
+                          <Typography variant="body2" color="text.secondary">{detail}</Typography>
                         </Box>
                       ))}
                     </Box>
-                  </Box>
+                  </Paper>
                 )}
 
-                {/* Enroll / Continue buttons */}
-                <Box sx={{ textAlign: 'center', mt: 4 }}>
+                {/* CTA buttons */}
+                <Box sx={{ textAlign: 'center', mt: 3, mb: 2 }}>
                   {!isEnrolled && (
                     <Button variant="contained" size="large" onClick={handleEnroll} loading={enrolling} disabled={loading}>
                       {displayPrice.amount ? `Enroll for ${formatCurrency(displayPrice.amount, displayPrice.currency)}` : 'Enroll Free'}
@@ -595,229 +725,236 @@ function CourseDetail() {
                   )}
                 </Box>
               </Box>
-            </Paper>
-          )}
-        </Grid>
+            )}
+          </Grid>
 
-        {/* Sidebar */}
-        <Grid item xs={12} md={4}>
-          {isEnrolled && learnMode ? (
-            <>
-              {/* Course Content - top when enrolled in learn mode */}
-              <Paper sx={{ mb: 3 }}>
-                <Typography variant="h6" sx={{ p: 2 }}>
-                  Course Content
-                </Typography>
-                <Divider />
-                <VideoList
-                  videos={videos}
-                  currentVideoId={currentVideo?.id}
-                  progressMap={progressMap}
-                  onVideoSelect={setCurrentVideo}
-                />
-              </Paper>
-
-              {/* Progress */}
-              <Paper sx={{ p: 3, mb: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                  Your Progress
-                </Typography>
-                <ProgressTracker
-                  value={completedVideos}
-                  max={totalVideos}
-                  label={`${completedVideos} of ${totalVideos} videos completed`}
-                  variant="circular"
-                  size="medium"
-                  color={isCompleted ? 'success' : 'primary'}
-                />
-                {isCompleted && (
-                  <Button
-                    variant="outlined"
-                    fullWidth
-                    sx={{ mt: 2 }}
-                    onClick={handleDownloadCertificate}
+          {/* ── Sidebar ── */}
+          <Grid item xs={12} md={4}>
+            {isEnrolled && learnMode ? (
+              <>
+                {/* Course Content */}
+                <Paper sx={{ mb: 3, borderRadius: 2, overflow: 'hidden' }}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      pb: 1.5,
+                      background: (theme) =>
+                        `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                    }}
                   >
-                    Download Certificate
-                  </Button>
-                )}
-
-                {/* Course Actions */}
-                <Box sx={{ mt: 2, display: 'flex', gap: 1, flexDirection: 'column' }}>
-                  <Button
-                    variant="text"
-                    color="error"
-                    fullWidth
-                    startIcon={<ExitToAppIcon />}
-                    onClick={() => setUnenrollDialogOpen(true)}
-                  >
-                    Unenroll from Course
-                  </Button>
-                </Box>
-              </Paper>
-
-              {/* Test/Assessment Link */}
-              {course.testLink && (() => { try { const u = new URL(course.testLink); return u.protocol === 'http:' || u.protocol === 'https:'; } catch { return false; } })() && (
-                <Paper sx={{ p: 3, mb: 3 }}>
-                  <Typography variant="h6" gutterBottom>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <AssignmentIcon color="primary" />
-                      Course Assessment
-                    </Box>
-                  </Typography>
-                  {course.testDescription && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      {course.testDescription}
-                    </Typography>
-                  )}
-                  <Button
-                    variant="contained"
-                    fullWidth
-                    href={course.testLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    startIcon={<AssignmentIcon />}
-                  >
-                    Take Assessment
-                  </Button>
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mt: 2 }}>
-                    <InfoOutlinedIcon sx={{ fontSize: 18, color: 'text.secondary', mt: 0.2 }} />
-                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-                      After completion of the exam, you can download your certificate. The certificate will be issued within 24–48 hours.
+                    <Typography variant="h6" sx={{ color: '#fff', fontWeight: 600 }}>Course Content</Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.85)' }}>
+                      {completedVideos} of {totalVideos} completed
                     </Typography>
                   </Box>
-                </Paper>
-              )}
-            </>
-          ) : null}
-
-          {/* Course Info - always shown, at bottom when enrolled */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Course Info
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <CategoryIcon color="action" />
-                <Typography variant="body2">
-                  Category: <strong>{course.category || 'General'}</strong>
-                </Typography>
-              </Box>
-              {course.courseType && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <ComputerIcon color="action" />
-                  <Typography variant="body2">
-                    Delivery Mode: <strong>{COURSE_TYPE_LABELS[course.courseType] || course.courseType}</strong>
-                  </Typography>
-                </Box>
-              )}
-              {course.durationHours && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <AccessTimeIcon color="action" />
-                  <Typography variant="body2">
-                    Duration: <strong>{formatDurationHours(course.durationHours)}</strong>
-                  </Typography>
-                </Box>
-              )}
-              <Divider />
-              {hasCountryPrices && (() => {
-                const countryOptions = SUPPORTED_COUNTRIES.filter(
-                  c => c.code === 'IN' || course.countryPrices?.some(cp => cp.countryCode === c.code)
-                );
-                const selectedOption = countryOptions.find(c => c.code === selectedCountry) || countryOptions[0];
-                return (
-                  <Autocomplete
-                    options={countryOptions}
-                    getOptionLabel={(option) => `${option.name} (${option.symbol})`}
-                    value={selectedOption}
-                    onChange={(_, newValue) => {
-                      if (newValue) setSelectedCountry(newValue.code);
-                    }}
-                    renderInput={(params) => (
-                      <TextField {...params} label="Select your country" size="small" />
-                    )}
-                    isOptionEqualToValue={(option, value) => option.code === value?.code}
-                    disableClearable
-                    fullWidth
-                    size="small"
-                    sx={{ mb: 1 }}
+                  <Divider />
+                  <VideoList
+                    videos={videos}
+                    currentVideoId={currentVideo?.id}
+                    progressMap={progressMap}
+                    onVideoSelect={setCurrentVideo}
                   />
-                );
-              })()}
-              <Typography variant="h5" color="primary" fontWeight={600}>
-                {formatCurrency(displayPrice.amount, displayPrice.currency)}
+                </Paper>
+
+                {/* Progress */}
+                <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom fontWeight={600}>Your Progress</Typography>
+                  <ProgressTracker
+                    value={completedVideos}
+                    max={totalVideos}
+                    label={`${completedVideos} of ${totalVideos} videos completed`}
+                    variant="circular"
+                    size="medium"
+                    color={isCompleted ? 'success' : 'primary'}
+                  />
+                  {isCompleted && (
+                    <Button variant="outlined" fullWidth sx={{ mt: 2 }} onClick={handleDownloadCertificate}>
+                      Download Certificate
+                    </Button>
+                  )}
+                  <Box sx={{ mt: 2 }}>
+                    <Button
+                      variant="text"
+                      color="error"
+                      fullWidth
+                      startIcon={<ExitToAppIcon />}
+                      onClick={() => setUnenrollDialogOpen(true)}
+                    >
+                      Unenroll from Course
+                    </Button>
+                  </Box>
+                </Paper>
+
+                {/* Assessment Links */}
+                {(() => {
+                  let links = [];
+                  try { if (course.assessmentLinks) links = JSON.parse(course.assessmentLinks); } catch {}
+                  if (links.length === 0 && course.testLink && isValidUrl(course.testLink)) {
+                    links = [{ title: 'Take Assessment', url: course.testLink }];
+                  }
+                  const validLinks = links.filter(l => l.url && isValidUrl(l.url));
+                  if (validLinks.length === 0) return null;
+                  return (
+                    <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                        <AssignmentIcon color="primary" />
+                        <Typography variant="h6" fontWeight={600}>Course Assessment</Typography>
+                      </Box>
+                      {course.testDescription && links.length === 1 && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{course.testDescription}</Typography>
+                      )}
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {validLinks.map((link, i) => (
+                          <Button
+                            key={i}
+                            variant="contained"
+                            fullWidth
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            startIcon={<AssignmentIcon />}
+                          >
+                            {link.title || 'Take Assessment'}
+                          </Button>
+                        ))}
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mt: 2 }}>
+                        <InfoOutlinedIcon sx={{ fontSize: 18, color: 'text.secondary', mt: 0.2 }} />
+                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
+                          Please complete both the Pre-Assessment and Assessment. Your result will be reviewed and the certificate will be issued within 24–48 hours after completion of both assessments.
+                        </Typography>
+                      </Box>
+                    </Paper>
+                  );
+                })()}
+              </>
+            ) : null}
+
+            {/* Manuals & Documents — above enrollment card */}
+            {course?.id && (
+              <Box sx={{ mb: 3 }}>
+                <ManualSection courseId={course.id} title="Manuals & Documents" />
+              </Box>
+            )}
+
+            {/* Enrollment Card — always shown */}
+            <Paper sx={{ p: 3, mb: 3, borderRadius: 2, position: { md: 'sticky' }, top: { md: 80 } }}>
+              <Typography variant="h6" gutterBottom fontWeight={700}>
+                {isEnrolled ? 'Course Access' : 'Enroll in This Course'}
               </Typography>
-              <Button
-                variant="contained"
-                fullWidth
-                onClick={handleEnroll}
-                loading={enrolling}
-                disabled={isEnrolled || loading}
-              >
-                {isEnrolled ? 'Already Enrolled' : (displayPrice.amount ? 'Enroll & Get Certified' : 'Enroll Free')}
-              </Button>
-            </Box>
-          </Paper>
+              <Divider sx={{ mb: 2 }} />
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CategoryIcon color="action" fontSize="small" />
+                    <Typography variant="body2">
+                      Category: <strong>{course.category || 'General'}</strong>
+                    </Typography>
+                  </Box>
+                  {course.courseType && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <ComputerIcon color="action" fontSize="small" />
+                      <Typography variant="body2">
+                        Mode: <strong>{COURSE_TYPE_LABELS[course.courseType] || course.courseType}</strong>
+                      </Typography>
+                    </Box>
+                  )}
+                  {course.durationHours && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AccessTimeIcon color="action" fontSize="small" />
+                      <Typography variant="body2">
+                        Duration: <strong>{formatDurationHours(course.durationHours)}</strong>
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+                <Divider />
+                {hasCountryPrices && (() => {
+                  const countryOptions = SUPPORTED_COUNTRIES.filter(
+                    c => c.code === 'IN' || course.countryPrices?.some(cp => cp.countryCode === c.code)
+                  );
+                  const selectedOption = countryOptions.find(c => c.code === selectedCountry) || countryOptions[0];
+                  return (
+                    <Autocomplete
+                      options={countryOptions}
+                      getOptionLabel={(option) => `${option.name} (${option.symbol})`}
+                      value={selectedOption}
+                      onChange={(_, newValue) => { if (newValue) setSelectedCountry(newValue.code); }}
+                      renderInput={(params) => <TextField {...params} label="Select your country" size="small" />}
+                      isOptionEqualToValue={(option, value) => option.code === value?.code}
+                      disableClearable
+                      fullWidth
+                      size="small"
+                    />
+                  );
+                })()}
+                <Typography variant="h5" color="primary" fontWeight={700}>
+                  {formatCurrency(displayPrice.amount, displayPrice.currency)}
+                </Typography>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  size="large"
+                  onClick={handleEnroll}
+                  loading={enrolling}
+                  disabled={isEnrolled || loading}
+                >
+                  {isEnrolled ? 'Already Enrolled' : (displayPrice.amount ? 'Enroll & Get Certified' : 'Enroll Free')}
+                </Button>
+              </Box>
+            </Paper>
+          </Grid>
         </Grid>
-      </Grid>
 
-      {/* Unenroll Confirmation Dialog */}
-      <Dialog
-        open={unenrollDialogOpen}
-        onClose={() => setUnenrollDialogOpen(false)}
-        aria-labelledby="unenroll-dialog-title"
-      >
-        <DialogTitle id="unenroll-dialog-title">Unenroll from Course?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to unenroll from "{course?.title}"? Your progress will be lost and you may need to pay again if it's a paid course.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setUnenrollDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleUnenroll} color="error" variant="contained">
-            Unenroll
-          </Button>
-        </DialogActions>
-      </Dialog>
+        {/* Bundle Upsell Dialog */}
+        <EnrollmentUpsellDialog
+          open={upsellOpen}
+          onClose={() => setUpsellOpen(false)}
+          course={course}
+          selectedCountry={selectedCountry}
+          displayPrice={displayPrice}
+          enrolledCourseIds={enrolledCourseIds}
+          onEnrollSingle={handleEnrollSingleCourse}
+          onEnrollBundles={handleEnrollBundles}
+        />
 
-      {/* Certificate Error Dialog */}
-      <Dialog
-        open={certificateErrorOpen}
-        onClose={() => setCertificateErrorOpen(false)}
-        aria-labelledby="certificate-error-title"
-      >
-        <DialogTitle id="certificate-error-title">Certificate Download</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            {certificateError}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCertificateErrorOpen(false)} variant="contained">
-            OK
-          </Button>
-        </DialogActions>
-      </Dialog>
+        {/* Unenroll Dialog */}
+        <Dialog open={unenrollDialogOpen} onClose={() => setUnenrollDialogOpen(false)} aria-labelledby="unenroll-dialog-title">
+          <DialogTitle id="unenroll-dialog-title">Unenroll from Course?</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Are you sure you want to unenroll from "{course?.title}"? Your progress will be lost and you may need to pay again if it's a paid course.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setUnenrollDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleUnenroll} color="error" variant="contained">Unenroll</Button>
+          </DialogActions>
+        </Dialog>
 
-      {/* Enrollment Error Dialog */}
-      <Dialog
-        open={enrollmentErrorOpen}
-        onClose={() => setEnrollmentErrorOpen(false)}
-        aria-labelledby="enrollment-error-title"
-      >
-        <DialogTitle id="enrollment-error-title">Enrollment Error</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            {enrollmentError}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEnrollmentErrorOpen(false)} variant="contained">
-            OK
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+        {/* Certificate Error Dialog */}
+        <Dialog open={certificateErrorOpen} onClose={() => setCertificateErrorOpen(false)} aria-labelledby="certificate-error-title">
+          <DialogTitle id="certificate-error-title">Certificate Not Yet Available</DialogTitle>
+          <DialogContent>
+            <DialogContentText>{certificateError}</DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCertificateErrorOpen(false)} variant="contained">OK</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Enrollment Error Dialog */}
+        <Dialog open={enrollmentErrorOpen} onClose={() => setEnrollmentErrorOpen(false)} aria-labelledby="enrollment-error-title">
+          <DialogTitle id="enrollment-error-title">Enrollment Error</DialogTitle>
+          <DialogContent>
+            <DialogContentText>{enrollmentError}</DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setEnrollmentErrorOpen(false)} variant="contained">OK</Button>
+          </DialogActions>
+        </Dialog>
+      </Container>
+    </>
   );
 }
 

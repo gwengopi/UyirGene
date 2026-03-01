@@ -121,7 +121,9 @@ public class FlagshipProgramService {
                                             String testLink, String testDescription,
                                             String targetAudience, String assessment, String outcome,
                                             String examDetails, String countryPricesJson,
-                                            String videosJson, String programCode, Integer reminderDays) {
+                                            String videosJson, String programCode, Integer reminderDays,
+                                            String assessmentLinksJson, String preAssessmentLinksJson,
+                                            String preAssessmentInstructions) {
         String slug = generateSlug(title);
         String code = (programCode != null && !programCode.isBlank())
                 ? programCode.trim().toUpperCase()
@@ -143,6 +145,9 @@ public class FlagshipProgramService {
                 .trainerName(trainerName)
                 .testLink(testLink)
                 .testDescription(testDescription)
+                .assessmentLinks(assessmentLinksJson)
+                .preAssessmentLinks(preAssessmentLinksJson)
+                .preAssessmentInstructions(preAssessmentInstructions)
                 .targetAudience(targetAudience)
                 .assessment(assessment)
                 .outcome(outcome)
@@ -170,7 +175,9 @@ public class FlagshipProgramService {
                                             String testLink, String testDescription,
                                             String targetAudience, String assessment, String outcome,
                                             String examDetails, String countryPricesJson,
-                                            String videosJson, String programCode, Integer reminderDays) {
+                                            String videosJson, String programCode, Integer reminderDays,
+                                            String assessmentLinksJson, String preAssessmentLinksJson,
+                                            String preAssessmentInstructions) {
         FlagshipProgram program = repository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Flagship program not found"));
 
@@ -190,6 +197,9 @@ public class FlagshipProgramService {
         program.setTrainerName(trainerName);
         program.setTestLink(testLink);
         program.setTestDescription(testDescription);
+        program.setAssessmentLinks(assessmentLinksJson);
+        program.setPreAssessmentLinks(preAssessmentLinksJson);
+        program.setPreAssessmentInstructions(preAssessmentInstructions);
         program.setTargetAudience(targetAudience);
         program.setAssessment(assessment);
         program.setOutcome(outcome);

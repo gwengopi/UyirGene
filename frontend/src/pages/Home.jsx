@@ -185,7 +185,6 @@ function Home() {
   const certifications = [
     { icon: <SecurityIcon sx={{ fontSize: 36 }} />, label: 'ISO 9001 Certified' },
     { icon: <HandshakeIcon sx={{ fontSize: 36 }} />, label: 'Skill India Digital Hub Partner' },
-    { icon: <EmojiEventsIcon sx={{ fontSize: 36 }} />, label: 'Govt of India Recognized' },
   ];
 
   const handleWhatsApp = () => {

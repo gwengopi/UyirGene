@@ -104,6 +104,8 @@ export const ROUTES = {
     FLAGSHIP_PROGRAMS: '/admin/flagship-programs',
     MARKETING_CAMPAIGNS: '/admin/marketing-campaigns',
     STANDARDS: '/admin/standards',
+    CERT_SETTINGS: '/admin/cert-settings',
+    VISITORS: '/admin/visitors',
   },
   STANDARDS: '/standards',
   INSTRUCTOR: {

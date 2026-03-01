@@ -19,7 +19,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import CardMembershipIcon from '@mui/icons-material/CardMembership';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { SEO, Breadcrumb } from '../components/common';
-import { VideoPlayer, VideoList } from '../components/course';
+import { VideoPlayer, VideoList, ManualSection } from '../components/course';
 import { ProgressTracker } from '../components/user';
 import { flagshipService } from '../services/flagshipService';
 import { videoService } from '../services';
@@ -81,7 +81,7 @@ function SectionHeading({ title }) {
 
 function OverviewSection({ section }) {
   return (
-    <Box sx={{ mb: 4 }}>
+    <Box>
       {section.title && (
         <Typography variant="h5" fontWeight={700} sx={{ mb: 2 }}>
           {section.title}
@@ -103,7 +103,7 @@ function OverviewSection({ section }) {
 
 function TextSection({ section }) {
   return (
-    <Box sx={{ mb: 4 }}>
+    <Box>
       {section.title && <SectionHeading title={section.title} />}
       <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.8, whiteSpace: 'pre-line' }}>
         {section.content}
@@ -114,7 +114,7 @@ function TextSection({ section }) {
 
 function BulletsSection({ section }) {
   return (
-    <Box sx={{ mb: 4 }}>
+    <Box>
       {section.title && <SectionHeading title={section.title} />}
       <Box>
         {(section.items || []).map((item, i) => (
@@ -130,7 +130,7 @@ function BulletsSection({ section }) {
 
 function ModulesSection({ section }) {
   return (
-    <Box sx={{ mb: 4 }}>
+    <Box>
       {section.title && <SectionHeading title={section.title} />}
       {(section.modules || []).map((mod, i) => (
         <Accordion
@@ -182,20 +182,20 @@ function renderSection(section, i) {
   }
 }
 
-// ── Course-style field renderers (same UI as CourseDetail) ───────────────────
+// ── Course-style field renderers ─────────────────────────────────────────────
 
 function CourseStyleField({ icon, label, children }) {
   return (
-    <Box sx={{ mb: 3 }}>
-      <Divider sx={{ mb: 2 }} />
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+    <Paper elevation={0} variant="outlined" sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
         {icon}
-        <Typography variant="h6" fontWeight={600} color="primary">
+        <Typography variant="h6" fontWeight={700} color="primary">
           {label}
         </Typography>
       </Box>
+      <Divider sx={{ mb: 2 }} />
       {children}
-    </Box>
+    </Paper>
   );
 }
 
@@ -391,11 +391,11 @@ function FlagshipDetail() {
       showSuccess('Certificate downloaded!');
     } catch (err) {
       if (err.response?.status === 403) {
-        showError('Results not yet published. Certificate will be available after results are published.');
+        showError('Please ensure you have completed both the Pre-Assessment and Assessment. Your result will be reviewed and the certificate will be issued within 24–48 hours after completion of both assessments.');
       } else if (err.response?.status === 404) {
-        showError('Certificate not found. Please wait for admin to generate your certificate.');
+        showError('Your certificate is being prepared. Please ensure you have completed both the Pre-Assessment and Assessment. The certificate will be issued within 24–48 hours after your results are reviewed.');
       } else {
-        showError(err.message || 'Certificate not available yet');
+        showError('Please ensure you have completed both the Pre-Assessment and Assessment. Your result will be reviewed and the certificate will be issued within 24–48 hours.');
       }
     }
   }, [id, program, showSuccess, showError]);
@@ -446,6 +446,9 @@ function FlagshipDetail() {
 
   let examDetails = [];
   try { if (program.examDetails) examDetails = JSON.parse(program.examDetails); } catch {}
+
+  let assessmentLinks = [];
+  try { if (program.assessmentLinks) assessmentLinks = JSON.parse(program.assessmentLinks); } catch {}
 
   const hasVideos = videos.length > 0;
 
@@ -553,25 +556,89 @@ function FlagshipDetail() {
                     )}
                   </Box>
                 )}
+
+                {/* Pre-Assessment Section — shown below video player */}
+                {(() => {
+                  const isValidUrl = (url) => { try { const u = new URL(url); return u.protocol === 'http:' || u.protocol === 'https:'; } catch { return false; } };
+                  let preLinks = [];
+                  try { if (program.preAssessmentLinks) preLinks = JSON.parse(program.preAssessmentLinks); } catch {}
+                  const validPreLinks = preLinks.filter(l => l.url && isValidUrl(l.url));
+                  if (validPreLinks.length === 0) return null;
+                  const instructions = program.preAssessmentInstructions?.trim()
+                    || 'Complete the pre-assessment before starting your learning journey. This helps us understand your baseline knowledge.';
+                  return (
+                    <Paper variant="outlined" sx={{ p: 3, mt: 3, borderRadius: 2, borderColor: 'primary.light' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                        <AssignmentIcon color="primary" />
+                        <Typography variant="h6" fontWeight={700} color="primary">Pre-Assessment</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 2 }}>
+                        <InfoOutlinedIcon sx={{ fontSize: 17, color: 'primary.main', mt: 0.2, flexShrink: 0 }} />
+                        <Typography variant="body2" color="text.secondary">{instructions}</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {validPreLinks.map((link, i) => (
+                          <Button
+                            key={i}
+                            variant="outlined"
+                            color="primary"
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            startIcon={<AssignmentIcon />}
+                          >
+                            {link.title || 'Take Pre-Assessment'}
+                          </Button>
+                        ))}
+                      </Box>
+                    </Paper>
+                  );
+                })()}
               </>
             ) : (
               <Box>
-                {/* Content sections from JSON */}
+                {/* Card Highlights */}
+                {program.cardHighlights && (() => {
+                  let highlights = [];
+                  try { highlights = JSON.parse(program.cardHighlights); } catch {}
+                  if (highlights.length === 0) return null;
+                  return (
+                    <Paper
+                      elevation={0}
+                      variant="outlined"
+                      sx={{ p: 3, mb: 3, borderRadius: 2, background: 'linear-gradient(135deg, rgba(123,45,139,0.04) 0%, rgba(123,45,139,0.01) 100%)' }}
+                    >
+                      <Typography variant="h6" fontWeight={700} color="primary" gutterBottom>Program Highlights</Typography>
+                      <Divider sx={{ mb: 2 }} />
+                      <Grid container spacing={1.5}>
+                        {highlights.map((h, i) => (
+                          <Grid item xs={12} sm={6} key={i}>
+                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                              <CheckCircleOutlineIcon sx={{ fontSize: 18, color: 'success.main', mt: 0.3, flexShrink: 0 }} />
+                              <Typography variant="body2">{h}</Typography>
+                            </Box>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </Paper>
+                  );
+                })()}
+
+                {/* Content sections from JSON — each in its own card */}
                 {sections.length > 0 && (
                   <Box sx={{ mb: 2 }}>
                     {sections.map((section, i) => (
-                      <React.Fragment key={i}>
+                      <Paper key={i} elevation={0} variant="outlined" sx={{ p: 3, mb: 3, borderRadius: 2 }}>
                         {renderSection(section, i)}
-                        {i < sections.length - 1 && <Divider sx={{ mb: 4 }} />}
-                      </React.Fragment>
+                      </Paper>
                     ))}
                   </Box>
                 )}
 
-                {/* Course-style fields — same UI as CourseDetail */}
+                {/* Course-style fields */}
                 {program.targetAudience && (
                   <CourseStyleField icon={<PeopleIcon color="primary" />} label="Target Audience">
-                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
+                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>
                       {program.targetAudience}
                     </Typography>
                   </CourseStyleField>
@@ -579,7 +646,7 @@ function FlagshipDetail() {
 
                 {program.assessment && (
                   <CourseStyleField icon={<AssignmentIcon color="primary" />} label="Assessment">
-                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
+                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>
                       {program.assessment}
                     </Typography>
                   </CourseStyleField>
@@ -587,7 +654,7 @@ function FlagshipDetail() {
 
                 {program.outcome && (
                   <CourseStyleField icon={<EmojiEventsIcon color="primary" />} label="Outcome">
-                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
+                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>
                       {program.outcome}
                     </Typography>
                   </CourseStyleField>
@@ -597,11 +664,7 @@ function FlagshipDetail() {
                   <CourseStyleField icon={<QuizIcon color="primary" />} label="Exam Details">
                     <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0 }}>
                       {examDetails.map((detail, i) => (
-                        <Box
-                          key={i}
-                          component="li"
-                          sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 0.75 }}
-                        >
+                        <Box key={i} component="li" sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 0.75 }}>
                           <CheckCircleOutlineIcon sx={{ fontSize: 18, color: 'success.main', mt: 0.2, flexShrink: 0 }} />
                           <Typography variant="body2">{detail}</Typography>
                         </Box>
@@ -610,9 +673,38 @@ function FlagshipDetail() {
                   </CourseStyleField>
                 )}
 
-                {sections.length === 0 && !program.targetAudience && !program.assessment && !program.outcome && examDetails.length === 0 && (
+                {sections.length === 0 && !program.cardHighlights && !program.targetAudience && !program.assessment && !program.outcome && examDetails.length === 0 && (
                   <Box sx={{ textAlign: 'center', py: 6 }}>
                     <Typography color="text.secondary">Program details will be available soon.</Typography>
+                  </Box>
+                )}
+
+                {/* CTA at bottom of content */}
+                {!isEnrolled && (
+                  <Box sx={{ textAlign: 'center', mt: 2, mb: 2 }}>
+                    <Button
+                      variant="contained"
+                      size="large"
+                      onClick={handleEnroll}
+                      disabled={enrolling}
+                      sx={{ bgcolor: '#7B2D8B', '&:hover': { bgcolor: '#6A1B7A' }, fontWeight: 700, px: 4 }}
+                    >
+                      {enrolling
+                        ? <CircularProgress size={22} color="inherit" />
+                        : (displayPrice.amount ? `Enroll for ${formatCurrency(displayPrice.amount, displayPrice.currency)}` : 'Enroll Free')}
+                    </Button>
+                  </Box>
+                )}
+                {isEnrolled && !learnMode && hasVideos && (
+                  <Box sx={{ textAlign: 'center', mt: 2, mb: 2 }}>
+                    <Button
+                      variant="contained"
+                      size="large"
+                      onClick={() => setLearnMode(true)}
+                      sx={{ bgcolor: '#4CAF50', '&:hover': { bgcolor: '#388E3C' }, fontWeight: 700, px: 4 }}
+                    >
+                      Continue Learning
+                    </Button>
                   </Box>
                 )}
               </Box>
@@ -621,11 +713,29 @@ function FlagshipDetail() {
 
           {/* Right: sidebar */}
           <Grid item xs={12} md={4}>
-            {/* Learn mode: video list + progress + assessment */}
+            {/* Manuals & Documents — above enrollment card */}
+            {program?.id && (
+              <Box sx={{ mb: 3 }}>
+                <ManualSection flagshipProgramId={program.id} title="Manuals & Documents" />
+              </Box>
+            )}
+
+            {/* Learn mode: video list + progress */}
             {isEnrolled && learnMode && hasVideos && (
               <>
-                <Paper sx={{ mb: 3 }}>
-                  <Typography variant="h6" sx={{ p: 2 }}>Course Content</Typography>
+                <Paper sx={{ mb: 3, borderRadius: 2, overflow: 'hidden' }}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      pb: 1.5,
+                      background: 'linear-gradient(135deg, #7B2D8B, #5C1D6B)',
+                    }}
+                  >
+                    <Typography variant="h6" sx={{ color: '#fff', fontWeight: 600 }}>Course Content</Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.85)' }}>
+                      {completedVideos} of {totalVideos} completed
+                    </Typography>
+                  </Box>
                   <Divider />
                   <VideoList
                     videos={videos}
@@ -635,8 +745,8 @@ function FlagshipDetail() {
                   />
                 </Paper>
 
-                <Paper sx={{ p: 3, mb: 3 }}>
-                  <Typography variant="h6" gutterBottom>Your Progress</Typography>
+                <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom fontWeight={600}>Your Progress</Typography>
                   <ProgressTracker
                     value={totalProgressScore}
                     max={totalVideos}
@@ -645,58 +755,25 @@ function FlagshipDetail() {
                     size="medium"
                     color={isCompleted ? 'success' : 'primary'}
                   />
-                </Paper>
-
-                {enrolledProgramData?.canDownloadCertificate && (
-                  <Button
-                    variant="contained"
-                    color="success"
-                    fullWidth
-                    startIcon={<CardMembershipIcon />}
-                    onClick={handleDownloadCertificate}
-                    sx={{ mb: 3 }}
-                  >
-                    Download Certificate
-                  </Button>
-                )}
-
-                {program.testLink && isValidUrl(program.testLink) && (
-                  <Paper sx={{ p: 3, mb: 3 }}>
-                    <Typography variant="h6" gutterBottom>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <AssignmentIcon color="primary" />
-                        Course Assessment
-                      </Box>
-                    </Typography>
-                    {program.testDescription && (
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        {program.testDescription}
-                      </Typography>
-                    )}
+                  {enrolledProgramData?.canDownloadCertificate && (
                     <Button
                       variant="contained"
+                      color="success"
                       fullWidth
-                      href={program.testLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      startIcon={<AssignmentIcon />}
+                      startIcon={<CardMembershipIcon />}
+                      onClick={handleDownloadCertificate}
+                      sx={{ mt: 2 }}
                     >
-                      Take Assessment
+                      Download Certificate
                     </Button>
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mt: 2 }}>
-                      <InfoOutlinedIcon sx={{ fontSize: 18, color: 'text.secondary', mt: 0.2 }} />
-                      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-                        After completion of the exam, your certificate will be issued within 24–48 hours.
-                      </Typography>
-                    </Box>
-                  </Paper>
-                )}
+                  )}
+                </Paper>
               </>
             )}
 
             {/* Enrollment sidebar */}
-            <Paper sx={{ p: 3, position: { md: 'sticky' }, top: { md: 80 } }}>
-              <Typography variant="h6" gutterBottom fontWeight={600}>
+            <Paper sx={{ p: 3, borderRadius: 2, position: { md: 'sticky' }, top: { md: 80 } }}>
+              <Typography variant="h6" gutterBottom fontWeight={700}>
                 {isEnrolled ? 'Program Access' : 'Enroll in This Program'}
               </Typography>
               <Divider sx={{ mb: 2 }} />
@@ -775,6 +852,42 @@ function FlagshipDetail() {
                   </Button>
                 )}
 
+                {/* Assessment links */}
+                {assessmentLinks.length > 0 && (
+                  <>
+                    <Divider />
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <AssignmentIcon fontSize="small" color="primary" />
+                        <Typography variant="body2" fontWeight={600} color="primary">Assessments</Typography>
+                      </Box>
+                      {assessmentLinks.map((link, i) => {
+                        const isValid = (() => { try { const u = new URL(link.url); return u.protocol === 'http:' || u.protocol === 'https:'; } catch { return false; } })();
+                        if (!isValid) return null;
+                        return (
+                          <Button
+                            key={i}
+                            variant="outlined"
+                            fullWidth
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            startIcon={<AssignmentIcon />}
+                          >
+                            {link.title || 'Take Assessment'}
+                          </Button>
+                        );
+                      })}
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                        <InfoOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary', mt: 0.2, flexShrink: 0 }} />
+                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
+                          Please complete both the Pre-Assessment and Assessment. Your result will be reviewed and the certificate will be issued within 24–48 hours after completion of both.
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </>
+                )}
+
                 {/* Certificate download — shown in sidebar when not in learn mode */}
                 {isEnrolled && !learnMode && enrolledProgramData?.canDownloadCertificate && (
                   <>
@@ -791,36 +904,11 @@ function FlagshipDetail() {
                   </>
                 )}
 
-                {!learnMode && program.testLink && isValidUrl(program.testLink) && (
-                  <>
-                    <Divider />
-                    <Button
-                      variant="outlined"
-                      fullWidth
-                      startIcon={<AssignmentIcon />}
-                      href={program.testLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Take Assessment
-                    </Button>
-                    {program.testDescription && (
-                      <Typography variant="body2" color="text.secondary">
-                        {program.testDescription}
-                      </Typography>
-                    )}
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                      <InfoOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary', mt: 0.2, flexShrink: 0 }} />
-                      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-                        After completing the exam, your certificate will be issued within 24–48 hours.
-                      </Typography>
-                    </Box>
-                  </>
-                )}
               </Box>
             </Paper>
           </Grid>
         </Grid>
+
       </Container>
     </>
   );

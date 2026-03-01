@@ -16,6 +16,7 @@ import OndemandVideoIcon from '@mui/icons-material/OndemandVideo';
 import CloseIcon from '@mui/icons-material/Close';
 import { flagshipService } from '../../services/flagshipService';
 import { useToast } from '../../store';
+import ManualSection from '../course/ManualSection';
 
 const SECTION_TYPES = [
   { value: 'overview', label: 'Overview / Info Grid' },
@@ -33,6 +34,7 @@ const SECTION_COLORS = {
 
 const emptyPrice = () => ({ countryCode: '', currencyCode: '', amount: '' });
 const emptyVideo = () => ({ title: '', url: '', durationSeconds: '' });
+const emptyAssessmentLink = () => ({ title: '', url: '' });
 
 const empty = () => ({
   title: '',
@@ -49,8 +51,9 @@ const empty = () => ({
   removeBackgroundImage: false,
   price: '',
   countryPrices: [],
-  testLink: '',
-  testDescription: '',
+  assessmentLinks: [],
+  preAssessmentLinks: [],
+  preAssessmentInstructions: 'Complete the pre-assessment before starting your learning journey. This helps us understand your baseline knowledge and customize your learning experience.',
   reminderDays: '',
   // Course detail fields
   targetAudience: '',
@@ -77,6 +80,9 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
       let examDetails = [];
       try { if (program.examDetails) examDetails = JSON.parse(program.examDetails); } catch {}
 
+      let assessmentLinks = [];
+      try { if (program.assessmentLinks) assessmentLinks = JSON.parse(program.assessmentLinks); } catch {}
+
       setForm({
         title: program.title || '',
         tagline: program.tagline || '',
@@ -96,8 +102,11 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
           currencyCode: cp.currencyCode,
           amount: cp.amount.toString(),
         })),
-        testLink: program.testLink || '',
-        testDescription: program.testDescription || '',
+        assessmentLinks: assessmentLinks.map((l) => ({ title: l.title || '', url: l.url || '' })),
+        preAssessmentLinks: (() => {
+          try { return program.preAssessmentLinks ? JSON.parse(program.preAssessmentLinks).map(l => ({ title: l.title || '', url: l.url || '' })) : []; } catch { return []; }
+        })(),
+        preAssessmentInstructions: program.preAssessmentInstructions || '',
         reminderDays: program.reminderDays != null ? program.reminderDays.toString() : '',
         targetAudience: program.targetAudience || '',
         assessment: program.assessment || '',
@@ -143,6 +152,20 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
     [arr[i], arr[t]] = [arr[t], arr[i]];
     set('videos', arr);
   };
+
+  // ── Assessment Links ─────────────────────────────────────────────────────────
+  const addAssessmentLink = () => set('assessmentLinks', [...form.assessmentLinks, emptyAssessmentLink()]);
+  const updateAssessmentLink = (i, field, value) => {
+    const arr = [...form.assessmentLinks]; arr[i] = { ...arr[i], [field]: value }; set('assessmentLinks', arr);
+  };
+  const removeAssessmentLink = (i) => set('assessmentLinks', form.assessmentLinks.filter((_, j) => j !== i));
+
+  // ── Pre-Assessment Links ──────────────────────────────────────────────────────
+  const addPreAssessmentLink = () => set('preAssessmentLinks', [...form.preAssessmentLinks, emptyAssessmentLink()]);
+  const updatePreAssessmentLink = (i, field, value) => {
+    const arr = [...form.preAssessmentLinks]; arr[i] = { ...arr[i], [field]: value }; set('preAssessmentLinks', arr);
+  };
+  const removePreAssessmentLink = (i) => set('preAssessmentLinks', form.preAssessmentLinks.filter((_, j) => j !== i));
 
   // ── Country prices ──────────────────────────────────────────────────────────
   const addCountryPrice = () => set('countryPrices', [...form.countryPrices, emptyPrice()]);
@@ -242,8 +265,15 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
       if (form.backgroundImage) fd.append('backgroundImage', form.backgroundImage);
       if (program) fd.append('removeBackgroundImage', form.removeBackgroundImage);
       if (form.price) fd.append('price', parseFloat(form.price));
-      if (form.testLink.trim()) fd.append('testLink', form.testLink.trim());
-      if (form.testDescription.trim()) fd.append('testDescription', form.testDescription.trim());
+      const validLinks = form.assessmentLinks.filter((l) => l.url.trim());
+      fd.append('assessmentLinks', JSON.stringify(
+        validLinks.map((l) => ({ title: l.title.trim(), url: l.url.trim() }))
+      ));
+      const validPreLinks = form.preAssessmentLinks.filter((l) => l.url.trim());
+      fd.append('preAssessmentLinks', JSON.stringify(
+        validPreLinks.map((l) => ({ title: l.title.trim(), url: l.url.trim() }))
+      ));
+      if (form.preAssessmentInstructions.trim()) fd.append('preAssessmentInstructions', form.preAssessmentInstructions.trim());
       if (form.reminderDays) fd.append('reminderDays', parseInt(form.reminderDays, 10));
 
       // Course detail fields
@@ -386,22 +416,41 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
         <Box>
           <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Assessment & Links</Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              label="Assessment / Test Link"
-              value={form.testLink}
-              onChange={(e) => set('testLink', e.target.value)}
-              fullWidth size="small"
-              placeholder="https://..."
-              helperText="Shown as 'Take Assessment' button on detail page"
-            />
-            <TextField
-              label="Assessment Description"
-              value={form.testDescription}
-              onChange={(e) => set('testDescription', e.target.value)}
-              fullWidth size="small" multiline rows={2}
-              placeholder="e.g. The assessment consists of 40 multiple-choice questions..."
-              helperText="Short description shown next to the assessment button"
-            />
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="body2" fontWeight={600}>Assessment Links</Typography>
+                <Button size="small" startIcon={<AddIcon />} onClick={addAssessmentLink}>Add Link</Button>
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: 'block' }}>
+                Each link appears as an "Take Assessment" button on the program page.
+              </Typography>
+              {form.assessmentLinks.map((link, i) => (
+                <Box key={i} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
+                  <TextField
+                    label="Button Label"
+                    value={link.title}
+                    onChange={(e) => updateAssessmentLink(i, 'title', e.target.value)}
+                    size="small"
+                    sx={{ width: 180 }}
+                    placeholder="e.g. Pre-Assessment"
+                  />
+                  <TextField
+                    label="URL *"
+                    value={link.url}
+                    onChange={(e) => updateAssessmentLink(i, 'url', e.target.value)}
+                    size="small"
+                    sx={{ flex: 1 }}
+                    placeholder="https://forms.google.com/..."
+                  />
+                  <IconButton size="small" color="error" onClick={() => removeAssessmentLink(i)}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              ))}
+              {form.assessmentLinks.length === 0 && (
+                <Typography variant="body2" color="text.secondary">No assessment links yet.</Typography>
+              )}
+            </Box>
             <TextField
               label="Completion Reminder (days after enrollment)"
               type="number"
@@ -412,6 +461,55 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
               helperText="Send a reminder email if the user hasn't completed the program after this many days. Leave empty to disable."
               inputProps={{ min: 1, step: 1 }}
             />
+          </Box>
+        </Box>
+
+        <Divider />
+
+        {/* ── Pre-Assessment (Practice) ── */}
+        <Box>
+          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Pre-Assessment (Practice)</Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              label="Instructions (shown above pre-assessment buttons)"
+              value={form.preAssessmentInstructions}
+              onChange={(e) => set('preAssessmentInstructions', e.target.value)}
+              fullWidth size="small" multiline rows={2}
+              placeholder="e.g. Complete the pre-assessment before starting your learning journey. This helps us understand your baseline knowledge."
+              helperText="Leave blank to use the default instruction text"
+            />
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="body2" fontWeight={600}>Pre-Assessment Links</Typography>
+                <Button size="small" startIcon={<AddIcon />} onClick={addPreAssessmentLink}>Add Link</Button>
+              </Box>
+              {form.preAssessmentLinks.map((link, i) => (
+                <Box key={i} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
+                  <TextField
+                    label="Button Label"
+                    value={link.title}
+                    onChange={(e) => updatePreAssessmentLink(i, 'title', e.target.value)}
+                    size="small"
+                    sx={{ width: 180 }}
+                    placeholder="e.g. Pre-Assessment"
+                  />
+                  <TextField
+                    label="URL *"
+                    value={link.url}
+                    onChange={(e) => updatePreAssessmentLink(i, 'url', e.target.value)}
+                    size="small"
+                    sx={{ flex: 1 }}
+                    placeholder="https://forms.google.com/..."
+                  />
+                  <IconButton size="small" color="error" onClick={() => removePreAssessmentLink(i)}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              ))}
+              {form.preAssessmentLinks.length === 0 && (
+                <Typography variant="body2" color="text.secondary">No pre-assessment links yet.</Typography>
+              )}
+            </Box>
           </Box>
         </Box>
 
@@ -695,6 +793,13 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
             </Paper>
           ))}
         </Box>
+
+        {/* Manuals — only shown when editing an existing program */}
+        {program?.id && (
+          <Box sx={{ mt: 3 }}>
+            <ManualSection flagshipProgramId={program.id} isAdmin title="Manuals & Documents" />
+          </Box>
+        )}
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>

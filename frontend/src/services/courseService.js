@@ -114,8 +114,9 @@ export async function createCourse(courseData, imageOptions = {}) {
   formData.append('flagship', courseOnly.flagship || false);
   if (courseOnly.displayOrder != null) formData.append('displayOrder', courseOnly.displayOrder);
   if (courseOnly.courseType) formData.append('courseType', courseOnly.courseType);
-  if (courseOnly.testLink) formData.append('testLink', courseOnly.testLink);
-  if (courseOnly.testDescription) formData.append('testDescription', courseOnly.testDescription);
+  if (courseOnly.assessmentLinks != null) formData.append('assessmentLinks', courseOnly.assessmentLinks);
+  if (courseOnly.preAssessmentLinks != null) formData.append('preAssessmentLinks', courseOnly.preAssessmentLinks);
+  if (courseOnly.preAssessmentInstructions) formData.append('preAssessmentInstructions', courseOnly.preAssessmentInstructions);
   if (courseOnly.reminderDays != null) formData.append('reminderDays', courseOnly.reminderDays);
 
   // Structured description sections
@@ -195,8 +196,9 @@ export async function updateCourse(id, courseData, imageOptions = {}) {
   formData.append('flagship', courseOnly.flagship || false);
   if (courseOnly.displayOrder != null) formData.append('displayOrder', courseOnly.displayOrder);
   if (courseOnly.courseType) formData.append('courseType', courseOnly.courseType);
-  if (courseOnly.testLink !== undefined) formData.append('testLink', courseOnly.testLink || '');
-  if (courseOnly.testDescription !== undefined) formData.append('testDescription', courseOnly.testDescription || '');
+  if (courseOnly.assessmentLinks !== undefined) formData.append('assessmentLinks', courseOnly.assessmentLinks || '[]');
+  if (courseOnly.preAssessmentLinks !== undefined) formData.append('preAssessmentLinks', courseOnly.preAssessmentLinks || '[]');
+  if (courseOnly.preAssessmentInstructions !== undefined) formData.append('preAssessmentInstructions', courseOnly.preAssessmentInstructions || '');
   // Send reminderDays — send empty string to clear, or the integer value to set
   if (courseOnly.reminderDays != null) formData.append('reminderDays', courseOnly.reminderDays);
 

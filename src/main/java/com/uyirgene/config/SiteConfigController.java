@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -95,5 +96,49 @@ public class SiteConfigController {
     public ResponseEntity<String> seedDefaults() {
         configService.seedDefaultConfigs();
         return ResponseEntity.ok("Default configurations seeded successfully");
+    }
+
+    // ========== Certificate number format endpoints ==========
+
+    @GetMapping("/admin/cert-number")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Get certificate number format config")
+    public ResponseEntity<Map<String, Object>> getCertNumberConfig() {
+        String format = configService.getConfigValueFresh("certNumberFormat", "UG-{YEAR}-{SEQ:5}");
+        long seq = configService.getCurrentCertSeq();
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("format", format);
+        resp.put("currentSeq", seq);
+        resp.put("preview", configService.previewCertNumber(format, seq + 1));
+        return ResponseEntity.ok(resp);
+    }
+
+    @PutMapping("/admin/cert-number")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update certificate number format and/or sequence")
+    public ResponseEntity<Map<String, Object>> updateCertNumberConfig(@RequestBody Map<String, Object> body) {
+        if (body.containsKey("format")) {
+            String fmt = (String) body.get("format");
+            if (fmt == null || fmt.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Format cannot be empty"));
+            }
+            // A format with no {SEQ} token produces the same ID for every certificate
+            if (!fmt.contains("{SEQ}") && !fmt.matches(".*\\{SEQ:\\d+\\}.*")) {
+                return ResponseEntity.badRequest().body(
+                    Map.of("error", "Format must include {SEQ} or {SEQ:N} so each certificate gets a unique number"));
+            }
+            configService.updateConfigByKey("certNumberFormat", fmt);
+        }
+        if (body.containsKey("seq")) {
+            long newSeq = Long.parseLong(body.get("seq").toString());
+            configService.resetCertSeq(newSeq);
+        }
+        String format = configService.getConfigValueFresh("certNumberFormat", "UG-{YEAR}-{SEQ:5}");
+        long seq = configService.getCurrentCertSeq();
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("format", format);
+        resp.put("currentSeq", seq);
+        resp.put("preview", configService.previewCertNumber(format, seq + 1));
+        return ResponseEntity.ok(resp);
     }
 }

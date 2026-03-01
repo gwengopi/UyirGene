@@ -43,6 +43,15 @@ public class FlagshipProgramDto {
     private String testLink;
     private String testDescription;
 
+    /** JSON array of assessment links: [{"title":"...","url":"..."}] */
+    private String assessmentLinks;
+
+    /** JSON array of pre-assessment (practice) links: [{"title":"...","url":"..."}] */
+    private String preAssessmentLinks;
+
+    /** Admin-configurable instruction text shown above pre-assessment buttons */
+    private String preAssessmentInstructions;
+
     // Completion reminder SLA (days after enrollment)
     private Integer reminderDays;
 
@@ -127,6 +136,9 @@ public class FlagshipProgramDto {
                 .trainerName(program.getTrainerName())
                 .testLink(program.getTestLink())
                 .testDescription(program.getTestDescription())
+                .assessmentLinks(program.getAssessmentLinks())
+                .preAssessmentLinks(program.getPreAssessmentLinks())
+                .preAssessmentInstructions(program.getPreAssessmentInstructions())
                 .reminderDays(program.getReminderDays())
                 .targetAudience(program.getTargetAudience())
                 .assessment(program.getAssessment())

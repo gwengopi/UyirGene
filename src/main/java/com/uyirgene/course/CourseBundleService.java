@@ -29,6 +29,12 @@ public class CourseBundleService {
 
     // ==================== Public ====================
 
+    public List<CourseBundleDto> getPublishedBundlesByCourse(Long courseId) {
+        return bundleRepo.findPublishedBundlesByCourseId(courseId).stream()
+                .map(CourseBundleDto::fromEntity)
+                .collect(Collectors.toList());
+    }
+
     public List<CourseBundleDto> getPublishedBundles() {
         return bundleRepo.findByPublishedTrueOrderByDisplayOrderAscIdAsc().stream()
                 .map(CourseBundleDto::fromEntity)
@@ -340,6 +346,127 @@ public class CourseBundleService {
         return newEnrollments;
     }
 
+    // ==================== Multi-Bundle Enrollment ====================
+
+    @Transactional
+    public MultiEnrollmentResult startMultiBundleEnrollment(List<Long> bundleIds, String countryCode) {
+        User user = currentUserService.getCurrentUser();
+
+        double totalAmount = 0.0;
+        String resolvedCurrency = "INR";
+        List<String> warnings = new ArrayList<>();
+
+        for (Long bundleId : bundleIds) {
+            CourseBundle bundle = bundleRepo.findById(bundleId)
+                    .orElseThrow(() -> new EntityNotFoundException("Bundle not found: " + bundleId));
+
+            if (!bundle.getPublished()) {
+                throw new IllegalStateException("Bundle '" + bundle.getTitle() + "' is not available for purchase");
+            }
+
+            // Check ownership for warning
+            List<Course> alreadyOwned = new ArrayList<>();
+            for (Course course : bundle.getCourses()) {
+                Optional<Enrollment> existing = enrollmentRepo.findByUserAndCourse(user, course);
+                if (existing.isPresent() &&
+                    (existing.get().getStatus() == Enrollment.Status.ENROLLED ||
+                     existing.get().getStatus() == Enrollment.Status.COMPLETED)) {
+                    alreadyOwned.add(course);
+                }
+            }
+            if (!alreadyOwned.isEmpty() && alreadyOwned.size() < bundle.getCourses().size()) {
+                String names = alreadyOwned.stream().map(Course::getTitle).collect(Collectors.joining(", "));
+                warnings.add("\"" + bundle.getTitle() + "\": you already own " + names);
+            }
+
+            // Resolve price
+            double price;
+            String currency;
+            if (countryCode != null && !countryCode.isBlank() && !"IN".equalsIgnoreCase(countryCode)) {
+                Optional<BundlePrice> bp = bundlePriceRepo.findByBundleAndCountryCode(bundle, countryCode.toUpperCase());
+                if (bp.isPresent()) {
+                    price = bp.get().getAmount();
+                    currency = bp.get().getCurrencyCode();
+                } else {
+                    price = bundle.getPrice();
+                    currency = "INR";
+                }
+            } else {
+                price = bundle.getPrice();
+                currency = "INR";
+            }
+
+            totalAmount += price;
+            resolvedCurrency = currency; // use last resolved currency (should be consistent)
+        }
+
+        long amountSmallestUnit = Math.round(totalAmount * 100);
+        PaymentOrder po = paymentProvider.createOrder(
+                amountSmallestUnit, resolvedCurrency, "multi-bundle-" + System.currentTimeMillis());
+
+        EnrollmentResult.RazorpayOrder order = new EnrollmentResult.RazorpayOrder(
+                po.getId(), po.getAmount(), po.getCurrency(), po.getKeyId());
+
+        String warningMessage = warnings.isEmpty() ? null : "Note: " + String.join("; ", warnings);
+        return new MultiEnrollmentResult(order, warningMessage);
+    }
+
+    @Transactional
+    public List<Enrollment> confirmMultiBundlePayment(List<Long> bundleIds, String razorpayPaymentId,
+                                                       String razorpayOrderId, String signature) {
+        // Verify payment signature once for the combined order
+        boolean ok = paymentProvider.verifySignature(razorpayOrderId, razorpayPaymentId, signature);
+        if (!ok) {
+            throw new PaymentException("Invalid payment signature");
+        }
+
+        User user = currentUserService.getCurrentUser();
+        List<Enrollment> allEnrollments = new ArrayList<>();
+
+        for (Long bundleId : bundleIds) {
+            CourseBundle bundle = bundleRepo.findById(bundleId)
+                    .orElseThrow(() -> new EntityNotFoundException("Bundle not found: " + bundleId));
+
+            List<Enrollment> newEnrollments = new ArrayList<>();
+            for (Course course : bundle.getCourses()) {
+                Optional<Enrollment> existing = enrollmentRepo.findByUserAndCourse(user, course);
+                if (existing.isPresent()) {
+                    Enrollment e = existing.get();
+                    if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) {
+                        continue;
+                    }
+                    e.setStatus(Enrollment.Status.ENROLLED);
+                    e.setBundle(bundle);
+                    e.setPaymentOrderId(razorpayOrderId);
+                    newEnrollments.add(enrollmentRepo.save(e));
+                } else {
+                    Enrollment enrollment = Enrollment.builder()
+                            .user(user)
+                            .course(course)
+                            .bundle(bundle)
+                            .enrolledAt(LocalDateTime.now())
+                            .status(Enrollment.Status.ENROLLED)
+                            .paymentOrderId(razorpayOrderId)
+                            .build();
+                    newEnrollments.add(enrollmentRepo.save(enrollment));
+                }
+            }
+
+            if (!newEnrollments.isEmpty()) {
+                String userEmail = user.getEmail();
+                String userName = user.getName();
+                String bundleTitle = bundle.getTitle();
+                List<String> courseTitles = newEnrollments.stream()
+                        .map(e -> e.getCourse().getTitle()).toList();
+                mailService.sendBundleEnrollmentSuccess(userEmail, userName, bundleTitle, courseTitles);
+            }
+
+            allEnrollments.addAll(newEnrollments);
+        }
+
+        return allEnrollments;
+    }
+
     // ==================== Result DTOs ====================
 
     public record BundleEnrollmentResult(
@@ -348,5 +475,10 @@ public class CourseBundleService {
             List<String> newCourses,
             String message,
             boolean allOwned
+    ) {}
+
+    public record MultiEnrollmentResult(
+            EnrollmentResult.RazorpayOrder order,
+            String message
     ) {}
 }

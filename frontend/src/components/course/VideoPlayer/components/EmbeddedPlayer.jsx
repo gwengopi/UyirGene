@@ -22,6 +22,8 @@ function EmbeddedPlayer({ src, title, onProgress, onComplete, onPlay, initialPos
   const [isPlaying, setIsPlaying] = useState(false);
   const hasPlayedRef = useRef(false);
   const [overlayActive, setOverlayActive] = useState(true);
+  // 'none' | 'paused' | 'ended'
+  const [ytSuggestionsState, setYtSuggestionsState] = useState('none');
   const progressRef = useRef(initialPosition);
 
   const isYouTube = Boolean(src && (src.includes('youtube') || src.includes('youtu.be')));
@@ -30,8 +32,53 @@ function EmbeddedPlayer({ src, title, onProgress, onComplete, onPlay, initialPos
   useEffect(() => {
     hasPlayedRef.current = false;
     setOverlayActive(true);
+    setYtSuggestionsState('none');
     progressRef.current = initialPosition;
   }, [src, initialPosition]);
+
+  // Subscribe to YouTube iframe events once the iframe has loaded.
+  // Without sending 'listening', YouTube may not emit postMessage events.
+  const handleIframeLoad = useCallback(() => {
+    if (isYouTube && iframeRef.current) {
+      try {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: 'listening', id: 1 }),
+          '*'
+        );
+      } catch (_) {}
+    }
+  }, [isYouTube]);
+
+  // Listen for YouTube state changes to block end-screen / pause suggestions.
+  // YouTube sends two formats: { event:'onStateChange', info:STATE } and
+  // { event:'infoDelivery', info:{ playerState:STATE, ... } } — handle both.
+  useEffect(() => {
+    if (!isYouTube) return;
+    const handleMessage = (e) => {
+      try {
+        const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+        if (!data || typeof data !== 'object') return;
+
+        let state = null;
+        if (data.event === 'onStateChange' && typeof data.info === 'number') {
+          state = data.info;
+        } else if (
+          data.event === 'infoDelivery' &&
+          data.info &&
+          typeof data.info.playerState === 'number'
+        ) {
+          state = data.info.playerState;
+        }
+        if (state === null) return;
+
+        if (state === 0) setYtSuggestionsState('ended');
+        else if (state === 2) setYtSuggestionsState('paused');
+        else setYtSuggestionsState('none');
+      } catch (_) {}
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [isYouTube]);
 
   // Handle fullscreen changes
   useEffect(() => {
@@ -131,6 +178,7 @@ function EmbeddedPlayer({ src, title, onProgress, onComplete, onPlay, initialPos
           ref={iframeRef}
           src={src}
           title={title}
+          onLoad={handleIframeLoad}
           style={{
             position: 'absolute', top: 0, left: 0,
             width: '100%', height: '100%', border: 'none',
@@ -152,6 +200,42 @@ function EmbeddedPlayer({ src, title, onProgress, onComplete, onPlay, initialPos
             }}
             onClick={handleOverlayClick}
           />
+        )}
+
+        {/* ── YouTube end-screen / pause suggestions blocker ── */}
+        {/* Opaque overlay that completely hides (and blocks) YouTube's       */}
+        {/* suggested-video panels when the video is paused or has ended.     */}
+        {/* • paused : covers video area, leaves bottom 50 px for controls;  */}
+        {/*            clicking anywhere sends playVideo to resume.           */}
+        {/* • ended  : covers the entire player.                             */}
+        {isYouTube && ytSuggestionsState !== 'none' && !overlayActive && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: ytSuggestionsState === 'ended' ? 0 : '50px',
+              zIndex: 9,
+              backgroundColor: 'rgba(0, 0, 0, 0.85)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: ytSuggestionsState === 'paused' ? 'pointer' : 'default',
+            }}
+            onClick={() => {
+              if (ytSuggestionsState === 'paused' && iframeRef.current) {
+                iframeRef.current.contentWindow.postMessage(
+                  JSON.stringify({ event: 'command', func: 'playVideo', args: [] }),
+                  '*'
+                );
+              }
+            }}
+          >
+            <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.95rem', letterSpacing: '0.03em', pointerEvents: 'none' }}>
+              {ytSuggestionsState === 'paused' ? '▶\u2002Click anywhere to resume' : 'Video complete'}
+            </span>
+          </Box>
         )}
 
         {/* ── Branding overlays (always on top of the interceptor) ── */}

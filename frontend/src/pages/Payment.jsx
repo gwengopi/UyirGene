@@ -7,6 +7,7 @@ import {
 import { useToast } from '../store';
 import { enrollmentService } from '../services';
 import * as bundleService from '../services/bundleService';
+import { confirmMultiBundlePayment } from '../services/bundleService';
 import { flagshipService } from '../services/flagshipService';
 import { formatCurrency } from '../utils/formatters';
 import { ROUTES } from '../utils/constants';
@@ -22,12 +23,14 @@ function Payment() {
   const order = state?.order;
   const courseId = state?.courseId;
   const bundleId = state?.bundleId;
+  const bundleIds = state?.bundleIds; // array — multi-bundle enrollment
   const flagshipProgramId = state?.flagshipProgramId;
   const courseName = state?.courseName || state?.bundleName || 'course';
+  const isMultiBundle = Array.isArray(bundleIds) && bundleIds.length > 0;
   const isBundle = !!bundleId;
   const isFlagship = !!flagshipProgramId;
 
-  if (!order || (!courseId && !bundleId && !flagshipProgramId)) {
+  if (!order || (!courseId && !bundleId && !bundleIds && !flagshipProgramId)) {
     return (
       <Container maxWidth="sm" sx={{ py: 8 }}>
         <Alert severity="error">Payment information missing. Please retry enrollment from the course page.</Alert>
@@ -39,7 +42,9 @@ function Payment() {
   }
 
   const confirmPayment = async (paymentData) => {
-    if (isBundle) {
+    if (isMultiBundle) {
+      await confirmMultiBundlePayment(bundleIds, paymentData);
+    } else if (isBundle) {
       await bundleService.confirmBundlePayment(bundleId, paymentData);
     } else if (isFlagship) {
       await flagshipService.confirmPayment(flagshipProgramId, paymentData);
@@ -60,9 +65,11 @@ function Payment() {
       });
 
       await confirmPayment(paymentData);
-      showSuccess(isBundle
-        ? 'Payment successful! You are now enrolled in all bundle courses.'
-        : 'Payment successful! Enrollment completed.');
+      showSuccess(isMultiBundle
+        ? 'Payment successful! You are now enrolled in all selected bundle courses.'
+        : isBundle
+          ? 'Payment successful! You are now enrolled in all bundle courses.'
+          : 'Payment successful! Enrollment completed.');
       navigate(ROUTES.MY_COURSES);
     } catch (error) {
       if (error.message === 'Payment cancelled') {
@@ -75,7 +82,7 @@ function Payment() {
         setFailureDialog({ open: true, message: msg });
         enrollmentService.notifyPaymentFailed(
           courseId ? Number(courseId) : null,
-          bundleId ? Number(bundleId) : null,
+          isMultiBundle ? bundleIds[0] : bundleId ? Number(bundleId) : null,
           msg,
           flagshipProgramId ? Number(flagshipProgramId) : null
         );

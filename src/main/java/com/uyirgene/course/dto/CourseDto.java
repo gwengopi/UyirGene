@@ -59,6 +59,15 @@ public class CourseDto {
     private String testLink;
     private String testDescription;
 
+    /** JSON array of assessment links: [{"title":"...","url":"..."}] */
+    private String assessmentLinks;
+
+    /** JSON array of pre-assessment (practice) links: [{"title":"...","url":"..."}] */
+    private String preAssessmentLinks;
+
+    /** Admin-configurable instruction text shown above pre-assessment buttons */
+    private String preAssessmentInstructions;
+
     // Completion reminder SLA (days after enrollment)
     private Integer reminderDays;
 
@@ -141,6 +150,9 @@ public class CourseDto {
                         : Collections.emptyList())
                 .testLink(course.getTestLink())
                 .testDescription(course.getTestDescription())
+                .assessmentLinks(course.getAssessmentLinks())
+                .preAssessmentLinks(course.getPreAssessmentLinks())
+                .preAssessmentInstructions(course.getPreAssessmentInstructions())
                 .reminderDays(course.getReminderDays())
                 .build();
     }

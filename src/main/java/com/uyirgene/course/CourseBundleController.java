@@ -37,6 +37,12 @@ public class CourseBundleController {
 
     // ==================== Public Endpoints ====================
 
+    @GetMapping("/by-course/{courseId}")
+    @Operation(summary = "Get published bundles that contain a specific course")
+    public ResponseEntity<List<CourseBundleDto>> getBundlesByCourse(@PathVariable("courseId") Long courseId) {
+        return ResponseEntity.ok(bundleService.getPublishedBundlesByCourse(courseId));
+    }
+
     @GetMapping
     @Operation(summary = "List all published bundles, optionally filtered by category")
     public ResponseEntity<List<CourseBundleDto>> getPublishedBundles(
@@ -104,6 +110,33 @@ public class CourseBundleController {
                                                       @Valid @RequestBody PaymentConfirmDto dto) {
         List<Enrollment> enrollments = bundleService.confirmBundlePayment(
                 id, dto.getRazorpayPaymentId(), dto.getRazorpayOrderId(), dto.getRazorpaySignature());
+
+        List<String> enrolledCourses = enrollments.stream()
+                .map(e -> e.getCourse().getTitle())
+                .toList();
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Payment confirmed. Enrolled in " + enrollments.size() + " course(s).",
+                "enrolledCourses", enrolledCourses
+        ));
+    }
+
+    @PostMapping("/enroll/multi")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Start multi-bundle enrollment — creates a single Razorpay order for all selected bundles")
+    public ResponseEntity<?> enrollMultiBundles(@RequestBody MultiEnrollRequest request) {
+        CourseBundleService.MultiEnrollmentResult result =
+                bundleService.startMultiBundleEnrollment(request.getBundleIds(), request.getCountryCode());
+        return ResponseEntity.status(HttpStatus.CREATED).body(result);
+    }
+
+    @PostMapping("/enroll/multi/confirm")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Confirm multi-bundle payment and enroll user in all selected bundles")
+    public ResponseEntity<?> confirmMultiBundleEnrollment(@Valid @RequestBody MultiEnrollConfirmDto dto) {
+        List<Enrollment> enrollments = bundleService.confirmMultiBundlePayment(
+                dto.getBundleIds(), dto.getRazorpayPaymentId(),
+                dto.getRazorpayOrderId(), dto.getRazorpaySignature());
 
         List<String> enrolledCourses = enrollments.stream()
                 .map(e -> e.getCourse().getTitle())
@@ -224,6 +257,23 @@ public class CourseBundleController {
     @Data
     public static class EnrollRequest {
         private String countryCode;
+    }
+
+    @Data
+    public static class MultiEnrollRequest {
+        private List<Long> bundleIds;
+        private String countryCode;
+    }
+
+    @Data
+    public static class MultiEnrollConfirmDto {
+        @NotBlank(message = "Payment ID is required")
+        private String razorpayPaymentId;
+        @NotBlank(message = "Order ID is required")
+        private String razorpayOrderId;
+        @NotBlank(message = "Signature is required")
+        private String razorpaySignature;
+        private List<Long> bundleIds;
     }
 
     public static class PaymentConfirmDto {

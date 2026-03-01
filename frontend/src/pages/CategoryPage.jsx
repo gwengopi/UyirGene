@@ -233,7 +233,7 @@ function CategoryPage() {
                   const bundleCourses = bundle.courses || [];
                   const totalDuration = bundleCourses.reduce((sum, c) => sum + (c.durationHours || 0), 0);
                   return (
-                    <Grid item xs={12} md={6} key={bundle.id}>
+                    <Grid item xs={12} sm={6} md={4} key={bundle.id}>
                       <Card
                         sx={{
                           cursor: 'pointer',

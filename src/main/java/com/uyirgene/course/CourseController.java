@@ -136,6 +136,9 @@ public class CourseController {
             @RequestParam(value = "descriptionImage", required = false) MultipartFile descriptionImage,
             @RequestParam(value = "testLink", required = false) String testLink,
             @RequestParam(value = "testDescription", required = false) String testDescription,
+            @RequestParam(value = "assessmentLinks", required = false) String assessmentLinksJson,
+            @RequestParam(value = "preAssessmentLinks", required = false) String preAssessmentLinksJson,
+            @RequestParam(value = "preAssessmentInstructions", required = false) String preAssessmentInstructions,
             @RequestParam(value = "displayOrder", required = false) Integer displayOrder,
             @RequestParam(value = "countryPrices", required = false) String countryPricesJson,
             @RequestParam(value = "keyComponents", required = false) String keyComponents,
@@ -179,6 +182,9 @@ public class CourseController {
                 .trainerName(trainerName)
                 .testLink(testLink)
                 .testDescription(testDescription)
+                .assessmentLinks(assessmentLinksJson)
+                .preAssessmentLinks(preAssessmentLinksJson)
+                .preAssessmentInstructions(preAssessmentInstructions)
                 .reminderDays(reminderDays)
                 .build();
 
@@ -283,6 +289,9 @@ public class CourseController {
             @RequestParam(value = "descriptionImage", required = false) MultipartFile descriptionImage,
             @RequestParam(value = "testLink", required = false) String testLink,
             @RequestParam(value = "testDescription", required = false) String testDescription,
+            @RequestParam(value = "assessmentLinks", required = false) String assessmentLinksJson,
+            @RequestParam(value = "preAssessmentLinks", required = false) String preAssessmentLinksJson,
+            @RequestParam(value = "preAssessmentInstructions", required = false) String preAssessmentInstructions,
             @RequestParam(value = "removeImage", defaultValue = "false") Boolean removeImage,
             @RequestParam(value = "removeThumbnailImage", defaultValue = "false") Boolean removeThumbnailImage,
             @RequestParam(value = "removeDescriptionImage", defaultValue = "false") Boolean removeDescriptionImage,
@@ -318,6 +327,9 @@ public class CourseController {
             existing.setCourseType(courseType);
             existing.setTestLink(testLink);
             existing.setTestDescription(testDescription);
+            existing.setAssessmentLinks(assessmentLinksJson);
+            existing.setPreAssessmentLinks(preAssessmentLinksJson);
+            existing.setPreAssessmentInstructions(preAssessmentInstructions);
             existing.setReminderDays(reminderDays);
 
             try {
