@@ -89,72 +89,63 @@ function CourseDetail() {
   };
   const displayPrice = getDisplayPrice();
 
-  // Load course data
+  // Load course data — course, bundles, and enrollment status fetched in parallel
   useEffect(() => {
     const loadCourse = async () => {
       setLoading(true);
       try {
-        const courseData = await courseService.getCourse(id);
+        // Fire all three independent requests simultaneously
+        const [courseData, bundles, enrolled] = await Promise.all([
+          courseService.getCourse(id),
+          getBundlesByCourse(id).catch(() => []),
+          isAuthenticated() ? enrollmentService.getEnrolledCourses().catch(() => null) : Promise.resolve(null),
+        ]);
+
         setCourse(courseData);
+        setAvailableBundles(bundles || []);
 
-        // Fetch bundles for this course (public endpoint — always)
-        try {
-          const bundles = await getBundlesByCourse(id);
-          setAvailableBundles(bundles || []);
-        } catch { /* non-critical */ }
+        if (enrolled) {
+          // Collect all enrolled course IDs for ownership check in upsell dialog
+          const ids = new Set(
+            enrolled
+              .filter((e) => e.status === 'ENROLLED' || e.status === 'COMPLETED')
+              .map((e) => (e.course || e).id)
+          );
+          setEnrolledCourseIds(ids);
 
-        if (isAuthenticated()) {
-          try {
-            // Check enrollment
-            const enrolled = await enrollmentService.getEnrolledCourses();
+          const enrollmentData = enrolled.find((c) => {
+            const courseObj = c.course || c;
+            return courseObj.id === parseInt(id);
+          });
+          // Only consider as enrolled if status is ENROLLED or COMPLETED (not PENDING)
+          const status = enrollmentData?.status;
+          const isUserEnrolled = !!enrollmentData && (status === 'ENROLLED' || status === 'COMPLETED');
+          setIsEnrolled(isUserEnrolled);
+          if (enrollmentData) {
+            setEnrollmentStatus(status);
+          }
 
-            // Collect all enrolled course IDs for ownership check in upsell dialog
-            const ids = new Set(
-              enrolled
-                .filter((e) => e.status === 'ENROLLED' || e.status === 'COMPLETED')
-                .map((e) => (e.course || e).id)
+          if (isUserEnrolled) {
+            // Load videos and progress in parallel
+            const videosData = await courseService.getCourseVideos(id);
+            setVideos(videosData);
+
+            const progress = await videoService.getMultipleProgress(
+              videosData.map((v) => v.id)
             );
-            setEnrolledCourseIds(ids);
+            setProgressMap(progress);
 
-            const enrollmentData = enrolled.find((c) => {
-              const courseObj = c.course || c;
-              return courseObj.id === parseInt(id);
-            });
-            // Only consider as enrolled if status is ENROLLED or COMPLETED (not PENDING)
-            const status = enrollmentData?.status;
-            const isUserEnrolled = !!enrollmentData && (status === 'ENROLLED' || status === 'COMPLETED');
-            setIsEnrolled(isUserEnrolled);
-            if (enrollmentData) {
-              setEnrollmentStatus(status);
-            }
-
-            if (isUserEnrolled) {
-              // Load videos and progress
-              const videosData = await courseService.getCourseVideos(id);
-              setVideos(videosData);
-
-              // Load progress for all videos in parallel
-              const progress = await videoService.getMultipleProgress(
-                videosData.map((v) => v.id)
-              );
-              setProgressMap(progress);
-
-              // Set first incomplete video as current
-              const incompleteVideo = videosData.find((v) => !progress[v.id]?.completed);
-              setCurrentVideo(incompleteVideo || videosData[0]);
-            }
-          } catch (enrollmentError) {
-            // Handle auth errors gracefully - user can still view course info
-            if (enrollmentError.response?.status === 401) {
-              console.warn('Session expired while loading enrollment data');
-              // Don't show error - user can still view course details and re-login to enroll
-            } else {
-              console.warn('Failed to load enrollment data:', enrollmentError);
-            }
+            // Set first incomplete video as current
+            const incompleteVideo = videosData.find((v) => !progress[v.id]?.completed);
+            setCurrentVideo(incompleteVideo || videosData[0]);
           }
         }
       } catch (error) {
-        showError('Failed to load course');
+        if (error.response?.status === 401) {
+          console.warn('Session expired while loading course data');
+        } else {
+          showError('Failed to load course');
+        }
       } finally {
         setLoading(false);
       }

@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Typography, Box, Paper } from '@mui/material';
 import BlockIcon from '@mui/icons-material/Block';
-import { Button } from '../components/common';
+import { Button, SEO } from '../components/common';
 import { ROUTES } from '../utils/constants';
 
 function Unauthorized() {
@@ -10,6 +10,7 @@ function Unauthorized() {
 
   return (
     <Container maxWidth="sm" sx={{ py: 8 }}>
+      <SEO title="403 – Access Denied" noindex />
       <Paper sx={{ p: 4, textAlign: 'center' }}>
         <BlockIcon
           sx={{ fontSize: 100, color: 'error.main', mb: 2 }}

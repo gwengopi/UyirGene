@@ -1,8 +1,13 @@
 package com.uyirgene.course;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface CourseRepository extends JpaRepository<Course, Long> {
+
+    @Query("SELECT c.title FROM Course c WHERE c.id = :id")
+    java.util.Optional<String> findTitleById(@Param("id") Long id);
     java.util.Optional<Course> findByCourseCodeIgnoreCase(String courseCode);
     java.util.List<Course> findByFlagshipTrue();
     java.util.List<Course> findByPublishedTrueOrderByDisplayOrderAscIdAsc();

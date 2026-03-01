@@ -16,11 +16,14 @@ const API_BASE = process.env.API_BASE_URL || 'http://localhost:8080';
 const STATIC_ROUTES = [
   { path: '/', priority: '1.0', changefreq: 'daily' },
   { path: '/courses', priority: '0.9', changefreq: 'daily' },
+  { path: '/flagship', priority: '0.9', changefreq: 'weekly' },
+  { path: '/standards', priority: '0.7', changefreq: 'monthly' },
   { path: '/services', priority: '0.8', changefreq: 'weekly' },
   { path: '/services/microbiology-research', priority: '0.7', changefreq: 'monthly' },
   { path: '/services/certification', priority: '0.7', changefreq: 'monthly' },
   { path: '/services/testing', priority: '0.7', changefreq: 'monthly' },
   { path: '/services/clinical-research', priority: '0.7', changefreq: 'monthly' },
+  { path: '/services/gmo-testing', priority: '0.7', changefreq: 'monthly' },
   { path: '/blog', priority: '0.8', changefreq: 'daily' },
   { path: '/about', priority: '0.6', changefreq: 'monthly' },
   { path: '/contact', priority: '0.6', changefreq: 'monthly' },
@@ -108,6 +111,42 @@ async function generateSitemap() {
     console.log(`  Added ${blogs.length} blog URLs`);
   } catch (err) {
     console.warn('  Could not fetch blogs:', err.message);
+  }
+
+  try {
+    console.log(`Fetching flagship programs from ${API_BASE}/api/flagship ...`);
+    const programs = await fetchJson(`${API_BASE}/api/flagship`);
+    for (const program of programs) {
+      urls.push(
+        urlEntry({
+          path: `/flagship/${program.id}`,
+          priority: '0.8',
+          changefreq: 'weekly',
+          lastmod: today,
+        })
+      );
+    }
+    console.log(`  Added ${programs.length} flagship program URLs`);
+  } catch (err) {
+    console.warn('  Could not fetch flagship programs:', err.message);
+  }
+
+  try {
+    console.log(`Fetching bundles from ${API_BASE}/api/bundles ...`);
+    const bundles = await fetchJson(`${API_BASE}/api/bundles`);
+    for (const bundle of bundles) {
+      urls.push(
+        urlEntry({
+          path: `/bundles/${bundle.id}`,
+          priority: '0.7',
+          changefreq: 'weekly',
+          lastmod: today,
+        })
+      );
+    }
+    console.log(`  Added ${bundles.length} bundle URLs`);
+  } catch (err) {
+    console.warn('  Could not fetch bundles:', err.message);
   }
 
   const sitemap = [

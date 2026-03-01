@@ -19,7 +19,7 @@ const COURSE_ENDPOINTS = {
  * @returns {Promise<Array>} List of all courses
  */
 export async function getAllCourses() {
-  const response = await api.get(COURSE_ENDPOINTS.LIST);
+  const response = await api.get(COURSE_ENDPOINTS.LIST, { cache: true, cacheTTL: 60_000 });
   return response.data;
 }
 
@@ -37,7 +37,7 @@ export async function getAdminCourses() {
  * @returns {Promise<Array>} List of flagship courses
  */
 export async function getFlagshipCourses() {
-  const response = await api.get(COURSE_ENDPOINTS.FLAGSHIP);
+  const response = await api.get(COURSE_ENDPOINTS.FLAGSHIP, { cache: true, cacheTTL: 60_000 });
   return response.data;
 }
 
@@ -59,7 +59,7 @@ export async function getCoursesByCategory(category, exclude = false) {
  * @returns {Promise<Object>} Course details
  */
 export async function getCourse(id) {
-  const response = await api.get(COURSE_ENDPOINTS.DETAIL(id));
+  const response = await api.get(COURSE_ENDPOINTS.DETAIL(id), { cache: true, cacheTTL: 30_000 });
   return response.data;
 }
 

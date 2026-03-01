@@ -70,6 +70,7 @@ public class CourseBundleController {
             headers.setContentType(MediaType.parseMediaType(
                     bundle.getThumbnailImageContentType() != null ? bundle.getThumbnailImageContentType() : "image/jpeg"));
             headers.setContentLength(bundle.getThumbnailImage().length);
+            headers.setCacheControl("public, max-age=3600");
             return new ResponseEntity<>(bundle.getThumbnailImage(), headers, HttpStatus.OK);
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }

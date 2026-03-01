@@ -27,7 +27,7 @@ import StarIcon from '@mui/icons-material/Star';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import LockIcon from '@mui/icons-material/Lock';
 import GroupsIcon from '@mui/icons-material/Groups';
-import { Button, Breadcrumb, LoadingSpinner } from '../../components/common';
+import { Button, Breadcrumb, LoadingSpinner, SEO } from '../../components/common';
 import { useScrollAnimation } from '../../hooks';
 import { useUI } from '../../store';
 import { serviceCertificationService } from '../../services';
@@ -106,6 +106,15 @@ function CertificationDetail() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <SEO
+        title={certification.title}
+        description={
+          certification.subtitle
+            ? `${certification.subtitle} | Uyirgene International`
+            : `${certification.title} certification services from Uyirgene International. Expert food safety and quality management certification support.`
+        }
+        path={`/services/certification/${id}`}
+      />
       <Breadcrumb
         items={[
           { label: 'Services', path: ROUTES.SERVICES },

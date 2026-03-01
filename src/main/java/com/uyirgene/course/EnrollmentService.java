@@ -181,6 +181,7 @@ public class EnrollmentService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<EnrollmentDto> listEnrolledEnrollments() {
         User u = currentUserService.getCurrentUser();
         return enrollmentRepo.findByUser(u).stream()

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Container, Typography, Box, Paper } from '@mui/material';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
-import { Button } from '../components/common';
+import { Button, SEO } from '../components/common';
 
 function Offline() {
   const handleRetry = () => {
@@ -10,6 +10,7 @@ function Offline() {
 
   return (
     <Container maxWidth="sm" sx={{ py: 8 }}>
+      <SEO title="You're Offline" noindex />
       <Paper sx={{ p: 4, textAlign: 'center' }}>
         <WifiOffIcon
           sx={{ fontSize: 100, color: 'text.secondary', mb: 2 }}

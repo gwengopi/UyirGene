@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Typography, Box, Paper } from '@mui/material';
 import SentimentDissatisfiedIcon from '@mui/icons-material/SentimentDissatisfied';
-import { Button } from '../components/common';
+import { Button, SEO } from '../components/common';
 import { ROUTES } from '../utils/constants';
 
 function NotFound() {
@@ -10,6 +10,7 @@ function NotFound() {
 
   return (
     <Container maxWidth="sm" sx={{ py: 8 }}>
+      <SEO title="404 – Page Not Found" noindex />
       <Paper sx={{ p: 4, textAlign: 'center' }}>
         <SentimentDissatisfiedIcon
           sx={{ fontSize: 100, color: 'text.secondary', mb: 2 }}

@@ -8,6 +8,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface CourseBundleRepository extends JpaRepository<CourseBundle, Long> {
+
+    @Query("SELECT b.title FROM CourseBundle b WHERE b.id = :id")
+    Optional<String> findTitleById(@Param("id") Long id);
     List<CourseBundle> findByPublishedTrueOrderByDisplayOrderAscIdAsc();
     List<CourseBundle> findAllByOrderByDisplayOrderAscIdAsc();
     Optional<CourseBundle> findByBundleCode(String bundleCode);

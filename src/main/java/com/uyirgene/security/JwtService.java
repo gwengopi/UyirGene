@@ -42,13 +42,17 @@ public class JwtService {
         return getClaims(token).getSubject();
     }
 
-    public boolean validateToken(String token) {
+    /** Validates token and returns its claims in one parse, or null if invalid. */
+    public Claims getValidClaims(String token) {
         try {
-            getClaims(token);
-            return true;
+            return getClaims(token);
         } catch (JwtException | IllegalArgumentException e) {
-            return false;
+            return null;
         }
+    }
+
+    public boolean validateToken(String token) {
+        return getValidClaims(token) != null;
     }
 
     private Claims getClaims(String token) {

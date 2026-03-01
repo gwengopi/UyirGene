@@ -97,10 +97,17 @@ function TopPagesChart({ data = [], color = 'primary.main' }) {
     <Box>
       {data.map((page, index) => (
         <Box key={index} sx={{ mb: 1.5 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-            <Typography variant="body2" noWrap sx={{ flex: 1, mr: 1, fontFamily: 'monospace', fontSize: '0.8rem' }}>
-              {index + 1}. {page.path}
-            </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
+            <Box sx={{ flex: 1, mr: 1, minWidth: 0 }}>
+              <Typography variant="body2" noWrap sx={{ fontSize: '0.85rem', fontWeight: page.label ? 500 : 400 }}>
+                {index + 1}. {page.label || page.path}
+              </Typography>
+              {page.label && (
+                <Typography variant="caption" noWrap display="block" sx={{ color: 'text.secondary', fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                  {page.path}
+                </Typography>
+              )}
+            </Box>
             <Typography variant="body2" fontWeight={700} color={color}>
               {page.count}
             </Typography>
@@ -209,7 +216,7 @@ function VisitorStats() {
 
   const days = PERIOD_DAYS[period] || 30;
   const avgDaily = stats?.totalVisits ? Math.round(stats.totalVisits / days) : 0;
-  const mostVisited = stats?.topPages?.[0]?.path || '—';
+  const mostVisited = stats?.topPages?.[0]?.label || stats?.topPages?.[0]?.path || '—';
 
   const summaryCards = [
     { title: 'Total Visits',      value: stats?.totalVisits    || 0, icon: VisibilityIcon,  color: 'primary.main' },

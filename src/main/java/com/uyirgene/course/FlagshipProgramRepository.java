@@ -1,6 +1,8 @@
 package com.uyirgene.course;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -8,6 +10,12 @@ import java.util.Optional;
 
 @Repository
 public interface FlagshipProgramRepository extends JpaRepository<FlagshipProgram, Long> {
+
+    @Query("SELECT p.title FROM FlagshipProgram p WHERE p.id = :id")
+    Optional<String> findTitleById(@Param("id") Long id);
+
+    @Query("SELECT p.title FROM FlagshipProgram p WHERE p.slug = :slug")
+    Optional<String> findTitleBySlug(@Param("slug") String slug);
 
     List<FlagshipProgram> findByActiveTrueOrderByDisplayOrderAscIdAsc();
 

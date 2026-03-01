@@ -21,7 +21,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import BiotechIcon from '@mui/icons-material/Biotech';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
-import { Button, Breadcrumb, LoadingSpinner } from '../../components/common';
+import { Button, Breadcrumb, LoadingSpinner, SEO } from '../../components/common';
 import { useScrollAnimation } from '../../hooks';
 import { useUI } from '../../store';
 import { serviceTestingService } from '../../services';
@@ -77,6 +77,15 @@ function TestingDetail() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <SEO
+        title={testing.title}
+        description={
+          testing.subtitle
+            ? `${testing.subtitle} | Uyirgene International`
+            : `${testing.title} testing services from Uyirgene International. Accredited laboratory testing with reliable, accurate results.`
+        }
+        path={`/services/testing/${id}`}
+      />
       <Breadcrumb
         items={[
           { label: 'Services', path: ROUTES.SERVICES },

@@ -23,4 +23,15 @@ public interface PageViewRepository extends JpaRepository<PageView, Long> {
     List<Object[]> findDailyCountsByViewedAtBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
     long countByDeviceTypeAndViewedAtAfter(String deviceType, LocalDateTime since);
+
+    /** Returns one row: [desktop_count, mobile_count, tablet_count] */
+    @Query(value = """
+            SELECT
+              COUNT(*) FILTER (WHERE device_type = 'desktop') AS desktop,
+              COUNT(*) FILTER (WHERE device_type = 'mobile')  AS mobile,
+              COUNT(*) FILTER (WHERE device_type = 'tablet')  AS tablet
+            FROM page_view
+            WHERE viewed_at > :since
+            """, nativeQuery = true)
+    List<Object[]> countDeviceBreakdownSince(@Param("since") LocalDateTime since);
 }

@@ -82,7 +82,7 @@ public class Course {
     private String imageContentType;
 
     // Country-specific prices
-    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<CoursePrice> countryPrices = new ArrayList<>();
 

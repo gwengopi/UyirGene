@@ -43,6 +43,7 @@ public class CourseController {
     @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
     @Operation(summary = "List all courses including unpublished (admin)")
     @ApiResponse(responseCode = "200", description = "List of all courses")
+    @Transactional(readOnly = true)
     public ResponseEntity<List<CourseDto>> adminAll() {
         List<CourseDto> courses = repo.findAllByOrderByDisplayOrderAscIdAsc().stream()
                 .map(CourseDto::fromEntity)
@@ -53,6 +54,7 @@ public class CourseController {
     @GetMapping("/flagship")
     @Operation(summary = "List flagship courses")
     @ApiResponse(responseCode = "200", description = "List of flagship courses")
+    @Transactional(readOnly = true)
     public ResponseEntity<List<CourseDto>> flagship() {
         List<CourseDto> courses = repo.findByFlagshipTrueAndPublishedTrueOrderByDisplayOrderAscIdAsc().stream()
                 .map(CourseDto::fromEntity)
@@ -63,6 +65,7 @@ public class CourseController {
     @GetMapping
     @Operation(summary = "List all published courses with optional filtering and sorting")
     @ApiResponse(responseCode = "200", description = "List of published courses")
+    @Transactional(readOnly = true)
     public ResponseEntity<List<CourseDto>> all(
             @RequestParam(value = "category", required = false) String category,
             @RequestParam(value = "excludeCategory", defaultValue = "false") boolean excludeCategory,
@@ -113,6 +116,7 @@ public class CourseController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @Transactional
     @Operation(summary = "Create a course with optional images")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Course created"),
@@ -220,6 +224,7 @@ public class CourseController {
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @Transactional
     @Operation(summary = "Create a course (JSON)")
     public ResponseEntity<CourseDto> createJson(@RequestBody Course c) {
         if (c.getPrice() != null && c.getPrice() < 0) {
@@ -256,6 +261,7 @@ public class CourseController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get single course")
+    @Transactional(readOnly = true)
     public ResponseEntity<CourseDto> get(@PathVariable("id") Long id) {
         return repo.findById(id)
                 .map(course -> ResponseEntity.ok(CourseDto.fromEntity(course)))
@@ -373,6 +379,7 @@ public class CourseController {
 
     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
+    @Transactional
     @Operation(summary = "Update a course (JSON)")
     public ResponseEntity<CourseDto> updateJson(@PathVariable("id") Long id, @RequestBody Course c) {
         if (c.getPrice() != null && c.getPrice() < 0) {
@@ -421,6 +428,7 @@ public class CourseController {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.parseMediaType(contentType != null ? contentType : "image/jpeg"));
             headers.setContentLength(imageData.length);
+            headers.setCacheControl("public, max-age=3600");
 
             return new ResponseEntity<>(imageData, headers, HttpStatus.OK);
         }).orElseGet(() -> ResponseEntity.notFound().build());
@@ -439,6 +447,7 @@ public class CourseController {
                     course.getDescriptionImageContentType() != null ? course.getDescriptionImageContentType() : "image/jpeg"
             ));
             headers.setContentLength(course.getDescriptionImage().length);
+            headers.setCacheControl("public, max-age=3600");
 
             return new ResponseEntity<>(course.getDescriptionImage(), headers, HttpStatus.OK);
         }).orElseGet(() -> ResponseEntity.notFound().build());
@@ -481,6 +490,7 @@ public class CourseController {
                     course.getImageContentType() != null ? course.getImageContentType() : "image/jpeg"
             ));
             headers.setContentLength(course.getImage().length);
+            headers.setCacheControl("public, max-age=3600");
 
             return new ResponseEntity<>(course.getImage(), headers, HttpStatus.OK);
         }).orElseGet(() -> ResponseEntity.notFound().build());
@@ -603,6 +613,7 @@ public class CourseController {
             @ApiResponse(responseCode = "200", description = "Course published"),
             @ApiResponse(responseCode = "404", description = "Course not found")
     })
+    @Transactional
     public ResponseEntity<CourseDto> publishCourse(@PathVariable("id") Long id) {
         return repo.findById(id).map(course -> {
             course.setPublished(true);
@@ -618,6 +629,7 @@ public class CourseController {
             @ApiResponse(responseCode = "200", description = "Course unpublished"),
             @ApiResponse(responseCode = "404", description = "Course not found")
     })
+    @Transactional
     public ResponseEntity<CourseDto> unpublishCourse(@PathVariable("id") Long id) {
         return repo.findById(id).map(course -> {
             course.setPublished(false);

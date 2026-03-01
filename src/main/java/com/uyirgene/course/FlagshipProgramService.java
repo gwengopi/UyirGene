@@ -72,6 +72,7 @@ public class FlagshipProgramService {
                             ? program.getBackgroundImageContentType()
                             : "image/jpeg"));
             headers.setContentLength(program.getBackgroundImage().length);
+            headers.setCacheControl("public, max-age=3600");
             return new ResponseEntity<>(program.getBackgroundImage(), headers, HttpStatus.OK);
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }

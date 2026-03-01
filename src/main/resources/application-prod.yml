@@ -4,13 +4,25 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 2
-      connection-timeout: 30000
+      maximum-pool-size: 15
+      minimum-idle: 3
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      connection-timeout: 20000
+      leak-detection-threshold: 60000
   jpa:
     hibernate:
       ddl-auto: validate
     show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          batch_size: 25
+          fetch_size: 50
+        order_inserts: true
+        order_updates: true
   mail:
     host: ${MAIL_HOST}
     port: ${MAIL_PORT}
@@ -51,6 +63,6 @@ logging:
   level:
     com.uyirgene: INFO
     org.springframework.web: WARN
-    org.hibernate.SQL: INFO
+    org.hibernate.SQL: WARN
   file:
     name: /var/log/uyirgene/application.log

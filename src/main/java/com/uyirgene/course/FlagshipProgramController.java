@@ -12,6 +12,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -110,6 +111,7 @@ public class FlagshipProgramController {
 
     @GetMapping("/enrolled")
     @PreAuthorize("isAuthenticated()")
+    @Transactional(readOnly = true)
     public ResponseEntity<List<FlagshipProgramDto>> getEnrolled() {
         User user = currentUserService.getCurrentUser();
         List<Enrollment> enrollments = enrollmentRepo.findByUser(user).stream()

@@ -19,7 +19,7 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import BiotechIcon from '@mui/icons-material/Biotech';
-import { Button, Breadcrumb } from '../../components/common';
+import { Button, Breadcrumb, SEO } from '../../components/common';
 import { useScrollAnimation } from '../../hooks';
 import { useConfig, useUI } from '../../store';
 import { ROUTES, IMAGES } from '../../utils/constants';
@@ -40,6 +40,11 @@ function GmoTesting() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <SEO
+        title="GMO Testing Lab"
+        description="Professional GMO testing services using PCR technology to detect genetically modified organisms in food and feed samples. Ensure regulatory compliance with Uyirgene's expert testing lab."
+        path="/services/gmo-testing"
+      />
       <Breadcrumb
         items={[
           { label: 'Services', path: ROUTES.SERVICES },

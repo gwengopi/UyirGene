@@ -1,5 +1,8 @@
 package com.uyirgene.config;
 
+import com.uyirgene.course.CourseBundleRepository;
+import com.uyirgene.course.CourseRepository;
+import com.uyirgene.course.FlagshipProgramRepository;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +23,24 @@ import java.util.stream.Collectors;
 public class PageViewController {
 
     private final PageViewRepository pageViewRepository;
+    private final CourseRepository courseRepo;
+    private final FlagshipProgramRepository flagshipRepo;
+    private final CourseBundleRepository bundleRepo;
+
+    private static final Map<String, String> STATIC_LABELS = Map.ofEntries(
+            Map.entry("/",             "Home"),
+            Map.entry("/courses",      "All Courses"),
+            Map.entry("/flagship",     "Flagship Programs"),
+            Map.entry("/blog",         "Blog"),
+            Map.entry("/contact",      "Contact Us"),
+            Map.entry("/about",        "About Us"),
+            Map.entry("/standards",    "Standards Library"),
+            Map.entry("/login",        "Login"),
+            Map.entry("/register",     "Register"),
+            Map.entry("/my-courses",   "My Courses"),
+            Map.entry("/profile",      "My Profile"),
+            Map.entry("/unsubscribe",  "Unsubscribe")
+    );
 
     // ── DTOs ─────────────────────────────────────────────────────────────────
 
@@ -35,6 +56,7 @@ public class PageViewController {
     public static class TopPageEntry {
         private final String path;
         private final long count;
+        private String label;
     }
 
     @Data
@@ -116,7 +138,12 @@ public class PageViewController {
         List<TopPageEntry> topPages = pageViewRepository
                 .findTopPathsByViewedAtAfter(since, 10)
                 .stream()
-                .map(row -> new TopPageEntry((String) row[0], ((Number) row[1]).longValue()))
+                .map(row -> {
+                    String p = (String) row[0];
+                    TopPageEntry entry = new TopPageEntry(p, ((Number) row[1]).longValue());
+                    entry.setLabel(resolvePathLabel(p));
+                    return entry;
+                })
                 .collect(Collectors.toList());
 
         List<DailyEntry> dailyChart = pageViewRepository
@@ -125,10 +152,12 @@ public class PageViewController {
                 .map(row -> new DailyEntry(row[0].toString(), ((Number) row[1]).longValue()))
                 .collect(Collectors.toList());
 
+        List<Object[]> deviceRows = pageViewRepository.countDeviceBreakdownSince(since);
+        Object[] deviceRow = deviceRows.isEmpty() ? new Object[]{0L, 0L, 0L} : deviceRows.get(0);
         DeviceBreakdown deviceBreakdown = new DeviceBreakdown(
-                pageViewRepository.countByDeviceTypeAndViewedAtAfter("desktop", since),
-                pageViewRepository.countByDeviceTypeAndViewedAtAfter("mobile", since),
-                pageViewRepository.countByDeviceTypeAndViewedAtAfter("tablet", since)
+                deviceRow[0] != null ? ((Number) deviceRow[0]).longValue() : 0L,
+                deviceRow[1] != null ? ((Number) deviceRow[1]).longValue() : 0L,
+                deviceRow[2] != null ? ((Number) deviceRow[2]).longValue() : 0L
         );
 
         return ResponseEntity.ok(new VisitorStatsResponse(
@@ -136,6 +165,34 @@ public class PageViewController {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private String resolvePathLabel(String path) {
+        if (path == null) return null;
+        String label = STATIC_LABELS.get(path);
+        if (label != null) return label;
+
+        // /courses/{id}
+        if (path.matches("/courses/\\d+")) {
+            Long id = Long.parseLong(path.substring("/courses/".length()));
+            return courseRepo.findTitleById(id).orElse(null);
+        }
+        // /flagship/{id}
+        if (path.matches("/flagship/\\d+")) {
+            Long id = Long.parseLong(path.substring("/flagship/".length()));
+            return flagshipRepo.findTitleById(id).orElse(null);
+        }
+        // /flagship/slug/{slug}
+        if (path.startsWith("/flagship/slug/")) {
+            String slug = path.substring("/flagship/slug/".length());
+            if (!slug.isBlank()) return flagshipRepo.findTitleBySlug(slug).orElse(null);
+        }
+        // /bundles/{id}
+        if (path.matches("/bundles/\\d+")) {
+            Long id = Long.parseLong(path.substring("/bundles/".length()));
+            return bundleRepo.findTitleById(id).orElse(null);
+        }
+        return null;
+    }
 
     private LocalDateTime sinceFromPeriod(String period) {
         LocalDateTime now = LocalDateTime.now();

@@ -52,7 +52,7 @@ public class CourseBundle {
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "course_bundle_course",
         joinColumns = @JoinColumn(name = "bundle_id"),
@@ -61,7 +61,7 @@ public class CourseBundle {
     @Builder.Default
     private List<Course> courses = new ArrayList<>();
 
-    @OneToMany(mappedBy = "bundle", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "bundle", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<BundlePrice> countryPrices = new ArrayList<>();
 }

@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
-import { Button } from '../components/common';
+import { Button, SEO } from '../components/common';
 import { blogService } from '../services';
 
 function BlogUnsubscribe() {
@@ -45,6 +45,7 @@ function BlogUnsubscribe() {
 
   return (
     <Container maxWidth="sm" sx={{ py: 8 }}>
+      <SEO title="Unsubscribe from Blog" noindex />
       <Paper sx={{ p: 4, textAlign: 'center' }}>
         {status === 'loading' && (
           <Box>

@@ -2,6 +2,21 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
+// ── Simple in-memory GET cache ────────────────────────────────────────────────
+// Usage: api.get('/path', { cache: true }) or api.get('/path', { cacheTTL: 60000 })
+const _cache = new Map();
+const DEFAULT_TTL = 30_000; // 30 s
+
+export function clearApiCache() {
+  _cache.clear();
+}
+
+export function invalidateCacheKey(url) {
+  for (const key of _cache.keys()) {
+    if (key.startsWith(url)) _cache.delete(key);
+  }
+}
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
@@ -16,7 +31,7 @@ if (stored) {
   api.defaults.headers.common['Authorization'] = stored;
 }
 
-// Request interceptor
+// Request interceptor – auth header + GET cache short-circuit
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('uyir_auth');
@@ -27,19 +42,35 @@ api.interceptors.request.use(
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type'];
     }
+    // Serve from cache for opted-in GET requests
+    if (config.method === 'get' && config.cache) {
+      const cacheKey = config.baseURL + config.url + JSON.stringify(config.params || {});
+      const entry = _cache.get(cacheKey);
+      if (entry && Date.now() - entry.ts < (config.cacheTTL ?? DEFAULT_TTL)) {
+        // Cancel the real request and resolve with cached data via adapter trick
+        config.adapter = () => Promise.resolve({ ...entry.response, config });
+      }
+      config._cacheKey = cacheKey;
+      config._cacheTTL = config.cacheTTL ?? DEFAULT_TTL;
+    }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Track if we're already handling a 401 to prevent multiple redirects
 let isHandling401 = false;
 
-// Response interceptor with error handling
+// Response interceptor – populate cache + error handling
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Store successful GET responses that opted in
+    const { _cacheKey, _cacheTTL } = response.config;
+    if (_cacheKey) {
+      _cache.set(_cacheKey, { ts: Date.now(), ttl: _cacheTTL, response });
+    }
+    return response;
+  },
   (error) => {
     const { response, config } = error;
 
@@ -111,6 +142,7 @@ export function setAuthHeader(token) {
 export function clearAuthHeader() {
   localStorage.removeItem('uyir_auth');
   delete api.defaults.headers.common['Authorization'];
+  clearApiCache();
 }
 
 export function getAuthToken() {

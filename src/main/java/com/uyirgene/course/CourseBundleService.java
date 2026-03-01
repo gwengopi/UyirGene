@@ -29,24 +29,28 @@ public class CourseBundleService {
 
     // ==================== Public ====================
 
+    @Transactional(readOnly = true)
     public List<CourseBundleDto> getPublishedBundlesByCourse(Long courseId) {
         return bundleRepo.findPublishedBundlesByCourseId(courseId).stream()
                 .map(CourseBundleDto::fromEntity)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<CourseBundleDto> getPublishedBundles() {
         return bundleRepo.findByPublishedTrueOrderByDisplayOrderAscIdAsc().stream()
                 .map(CourseBundleDto::fromEntity)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<CourseBundleDto> getPublishedBundlesByCategory(String category) {
         return bundleRepo.findByPublishedTrueAndCategoryOrderByDisplayOrderAscIdAsc(category).stream()
                 .map(CourseBundleDto::fromEntity)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public CourseBundleDto getBundleById(Long id) {
         CourseBundle bundle = bundleRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Bundle not found"));
@@ -55,6 +59,7 @@ public class CourseBundleService {
 
     // ==================== Admin CRUD ====================
 
+    @Transactional(readOnly = true)
     public List<CourseBundleDto> getAllBundles() {
         return bundleRepo.findAllByOrderByDisplayOrderAscIdAsc().stream()
                 .map(CourseBundleDto::fromEntity)
