@@ -1,4 +1,4 @@
-import api from './api';
+import api, { invalidateCacheKey } from './api';
 
 const COURSE_ENDPOINTS = {
   LIST: '/api/courses',
@@ -59,7 +59,7 @@ export async function getCoursesByCategory(category, exclude = false) {
  * @returns {Promise<Object>} Course details
  */
 export async function getCourse(id) {
-  const response = await api.get(COURSE_ENDPOINTS.DETAIL(id), { cache: true, cacheTTL: 30_000 });
+  const response = await api.get(COURSE_ENDPOINTS.DETAIL(id));
   return response.data;
 }
 
@@ -169,6 +169,7 @@ export async function createCourse(courseData, imageOptions = {}) {
     }
   }
 
+  invalidateCacheKey('/api/courses');
   return createdCourse;
 }
 
@@ -286,6 +287,7 @@ export async function updateCourse(id, courseData, imageOptions = {}) {
     }
   }
 
+  invalidateCacheKey('/api/courses');
   return response.data;
 }
 
@@ -332,6 +334,7 @@ export async function deleteVideo(courseId, videoId) {
  */
 export async function deleteCourse(id) {
   await api.delete(COURSE_ENDPOINTS.DETAIL(id));
+  invalidateCacheKey('/api/courses');
 }
 
 /**

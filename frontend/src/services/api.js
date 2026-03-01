@@ -13,7 +13,7 @@ export function clearApiCache() {
 
 export function invalidateCacheKey(url) {
   for (const key of _cache.keys()) {
-    if (key.startsWith(url)) _cache.delete(key);
+    if (key.includes(url)) _cache.delete(key);
   }
 }
 
@@ -47,8 +47,9 @@ api.interceptors.request.use(
       const cacheKey = config.baseURL + config.url + JSON.stringify(config.params || {});
       const entry = _cache.get(cacheKey);
       if (entry && Date.now() - entry.ts < (config.cacheTTL ?? DEFAULT_TTL)) {
-        // Cancel the real request and resolve with cached data via adapter trick
-        config.adapter = () => Promise.resolve({ ...entry.response, config });
+        // Return a deep clone of cached data to prevent mutation from corrupting the cache
+        const clonedData = JSON.parse(JSON.stringify(entry.response.data));
+        config.adapter = () => Promise.resolve({ ...entry.response, data: clonedData, config });
       }
       config._cacheKey = cacheKey;
       config._cacheTTL = config.cacheTTL ?? DEFAULT_TTL;
