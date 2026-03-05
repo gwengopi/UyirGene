@@ -43,7 +43,7 @@ import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 
-import { useAuth, useUI } from '../../../store';
+import { useAuth, useUI, useConfig } from '../../../store';
 import { ROUTES, ROLES, IMAGES } from '../../../utils/constants';
 
 // Services sub-menu items
@@ -63,6 +63,7 @@ function Navbar() {
   const location = useLocation();
   const { auth, user, logout, isAuthenticated, isAdmin, isInstructor } = useAuth();
   const { isDarkMode, toggleTheme } = useUI();
+  const { getImage } = useConfig();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -280,7 +281,7 @@ function Navbar() {
           >
             <Box
               component="img"
-              src={IMAGES.LOGO_SMALL}
+              src={getImage('LOGO_SMALL', IMAGES.LOGO_SMALL)}
               alt="Uyirgene International"
               sx={{
                 height: { xs: 32, md: 40 },

@@ -29,7 +29,7 @@ import LockIcon from '@mui/icons-material/Lock';
 import GroupsIcon from '@mui/icons-material/Groups';
 import { Button, Breadcrumb, LoadingSpinner, SEO } from '../../components/common';
 import { useScrollAnimation } from '../../hooks';
-import { useUI } from '../../store';
+import { useUI, useConfig } from '../../store';
 import { serviceCertificationService } from '../../services';
 import { getApiBaseUrl } from '../../services/api';
 import { ROUTES, IMAGES } from '../../utils/constants';
@@ -61,6 +61,7 @@ function CertificationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isDarkMode } = useUI();
+  const { getImage } = useConfig();
   const [certification, setCertification] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -102,7 +103,7 @@ function CertificationDetail() {
 
   const heroImageUrl = certification.heroImageUrl
     ? `${getApiBaseUrl()}${certification.heroImageUrl}`
-    : IMAGES.SERVICE_CERTIFICATION;
+    : getImage('SERVICE_CERTIFICATION', IMAGES.SERVICE_CERTIFICATION);
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -127,10 +128,9 @@ function CertificationDetail() {
       <Box sx={{ position: 'relative', borderRadius: 3, overflow: 'hidden', mb: 6 }}>
         <CardMedia
           component="img"
-          height={300}
           image={heroImageUrl}
           alt={certification.title}
-          sx={{ objectFit: 'cover', filter: 'brightness(0.3)' }}
+          sx={{ objectFit: 'cover', filter: 'brightness(0.3)', height: { xs: 180, sm: 220, md: 260 } }}
         />
         <Box
           sx={{

@@ -9,6 +9,7 @@ const CONFIG_ENDPOINTS = {
   ADMIN_UPDATE: (id) => `/api/config/admin/${id}`,
   ADMIN_DELETE: (id) => `/api/config/admin/${id}`,
   ADMIN_SEED: '/api/config/admin/seed',
+  ADMIN_UPLOAD_IMAGE: (id) => `/api/config/admin/${id}/image`,
 };
 
 // Cache for images
@@ -97,6 +98,20 @@ export async function deleteConfig(id) {
 }
 
 /**
+ * Upload an image file for an existing configuration.
+ * The backend stores the bytes and sets value to the serve URL automatically.
+ */
+export async function uploadConfigImage(id, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post(CONFIG_ENDPOINTS.ADMIN_UPLOAD_IMAGE(id), formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  clearImageCache();
+  return response.data;
+}
+
+/**
  * Seed default configurations
  */
 export async function seedDefaults() {
@@ -114,5 +129,6 @@ export default {
   createConfig,
   updateConfig,
   deleteConfig,
+  uploadConfigImage,
   seedDefaults,
 };

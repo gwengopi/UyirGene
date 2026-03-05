@@ -175,7 +175,7 @@ function Home() {
   ];
 
   const statistics = [
-    { value: 5000, suffix: '+', label: 'Students Trained', icon: <PeopleIcon sx={{ fontSize: 40 }} /> },
+    { value: 5000, suffix: '+', label: 'Professionals Trained', icon: <PeopleIcon sx={{ fontSize: 40 }} /> },
     { value: 50, suffix: '+', label: 'Professional Courses', icon: <SchoolIcon sx={{ fontSize: 40 }} /> },
     { value: 15, suffix: '+', label: 'Expert Trainers', icon: <WorkspacePremiumIcon sx={{ fontSize: 40 }} /> },
     { value: 100, suffix: '%', label: 'Satisfaction Rate', icon: <ThumbUpIcon sx={{ fontSize: 40 }} /> },
@@ -262,8 +262,8 @@ function Home() {
             position: 'absolute',
             top: 0, left: 0, right: 0, bottom: 0,
             background: [
-              'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 40%, rgba(0,0,0,0.6) 100%)',
-              'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, transparent 60%)',
+              'linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.4) 100%)',
+              'linear-gradient(90deg, rgba(0,0,0,0.3) 0%, transparent 60%)',
             ].join(', '),
             zIndex: 1,
           }}
@@ -320,7 +320,7 @@ function Home() {
                 {/* Logo */}
                 <Box
                   component="img"
-                  src={getImage('LOGO', IMAGES.LOGO)}
+                  src={getImage('LOGO_MAIN', IMAGES.LOGO)}
                   alt="Uyirgene International"
                   sx={{
                     height: { xs: 50, md: 70 },
@@ -378,8 +378,7 @@ function Home() {
                     textShadow: '0 1px 12px rgba(0,0,0,0.2)',
                   }}
                 >
-                  Expert-led courses in ISO Standards, Regulatory Compliance & Quality Management
-                  designed for life sciences professionals.
+                  Industry-oriented training, HACCP certification, microbiology courses, and scientific laboratory training trusted by professionals, CROs, and food & pharma industries.
                 </Typography>
 
                 {/* CTA buttons */}
@@ -446,8 +445,8 @@ function Home() {
                   }}
                 >
                   {[
-                    { val: '5000+', label: 'Students Trained' },
-                    { val: '20+', label: 'Lab Programs' },
+                    { val: '5000+', label: 'Professionals Trained' },
+                    { val: '50+', label: 'Professional Courses' },
                     { val: 'ISO', label: 'Certified Institute' },
                   ].map((stat, i) => (
                     <Box
@@ -549,7 +548,7 @@ function Home() {
                       ))}
                     </Box>
                     <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
-                      5000+ students trained
+                      5000+ professionals trained
                     </Typography>
                   </Box>
                 </Box>
@@ -585,60 +584,6 @@ function Home() {
             }}
           />
         </Box>
-      </Box>
-
-      {/* ===== SECTION 2: Statistics ===== */}
-      <Box
-        ref={statsAnim.ref}
-        sx={{
-          position: 'relative',
-          py: { xs: 6, md: 8 },
-          overflow: 'hidden',
-          background: isDarkMode
-            ? 'linear-gradient(135deg, rgba(79,102,114,0.15) 0%, rgba(22,22,22,0.3) 100%)'
-            : 'linear-gradient(160deg, #263238 0%, #37474f 50%, #455a64 100%)',
-          opacity: statsAnim.isVisible ? 1 : 0,
-          transform: statsAnim.isVisible ? 'translateY(0)' : 'translateY(30px)',
-          transition: 'opacity 0.8s ease, transform 0.8s ease',
-        }}
-      >
-        <Container maxWidth="lg">
-          <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
-            {statistics.map((stat, index) => (
-              <Grid item xs={6} md={3} key={index}>
-                <Paper
-                  elevation={0}
-                  sx={{
-                    textAlign: 'center',
-                    p: { xs: 2, md: 3 },
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    borderRadius: 3,
-                    background: isDarkMode
-                      ? 'rgba(255,255,255,0.03)'
-                      : 'rgba(255,255,255,0.1)',
-                    backdropFilter: isDarkMode ? undefined : 'blur(8px)',
-                    border: '1px solid',
-                    borderColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.18)',
-                    transition: 'transform 0.3s ease, background 0.3s ease',
-                    '& .MuiTypography-root': isDarkMode ? {} : { color: '#fff' },
-                    '& .MuiBox-root': isDarkMode ? {} : { color: 'rgba(255,255,255,0.85)' },
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                      background: isDarkMode
-                        ? 'rgba(255,255,255,0.06)'
-                        : 'rgba(255,255,255,0.18)',
-                    },
-                  }}
-                >
-                  <StatItem {...stat} isVisible={statsAnim.isVisible} />
-                </Paper>
-              </Grid>
-            ))}
-          </Grid>
-        </Container>
       </Box>
 
       {/* ===== SECTION 3: Why Choose Us ===== */}
@@ -678,6 +623,7 @@ function Home() {
                 >
                   <Paper
                     elevation={isDarkMode ? 1 : 0}
+                    onClick={() => navigate(ROUTES.COURSES)}
                     sx={{
                       textAlign: 'center',
                       height: '100%',
@@ -685,6 +631,7 @@ function Home() {
                       flexDirection: 'column',
                       overflow: 'hidden',
                       borderRadius: 3,
+                      cursor: 'pointer',
                       background: isDarkMode ? undefined : '#ffffff',
                       border: isDarkMode ? undefined : '1px solid rgba(69,90,100,0.08)',
                       boxShadow: isDarkMode ? undefined : '0 2px 12px rgba(69,90,100,0.08)',
@@ -1304,6 +1251,60 @@ function Home() {
               Talk to an Expert
             </Button>
           </Box>
+        </Container>
+      </Box>
+
+      {/* ===== Statistics ===== */}
+      <Box
+        ref={statsAnim.ref}
+        sx={{
+          position: 'relative',
+          py: { xs: 6, md: 8 },
+          overflow: 'hidden',
+          background: isDarkMode
+            ? 'linear-gradient(135deg, rgba(79,102,114,0.15) 0%, rgba(22,22,22,0.3) 100%)'
+            : 'linear-gradient(160deg, #263238 0%, #37474f 50%, #455a64 100%)',
+          opacity: statsAnim.isVisible ? 1 : 0,
+          transform: statsAnim.isVisible ? 'translateY(0)' : 'translateY(30px)',
+          transition: 'opacity 0.8s ease, transform 0.8s ease',
+        }}
+      >
+        <Container maxWidth="lg">
+          <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
+            {statistics.map((stat, index) => (
+              <Grid item xs={6} md={3} key={index}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    textAlign: 'center',
+                    p: { xs: 2, md: 3 },
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    borderRadius: 3,
+                    background: isDarkMode
+                      ? 'rgba(255,255,255,0.03)'
+                      : 'rgba(255,255,255,0.1)',
+                    backdropFilter: isDarkMode ? undefined : 'blur(8px)',
+                    border: '1px solid',
+                    borderColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.18)',
+                    transition: 'transform 0.3s ease, background 0.3s ease',
+                    '& .MuiTypography-root': isDarkMode ? {} : { color: '#fff' },
+                    '& .MuiBox-root': isDarkMode ? {} : { color: 'rgba(255,255,255,0.85)' },
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      background: isDarkMode
+                        ? 'rgba(255,255,255,0.06)'
+                        : 'rgba(255,255,255,0.18)',
+                    },
+                  }}
+                >
+                  <StatItem {...stat} isVisible={statsAnim.isVisible} />
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
         </Container>
       </Box>
     </Box>

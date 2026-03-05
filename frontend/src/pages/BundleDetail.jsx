@@ -28,7 +28,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CategoryIcon from '@mui/icons-material/Category';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { Button, Breadcrumb, LoadingSpinner, SEO } from '../components/common';
-import { useAuth, useToast } from '../store';
+import { useAuth, useToast, useConfig } from '../store';
 import { formatCurrency } from '../utils/formatters';
 import { ROUTES, SUPPORTED_COUNTRIES, IMAGES } from '../utils/constants';
 import { getApiBaseUrl } from '../services/api';
@@ -39,6 +39,7 @@ function BundleDetail() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { showSuccess, showError } = useToast();
+  const { getImage } = useConfig();
 
   const [bundle, setBundle] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -184,7 +185,7 @@ function BundleDetail() {
           ) : (
             bundleCourses.slice(0, 4).map((course, idx) => {
               const imgPath = course.thumbnailImageUrl;
-              const imgUrl = imgPath ? `${apiBase}${imgPath}` : IMAGES.COURSE_PLACEHOLDER;
+              const imgUrl = imgPath ? `${apiBase}${imgPath}` : getImage('COURSE_PLACEHOLDER', IMAGES.COURSE_PLACEHOLDER);
               return (
                 <Box
                   key={course.id}
@@ -263,7 +264,7 @@ function BundleDetail() {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
             {bundleCourses.map((course, idx) => {
               const imgPath = course.thumbnailImageUrl;
-              const imgUrl = imgPath ? `${apiBase}${imgPath}` : IMAGES.COURSE_PLACEHOLDER;
+              const imgUrl = imgPath ? `${apiBase}${imgPath}` : getImage('COURSE_PLACEHOLDER', IMAGES.COURSE_PLACEHOLDER);
               return (
                 <Card
                   key={course.id}

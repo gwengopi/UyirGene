@@ -52,9 +52,10 @@ const whyChoose = [
 
 function TestingCard({ testing, onClick, index, isVisible }) {
   const { isDarkMode } = useUI();
+  const { getImage } = useConfig();
   const thumbnailUrl = testing.thumbnailImageUrl
     ? `${getApiBaseUrl()}${testing.thumbnailImageUrl}`
-    : IMAGES.SERVICE_GMO_TESTING;
+    : getImage('SERVICE_GMO_TESTING', IMAGES.SERVICE_GMO_TESTING);
 
   return (
     <Paper
@@ -83,12 +84,12 @@ function TestingCard({ testing, onClick, index, isVisible }) {
       <Box sx={{ position: 'relative', overflow: 'hidden' }}>
         <CardMedia
           component="img"
-          height={180}
           image={thumbnailUrl}
           alt={testing.title}
           className="testing-image"
           sx={{
             objectFit: 'cover',
+            height: 180,
             transition: 'transform 0.5s ease',
           }}
         />
@@ -192,10 +193,9 @@ function Testing() {
       <Box sx={{ position: 'relative', borderRadius: 3, overflow: 'hidden', mb: 6 }}>
         <CardMedia
           component="img"
-          height={300}
           image={getImage('SERVICE_GMO_TESTING', IMAGES.SERVICE_GMO_TESTING)}
           alt="Testing Services"
-          sx={{ objectFit: 'cover', filter: 'brightness(0.3)' }}
+          sx={{ objectFit: 'cover', filter: 'brightness(0.3)', height: { xs: 180, sm: 220, md: 260 } }}
         />
         <Box
           sx={{

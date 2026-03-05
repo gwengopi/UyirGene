@@ -9,7 +9,9 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -144,6 +146,29 @@ public class SiteConfigService {
         SiteConfig config = repository.findByKey(key)
                 .orElseThrow(() -> new EntityNotFoundException("Configuration not found for key: " + key));
         config.setValue(value);
+        return repository.save(config);
+    }
+
+    /**
+     * Get a configuration by ID
+     */
+    public SiteConfig getConfigById(Long id) {
+        return repository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Configuration not found"));
+    }
+
+    /**
+     * Upload an image file for a configuration.
+     * Stores the raw bytes in image_data and sets value to the serve URL.
+     */
+    @Transactional
+    @CacheEvict(value = "siteConfigs", allEntries = true)
+    public SiteConfig uploadImage(Long id, MultipartFile file) throws IOException {
+        SiteConfig config = repository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Configuration not found"));
+        config.setImageData(file.getBytes());
+        config.setImageContentType(file.getContentType());
+        config.setValue("/api/config/image/" + id);
         return repository.save(config);
     }
 

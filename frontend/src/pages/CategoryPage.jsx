@@ -23,7 +23,7 @@ import { Breadcrumb, SEO, Button } from '../components/common';
 import { CourseList } from '../components/course';
 import { courseService, enrollmentService } from '../services';
 import { getPublishedBundlesByCategory } from '../services/bundleService';
-import { useAuth, useToast } from '../store';
+import { useAuth, useToast, useConfig } from '../store';
 import { ROUTES, IMAGES } from '../utils/constants';
 import { formatCurrency } from '../utils/formatters';
 import { getApiBaseUrl } from '../services/api';
@@ -32,6 +32,7 @@ function CategoryPage() {
   const { categoryCode } = useParams();
   const { isAuthenticated } = useAuth();
   const { showSuccess, showError } = useToast();
+  const { getImage } = useConfig();
   const navigate = useNavigate();
   // Decode URL-encoded category (category values are readable text, e.g. "Microbiology")
   const categoryValue = decodeURIComponent(categoryCode);
@@ -261,7 +262,7 @@ function CategoryPage() {
                             bundleCourses.slice(0, 3).map((course, idx) => {
                               const imgUrl = course.thumbnailImageUrl
                                 ? `${apiBase}${course.thumbnailImageUrl}`
-                                : IMAGES.COURSE_PLACEHOLDER;
+                                : getImage('COURSE_PLACEHOLDER', IMAGES.COURSE_PLACEHOLDER);
                               return (
                                 <Box
                                   key={course.id}

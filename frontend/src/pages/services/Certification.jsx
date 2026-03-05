@@ -52,9 +52,10 @@ const whyChoose = [
 
 function CertificationCard({ certification, onClick, index, isVisible }) {
   const { isDarkMode } = useUI();
+  const { getImage } = useConfig();
   const thumbnailUrl = certification.thumbnailImageUrl
     ? `${getApiBaseUrl()}${certification.thumbnailImageUrl}`
-    : IMAGES.SERVICE_CERTIFICATION;
+    : getImage('SERVICE_CERTIFICATION', IMAGES.SERVICE_CERTIFICATION);
 
   return (
     <Paper
@@ -83,12 +84,12 @@ function CertificationCard({ certification, onClick, index, isVisible }) {
       <Box sx={{ position: 'relative', overflow: 'hidden' }}>
         <CardMedia
           component="img"
-          height={180}
           image={thumbnailUrl}
           alt={certification.title}
           className="cert-image"
           sx={{
             objectFit: 'cover',
+            height: 180,
             transition: 'transform 0.5s ease',
           }}
         />
@@ -192,10 +193,9 @@ function Certification() {
       <Box sx={{ position: 'relative', borderRadius: 3, overflow: 'hidden', mb: 6 }}>
         <CardMedia
           component="img"
-          height={300}
           image={getImage('SERVICE_CERTIFICATION', IMAGES.SERVICE_CERTIFICATION)}
           alt="ISO Certification"
-          sx={{ objectFit: 'cover', filter: 'brightness(0.3)' }}
+          sx={{ objectFit: 'cover', filter: 'brightness(0.3)', height: { xs: 180, sm: 220, md: 260 } }}
         />
         <Box
           sx={{

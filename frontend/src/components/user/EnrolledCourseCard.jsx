@@ -21,6 +21,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ProgressTracker from './ProgressTracker';
 import { ROUTES, IMAGES } from '../../utils/constants';
 import { getApiBaseUrl } from '../../services/api';
+import { useConfig } from '../../store';
 
 /**
  * Enrolled Course Card with progress display
@@ -35,6 +36,7 @@ function EnrolledCourseCard({
   onUnenroll,
 }) {
   const navigate = useNavigate();
+  const { getImage } = useConfig();
   const isCompleted = progress >= 100;
   const [unenrollDialogOpen, setUnenrollDialogOpen] = useState(false);
 
@@ -42,7 +44,7 @@ function EnrolledCourseCard({
   const imagePath = course.thumbnailImageUrl || course.imageUrl;
   const courseImageUrl = imagePath
     ? `${getApiBaseUrl()}${imagePath}`
-    : IMAGES.COURSE_PLACEHOLDER;
+    : getImage('COURSE_PLACEHOLDER', IMAGES.COURSE_PLACEHOLDER);
 
   const handleContinue = () => {
     navigate(ROUTES.COURSE_DETAIL(course.id), { state: { mode: 'learn' } });

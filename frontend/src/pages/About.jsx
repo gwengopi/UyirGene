@@ -84,7 +84,7 @@ function About() {
         >
           <Box
             component="img"
-            src={getImage('LOGO', IMAGES.LOGO)}
+            src={getImage('LOGO_MAIN', IMAGES.LOGO)}
             alt="Uyirgene Logo"
             sx={{ height: 60, mb: 2, filter: 'brightness(1.2)' }}
           />

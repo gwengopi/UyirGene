@@ -84,10 +84,14 @@ export function ConfigProvider({ children }) {
     }
   }, []);
 
-  // Get image by key with fallback
+  // Get image by key with fallback.
+  // Values starting with /api/ are uploaded images — prefix with the API base URL.
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
   const getImage = useCallback(
     (key, fallback = '') => {
-      return images[key] || DEFAULT_IMAGES[key] || fallback;
+      const value = images[key] || DEFAULT_IMAGES[key] || fallback;
+      if (value && value.startsWith('/api/')) return `${API_BASE}${value}`;
+      return value;
     },
     [images]
   );

@@ -9,7 +9,7 @@ import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import { IMAGES } from '../../utils/constants';
 import { configService } from '../../services';
-import { useUI } from '../../store';
+import { useUI, useConfig } from '../../store';
 
 // Default fallback data
 const DEFAULT_TAGLINE = 'Professional Training Institute | ISO 9001 Certified | Training Partner of Skill India Digital Hub (Govt of India)';
@@ -60,6 +60,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 function Footer() {
   const { isDarkMode } = useUI();
+  const { getImage } = useConfig();
   const currentYear = new Date().getFullYear();
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState({
@@ -237,7 +238,7 @@ function Footer() {
             <Box sx={{ mb: 2 }}>
               <Box
                 component="img"
-                src={IMAGES.LOGO}
+                src={getImage('LOGO_MAIN', IMAGES.LOGO)}
                 alt="Uyirgene International"
                 sx={{ height: 50, filter: 'brightness(0.9)' }}
               />

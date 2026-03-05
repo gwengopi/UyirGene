@@ -12,7 +12,7 @@ import { Breadcrumb, LoadingSpinner, EmptyState } from '../components/common';
 import { EnrolledCourseCard } from '../components/user';
 import { enrollmentService, certificateService, courseService, videoService } from '../services';
 import { flagshipService } from '../services/flagshipService';
-import { useToast } from '../store';
+import { useToast, useConfig } from '../store';
 import { ROUTES, IMAGES } from '../utils/constants';
 import { getApiBaseUrl } from '../services/api';
 import SchoolIcon from '@mui/icons-material/School';
@@ -20,6 +20,7 @@ import SchoolIcon from '@mui/icons-material/School';
 function MyCourses() {
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
+  const { getImage } = useConfig();
   const [courses, setCourses] = useState([]);
   const [flagshipPrograms, setFlagshipPrograms] = useState([]);
   const [progressData, setProgressData] = useState({});
@@ -232,7 +233,7 @@ function MyCourses() {
                   const imgSrc = program.backgroundImageUrl
                     || (program.hasBackgroundImage
                         ? `${getApiBaseUrl()}/api/flagship/${program.id}/image`
-                        : IMAGES.COURSE_PLACEHOLDER);
+                        : getImage('COURSE_PLACEHOLDER', IMAGES.COURSE_PLACEHOLDER));
                   return (
                     <Grid item xs={12} sm={6} md={4} key={program.id}>
                       <Card

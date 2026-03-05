@@ -3,10 +3,14 @@ package com.uyirgene.config;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +31,20 @@ public class SiteConfigController {
     );
 
     // ========== Public endpoints ==========
+
+    @GetMapping("/image/{id}")
+    @Operation(summary = "Serve uploaded image by config ID")
+    public ResponseEntity<byte[]> serveImage(@PathVariable("id") Long id) {
+        SiteConfig config = configService.getConfigById(id);
+        if (config.getImageData() == null) {
+            return ResponseEntity.notFound().build();
+        }
+        String contentType = config.getImageContentType() != null ? config.getImageContentType() : "image/jpeg";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, contentType)
+                .header(HttpHeaders.CACHE_CONTROL, "max-age=86400, public")
+                .body(config.getImageData());
+    }
 
     @GetMapping("/images")
     @Operation(summary = "Get all image configurations")
@@ -80,6 +98,25 @@ public class SiteConfigController {
             @PathVariable("id") Long id,
             @RequestBody SiteConfig config) {
         return ResponseEntity.ok(configService.updateConfig(id, config));
+    }
+
+    @PostMapping(value = "/admin/{id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Upload image file for a configuration")
+    public ResponseEntity<?> uploadImage(
+            @PathVariable("id") Long id,
+            @RequestParam("file") MultipartFile file) throws IOException {
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "No file provided"));
+        }
+        String ct = file.getContentType();
+        if (ct == null || (!ct.equals("image/jpeg") && !ct.equals("image/png") && !ct.equals("image/webp"))) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Only JPG, PNG, and WebP images are accepted"));
+        }
+        if (file.getSize() > 5 * 1024 * 1024) {
+            return ResponseEntity.badRequest().body(Map.of("error", "File exceeds 5 MB limit"));
+        }
+        return ResponseEntity.ok(configService.uploadImage(id, file));
     }
 
     @DeleteMapping("/admin/{id}")

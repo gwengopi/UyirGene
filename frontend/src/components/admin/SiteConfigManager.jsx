@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -20,24 +20,55 @@ import {
   Switch,
   FormControlLabel,
   Avatar,
+  Alert,
+  LinearProgress,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import ImageIcon from '@mui/icons-material/Image';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import LinkIcon from '@mui/icons-material/Link';
 import { Button, LoadingSpinner, EmptyState } from '../common';
 import { configService } from '../../services';
-import { useToast } from '../../store';
+import { useToast, useConfig } from '../../store';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
+// Resolve config image values: relative API paths get prefixed with the API base URL
+function resolveImageSrc(value) {
+  if (!value) return '';
+  if (value.startsWith('/api/')) return `${API_BASE}${value}`;
+  return value;
+}
+
+function getImageRecommendation(category) {
+  switch (category) {
+    case 'LOGO':       return '400×200 px · PNG with transparent background recommended';
+    case 'HERO':
+    case 'BACKGROUND': return '1920×1080 px or larger for best quality';
+    case 'COURSE':
+    case 'SERVICE':
+    case 'ABOUT':      return '800×600 px or larger';
+    default:           return '1280×720 px or larger';
+  }
+}
 
 const CONFIG_TYPES = ['IMAGE', 'TEXT', 'URL', 'JSON'];
 const CATEGORIES = ['LOGO', 'HERO', 'COURSE', 'SERVICE', 'ABOUT', 'BACKGROUND', 'CONTACT', 'SETTINGS', 'FOOTER', 'REVIEW', 'GENERAL'];
 
 function SiteConfigManager() {
   const { showSuccess, showError } = useToast();
+  const { refreshImages } = useConfig();
   const [configs, setConfigs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState(null);
+  const [uploadMode, setUploadMode] = useState(false);
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadPreview, setUploadPreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
     key: '',
     value: '',
@@ -63,7 +94,15 @@ function SiteConfigManager() {
     }
   };
 
+  const resetUploadState = () => {
+    setUploadMode(false);
+    setUploadFile(null);
+    if (uploadPreview) URL.revokeObjectURL(uploadPreview);
+    setUploadPreview(null);
+  };
+
   const handleOpenDialog = (config = null) => {
+    resetUploadState();
     if (config) {
       setEditingConfig(config);
       setFormData({
@@ -91,6 +130,15 @@ function SiteConfigManager() {
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setEditingConfig(null);
+    resetUploadState();
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (uploadPreview) URL.revokeObjectURL(uploadPreview);
+    setUploadFile(file);
+    setUploadPreview(URL.createObjectURL(file));
   };
 
   const handleChange = (e) => {
@@ -103,17 +151,28 @@ function SiteConfigManager() {
 
   const handleSave = async () => {
     try {
+      setUploading(true);
+      let saved;
       if (editingConfig) {
-        await configService.updateConfig(editingConfig.id, formData);
+        saved = await configService.updateConfig(editingConfig.id, formData);
+        if (formData.type === 'IMAGE' && uploadMode && uploadFile) {
+          await configService.uploadConfigImage(editingConfig.id, uploadFile);
+        }
         showSuccess('Configuration updated');
       } else {
-        await configService.createConfig(formData);
+        saved = await configService.createConfig(formData);
+        if (formData.type === 'IMAGE' && uploadMode && uploadFile) {
+          await configService.uploadConfigImage(saved.id, uploadFile);
+        }
         showSuccess('Configuration created');
       }
       handleCloseDialog();
       loadConfigs();
+      refreshImages();
     } catch (error) {
-      showError(error.response?.data?.message || 'Failed to save configuration');
+      showError(error.response?.data?.message || error.response?.data?.error || 'Failed to save configuration');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -124,6 +183,7 @@ function SiteConfigManager() {
       await configService.deleteConfig(id);
       showSuccess('Configuration deleted');
       loadConfigs();
+      refreshImages();
     } catch (error) {
       showError('Failed to delete configuration');
     }
@@ -172,7 +232,7 @@ function SiteConfigManager() {
                     {config.type === 'IMAGE' && config.value ? (
                       <Avatar
                         variant="rounded"
-                        src={config.value}
+                        src={resolveImageSrc(config.value)}
                         sx={{ width: 60, height: 40 }}
                       >
                         <ImageIcon />
@@ -230,6 +290,7 @@ function SiteConfigManager() {
         <DialogTitle>
           {editingConfig ? 'Edit Configuration' : 'Add Configuration'}
         </DialogTitle>
+        {uploading && <LinearProgress />}
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <TextField
@@ -242,30 +303,106 @@ function SiteConfigManager() {
               disabled={!!editingConfig}
               helperText="Unique identifier (e.g., LOGO_MAIN, HERO_IMAGE)"
             />
-            <TextField
-              name="value"
-              label="Value"
-              value={formData.value}
-              onChange={handleChange}
-              fullWidth
-              multiline
-              rows={3}
-              required
-              helperText={formData.type === 'IMAGE' ? 'Enter image URL' : 'Enter value'}
-            />
-            {formData.type === 'IMAGE' && formData.value && (
-              <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
-                <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-                  Preview
-                </Typography>
-                <img
-                  src={formData.value}
-                  alt="Preview"
-                  style={{ maxWidth: '100%', maxHeight: 200, objectFit: 'contain' }}
-                  onError={(e) => { e.target.style.display = 'none'; }}
-                />
-              </Box>
+
+            {/* IMAGE type: show URL / Upload toggle */}
+            {formData.type === 'IMAGE' ? (
+              <>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    size="small"
+                    variant={!uploadMode ? 'contained' : 'outlined'}
+                    startIcon={<LinkIcon />}
+                    onClick={() => { setUploadMode(false); setUploadFile(null); if (uploadPreview) URL.revokeObjectURL(uploadPreview); setUploadPreview(null); }}
+                  >
+                    Image URL
+                  </Button>
+                  <Button
+                    size="small"
+                    variant={uploadMode ? 'contained' : 'outlined'}
+                    startIcon={<CloudUploadIcon />}
+                    onClick={() => setUploadMode(true)}
+                  >
+                    Upload File
+                  </Button>
+                </Box>
+
+                {uploadMode ? (
+                  <Box>
+                    <Alert severity="info" sx={{ mb: 1.5, py: 0.5 }}>
+                      Accepted formats: <strong>JPG, PNG, WebP</strong> &nbsp;·&nbsp; Max size: <strong>5 MB</strong> &nbsp;·&nbsp; Recommended: <strong>{getImageRecommendation(formData.category)}</strong>
+                    </Alert>
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      startIcon={<CloudUploadIcon />}
+                      fullWidth
+                      sx={{ py: 1.5 }}
+                    >
+                      {uploadFile ? uploadFile.name : 'Choose Image File'}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        hidden
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handleFileChange}
+                      />
+                    </Button>
+                    {uploadPreview && (
+                      <Box sx={{ textAlign: 'center', mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
+                        <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                          Preview
+                        </Typography>
+                        <img
+                          src={uploadPreview}
+                          alt="Upload preview"
+                          style={{ maxWidth: '100%', maxHeight: 200, objectFit: 'contain' }}
+                        />
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                          {uploadFile && `${(uploadFile.size / 1024).toFixed(0)} KB`}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                ) : (
+                  <>
+                    <TextField
+                      name="value"
+                      label="Image URL"
+                      value={formData.value}
+                      onChange={handleChange}
+                      fullWidth
+                      helperText="Enter a direct image URL (https://...)"
+                    />
+                    {formData.value && (
+                      <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
+                        <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                          Preview
+                        </Typography>
+                        <img
+                          src={resolveImageSrc(formData.value)}
+                          alt="Preview"
+                          style={{ maxWidth: '100%', maxHeight: 200, objectFit: 'contain' }}
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      </Box>
+                    )}
+                  </>
+                )}
+              </>
+            ) : (
+              <TextField
+                name="value"
+                label="Value"
+                value={formData.value}
+                onChange={handleChange}
+                fullWidth
+                multiline
+                rows={3}
+                required
+                helperText="Enter value"
+              />
             )}
+
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
                 name="type"
@@ -316,9 +453,9 @@ function SiteConfigManager() {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button variant="contained" onClick={handleSave}>
-            {editingConfig ? 'Update' : 'Create'}
+          <Button onClick={handleCloseDialog} disabled={uploading}>Cancel</Button>
+          <Button variant="contained" onClick={handleSave} disabled={uploading}>
+            {uploading ? 'Saving...' : editingConfig ? 'Update' : 'Create'}
           </Button>
         </DialogActions>
       </Dialog>

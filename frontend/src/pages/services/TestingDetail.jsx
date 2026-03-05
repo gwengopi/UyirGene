@@ -23,7 +23,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import { Button, Breadcrumb, LoadingSpinner, SEO } from '../../components/common';
 import { useScrollAnimation } from '../../hooks';
-import { useUI } from '../../store';
+import { useUI, useConfig } from '../../store';
 import { serviceTestingService } from '../../services';
 import { getApiBaseUrl } from '../../services/api';
 import { ROUTES, IMAGES } from '../../utils/constants';
@@ -32,6 +32,7 @@ function TestingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isDarkMode } = useUI();
+  const { getImage } = useConfig();
   const [testing, setTesting] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -73,7 +74,7 @@ function TestingDetail() {
 
   const heroImageUrl = testing.heroImageUrl
     ? `${getApiBaseUrl()}${testing.heroImageUrl}`
-    : IMAGES.SERVICE_GMO_TESTING;
+    : getImage('SERVICE_GMO_TESTING', IMAGES.SERVICE_GMO_TESTING);
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -98,10 +99,9 @@ function TestingDetail() {
       <Box sx={{ position: 'relative', borderRadius: 3, overflow: 'hidden', mb: 6 }}>
         <CardMedia
           component="img"
-          height={300}
           image={heroImageUrl}
           alt={testing.title}
-          sx={{ objectFit: 'cover', filter: 'brightness(0.3)' }}
+          sx={{ objectFit: 'cover', filter: 'brightness(0.3)', height: { xs: 180, sm: 220, md: 260 } }}
         />
         <Box
           sx={{

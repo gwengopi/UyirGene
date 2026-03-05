@@ -18,6 +18,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { formatCurrency, formatDurationHours } from '../../utils/formatters';
 import { ROUTES, IMAGES } from '../../utils/constants';
 import { getApiBaseUrl } from '../../services/api';
+import { useConfig } from '../../store';
 
 /**
  * Course Card component for displaying course information
@@ -31,6 +32,7 @@ const CourseCard = memo(function CourseCard({
   enrolling = false,
 }) {
   const navigate = useNavigate();
+  const { getImage } = useConfig();
 
   if (loading) {
     return (
@@ -64,7 +66,7 @@ const CourseCard = memo(function CourseCard({
   const imagePath = course.thumbnailImageUrl || course.imageUrl;
   const imageUrl = imagePath
     ? `${getApiBaseUrl()}${imagePath}`
-    : IMAGES.COURSE_PLACEHOLDER;
+    : getImage('COURSE_PLACEHOLDER', IMAGES.COURSE_PLACEHOLDER);
 
   return (
     <Card

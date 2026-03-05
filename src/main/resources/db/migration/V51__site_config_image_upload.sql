@@ -1,0 +1,2 @@
+ALTER TABLE site_config ADD COLUMN IF NOT EXISTS image_data BYTEA;
+ALTER TABLE site_config ADD COLUMN IF NOT EXISTS image_content_type VARCHAR(100);
