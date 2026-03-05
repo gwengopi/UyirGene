@@ -34,6 +34,7 @@ function Contact() {
     subject: '',
     message: '',
   });
+  const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [contactConfig, setContactConfig] = useState(DEFAULT_CONTACT);
@@ -71,20 +72,39 @@ function Contact() {
   }, []);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    if (formErrors[name]) setFormErrors((prev) => ({ ...prev, [name]: '' }));
+  };
+
+  const validate = () => {
+    const errors = {};
+    if (!formData.name.trim()) errors.name = 'Name is required';
+    if (!formData.email.trim()) errors.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errors.email = 'Enter a valid email address';
+    if (!formData.subject.trim()) errors.subject = 'Subject is required';
+    if (!formData.message.trim()) errors.message = 'Message is required';
+    else if (formData.message.trim().length < 10) errors.message = 'Message must be at least 10 characters';
+    return errors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const errors = validate();
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
     setSubmitting(true);
 
-    // Simulate form submission
+    // Simulate form submission (replace with real API call when backend is ready)
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     setSubmitting(false);
     setSubmitted(true);
     showSuccess('Message sent successfully!');
     setFormData({ name: '', email: '', subject: '', message: '' });
+    setFormErrors({});
   };
 
   const handleWhatsAppClick = () => {
@@ -220,6 +240,8 @@ function Contact() {
                     value={formData.name}
                     onChange={handleChange}
                     required
+                    error={!!formErrors.name}
+                    helperText={formErrors.name}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -231,6 +253,8 @@ function Contact() {
                     value={formData.email}
                     onChange={handleChange}
                     required
+                    error={!!formErrors.email}
+                    helperText={formErrors.email}
                   />
                 </Grid>
                 <Grid item xs={12}>
@@ -241,6 +265,8 @@ function Contact() {
                     value={formData.subject}
                     onChange={handleChange}
                     required
+                    error={!!formErrors.subject}
+                    helperText={formErrors.subject}
                   />
                 </Grid>
                 <Grid item xs={12}>
@@ -253,6 +279,8 @@ function Contact() {
                     value={formData.message}
                     onChange={handleChange}
                     required
+                    error={!!formErrors.message}
+                    helperText={formErrors.message}
                   />
                 </Grid>
                 <Grid item xs={12}>

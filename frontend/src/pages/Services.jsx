@@ -96,10 +96,9 @@ function Services() {
       <Box sx={{ position: 'relative', borderRadius: 3, overflow: 'hidden', mb: 6 }}>
         <CardMedia
           component="img"
-          height={280}
           image={getImage('ABOUT_MISSION', IMAGES.ABOUT_MISSION)}
           alt="Uyirgene Services"
-          sx={{ objectFit: 'cover', filter: 'brightness(0.35)' }}
+          sx={{ objectFit: 'cover', filter: 'brightness(0.35)', height: { xs: 180, sm: 220, md: 260 } }}
         />
         <Box
           sx={{
@@ -135,6 +134,8 @@ function Services() {
           {services.map((service, index) => (
             <Grid item xs={12} sm={6} key={index}>
               <Paper
+                role="button"
+                tabIndex={0}
                 sx={{
                   overflow: 'hidden',
                   height: '100%',
@@ -151,16 +152,17 @@ function Services() {
                       : '0 12px 32px rgba(0,0,0,0.12)',
                   },
                   '&:hover .service-overlay': { opacity: 1 },
+                  '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
                 }}
                 onClick={() => navigate(service.path)}
+                onKeyDown={(e) => e.key === 'Enter' && navigate(service.path)}
               >
                 <Box sx={{ position: 'relative' }}>
                   <CardMedia
                     component="img"
-                    height={200}
                     image={getImage(service.imageKey, service.imageFallback)}
                     alt={service.title}
-                    sx={{ objectFit: 'cover' }}
+                    sx={{ objectFit: 'cover', height: 180 }}
                   />
                   <Box
                     className="service-overlay"

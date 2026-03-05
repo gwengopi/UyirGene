@@ -20,6 +20,8 @@ function FlagshipProgramCard({ program }) {
 
   return (
     <Card
+      role="button"
+      tabIndex={0}
       sx={{
         position: 'relative',
         height: 360,
@@ -34,8 +36,10 @@ function FlagshipProgramCard({ program }) {
           opacity: 1,
           transform: 'translateY(0)',
         },
+        '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
       }}
       onClick={() => navigate(`/flagship/${program.id}`)}
+      onKeyDown={(e) => e.key === 'Enter' && navigate(`/flagship/${program.id}`)}
     >
       {/* Background image */}
       {imageUrl ? (

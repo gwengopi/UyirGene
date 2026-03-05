@@ -243,20 +243,6 @@ function Login() {
               sx={{ mb: 1 }}
             />
 
-            <Box sx={{ textAlign: 'right', mb: 3 }}>
-              <Link
-                component={RouterLink}
-                to="#"
-                sx={{
-                  fontSize: '0.875rem',
-                  color: 'primary.light',
-                  textDecoration: 'none',
-                  '&:hover': { textDecoration: 'underline' },
-                }}
-              >
-                Forgot password?
-              </Link>
-            </Box>
 
             <Button
               type="submit"

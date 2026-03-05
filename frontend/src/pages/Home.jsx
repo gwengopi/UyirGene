@@ -492,7 +492,10 @@ function Home() {
                 />
                 {/* Glass card */}
                 <Box
+                  role="button"
+                  tabIndex={0}
                   onClick={() => navigate(ROUTES.COURSES)}
+                  onKeyDown={(e) => e.key === 'Enter' && navigate(ROUTES.COURSES)}
                   sx={{
                     position: 'relative',
                     background: 'rgba(255,255,255,0.08)',
@@ -509,6 +512,7 @@ function Home() {
                       boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
                       borderColor: 'rgba(255,255,255,0.25)',
                     },
+                    '&:focus-visible': { outline: '2px solid rgba(255,255,255,0.6)', outlineOffset: 2 },
                   }}
                 >
                   {/* Mini course image */}
@@ -623,7 +627,10 @@ function Home() {
                 >
                   <Paper
                     elevation={isDarkMode ? 1 : 0}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => navigate(ROUTES.COURSES)}
+                    onKeyDown={(e) => e.key === 'Enter' && navigate(ROUTES.COURSES)}
                     sx={{
                       textAlign: 'center',
                       height: '100%',
@@ -643,6 +650,7 @@ function Home() {
                           : '0 12px 36px rgba(69,90,100,0.18)',
                       },
                       '&:hover .feature-card-overlay': { opacity: 1 },
+                      '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
                     }}
                   >
                     <Box sx={{ position: 'relative', flexShrink: 0 }}>
@@ -749,7 +757,10 @@ function Home() {
                 >
                   <Paper
                     elevation={isDarkMode ? 1 : 0}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => navigate(service.path)}
+                    onKeyDown={(e) => e.key === 'Enter' && navigate(service.path)}
                     sx={{
                       textAlign: 'center',
                       height: '100%',
@@ -769,6 +780,7 @@ function Home() {
                           : '0 12px 32px rgba(69,90,100,0.14)',
                       },
                       '&:hover .service-card-overlay': { opacity: 1 },
+                      '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
                     }}
                   >
                     <Box sx={{ position: 'relative', width: '100%', flexShrink: 0 }}>

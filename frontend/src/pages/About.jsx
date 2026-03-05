@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Container, Typography, Box, Grid, Paper, CardMedia } from '@mui/material';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import ScienceIcon from '@mui/icons-material/Science';
@@ -9,9 +9,27 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import { Breadcrumb, SEO } from '../components/common';
 import { useConfig } from '../store';
 import { IMAGES } from '../utils/constants';
+import { configService } from '../services';
 
 function About() {
   const { getImage } = useConfig();
+  const [contactConfig, setContactConfig] = useState({
+    email: 'info@uyirgene.com',
+    website: 'www.uyirgene.com',
+    address: 'Uyir-Tech International Testing Laboratory, Research and Training Institute, Bharathi Nagar, NGO Colony, Sattur, Tamil Nadu, India',
+  });
+
+  useEffect(() => {
+    configService.getByCategory('CONTACT').then((configs) => {
+      const m = {};
+      configs.forEach((c) => { m[c.key] = c.value; });
+      setContactConfig((prev) => ({
+        email: m.CONTACT_EMAIL || prev.email,
+        website: m.CONTACT_WEBSITE || prev.website,
+        address: m.CONTACT_ADDRESS || prev.address,
+      }));
+    }).catch(() => {});
+  }, []);
   const services = [
     {
       icon: SchoolIcon,
@@ -67,10 +85,9 @@ function About() {
       >
         <CardMedia
           component="img"
-          height={300}
           image={getImage('ABOUT_MISSION', IMAGES.ABOUT_MISSION)}
           alt="Uyirgene International Team"
-          sx={{ objectFit: 'cover', filter: 'brightness(0.4)' }}
+          sx={{ objectFit: 'cover', filter: 'brightness(0.4)', height: { xs: 200, sm: 260, md: 300 } }}
         />
         <Box
           sx={{
@@ -178,10 +195,9 @@ function About() {
             >
               <CardMedia
                 component="img"
-                height={140}
                 image={service.image}
                 alt={service.title}
-                sx={{ objectFit: 'cover' }}
+                sx={{ objectFit: 'cover', height: 140 }}
               />
               <Box sx={{ p: 3 }}>
                 <service.icon sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
@@ -250,13 +266,17 @@ function About() {
           Contact Us
         </Typography>
         <Typography variant="body1" color="text.secondary" paragraph>
-          Uyir-Tech International Testing Laboratory, Research and Training Institute
-        </Typography>
-        <Typography variant="body1" color="text.secondary" paragraph>
-          Bharathi Nagar, NGO Colony, Sattur, Tamil Nadu, India
+          {contactConfig.address}
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Email: admin@uyirgene.com | Website: www.uyirgene.com
+          Email:{' '}
+          <Typography component="a" href={`mailto:${contactConfig.email}`} variant="body1" color="primary.main" sx={{ textDecoration: 'none' }}>
+            {contactConfig.email}
+          </Typography>
+          {' '}| Website:{' '}
+          <Typography component="a" href={`https://${contactConfig.website}`} target="_blank" rel="noopener noreferrer" variant="body1" color="primary.main" sx={{ textDecoration: 'none' }}>
+            {contactConfig.website}
+          </Typography>
         </Typography>
       </Paper>
     </Container>

@@ -202,18 +202,19 @@ function Blog() {
         {blogs.map((blog) => (
           <Grid item xs={12} md={4} key={blog.id}>
             <Card
+              role="button"
+              tabIndex={0}
               sx={{
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
                 cursor: 'pointer',
                 transition: 'transform 0.2s, box-shadow 0.2s',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: 6,
-                },
+                '&:hover': { transform: 'translateY(-4px)', boxShadow: 6 },
+                '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
               }}
               onClick={() => navigate(`/blog/${blog.urlSlug || blog.id}`)}
+              onKeyDown={(e) => e.key === 'Enter' && navigate(`/blog/${blog.urlSlug || blog.id}`)}
             >
               <CardMedia
                 component="div"

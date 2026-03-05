@@ -59,7 +59,10 @@ function TestingCard({ testing, onClick, index, isVisible }) {
 
   return (
     <Paper
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => e.key === 'Enter' && onClick()}
       sx={{
         height: '100%',
         display: 'flex',
@@ -79,6 +82,7 @@ function TestingCard({ testing, onClick, index, isVisible }) {
         '&:hover .testing-image': {
           transform: 'scale(1.05)',
         },
+        '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
       }}
     >
       <Box sx={{ position: 'relative', overflow: 'hidden' }}>
