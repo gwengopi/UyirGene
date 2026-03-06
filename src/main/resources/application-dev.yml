@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/UyirGene}
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:1234/UyirGene}
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    password: ${DB_PASSWORD:}
   jpa:
     hibernate:
       ddl-auto: update
@@ -21,8 +21,8 @@ spring:
     # =======================================================================
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:lavanyapdb22@gmail.com}
-    password: ${MAIL_PASSWORD:xxpn gkok fzic rdoh}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
@@ -36,8 +36,8 @@ cors:
 
 payment:
   razorpay:
-    key-id: rzp_test_SIJ8g7YBQ0HtQT
-    key-secret: uFl5MBQpYikIV1HgX3cNQJyt
+    key-id: ${RAZORPAY_KEY_ID:}
+    key-secret: ${RAZORPAY_KEY_SECRET:}
 
 jwt:
   secret: ${JWT_SECRET:dev-only-secret-key-do-not-use-in-production-min-256-bits}
