@@ -124,7 +124,7 @@ public class FlagshipProgramService {
                                             String examDetails, String countryPricesJson,
                                             String videosJson, String programCode, Integer reminderDays,
                                             String assessmentLinksJson, String preAssessmentLinksJson,
-                                            String preAssessmentInstructions) {
+                                            String preAssessmentInstructions, String trainingDuration) {
         String slug = generateSlug(title);
         String code = (programCode != null && !programCode.isBlank())
                 ? programCode.trim().toUpperCase()
@@ -154,6 +154,7 @@ public class FlagshipProgramService {
                 .outcome(outcome)
                 .examDetails(examDetails)
                 .reminderDays(reminderDays)
+                .trainingDuration(trainingDuration)
                 .build();
 
         FlagshipProgram saved = repository.save(program);
@@ -178,7 +179,7 @@ public class FlagshipProgramService {
                                             String examDetails, String countryPricesJson,
                                             String videosJson, String programCode, Integer reminderDays,
                                             String assessmentLinksJson, String preAssessmentLinksJson,
-                                            String preAssessmentInstructions) {
+                                            String preAssessmentInstructions, String trainingDuration) {
         FlagshipProgram program = repository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Flagship program not found"));
 
@@ -206,6 +207,7 @@ public class FlagshipProgramService {
         program.setOutcome(outcome);
         program.setExamDetails(examDetails);
         program.setReminderDays(reminderDays);
+        program.setTrainingDuration(trainingDuration);
 
         // Update program code if provided and different
         if (programCode != null && !programCode.isBlank()) {

@@ -1,5 +1,18 @@
 /* Global Styles - Uyirgene Learning Platform */
 
+/* ── Number inputs ──────────────────────────────────────────────────────────
+   Hide spin buttons so the browser can't change values via arrow clicks.
+   Scroll-wheel changes are blocked in App.jsx via a wheel event listener.
+   ──────────────────────────────────────────────────────────────────────── */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
 /* Base styles */
 *,
 *::before,

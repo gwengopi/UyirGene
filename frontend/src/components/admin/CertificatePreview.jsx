@@ -21,6 +21,7 @@ const SAMPLE_DATA = {
   issueDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' }),
   certificateId: 'CERT-ABCD1234',
   marks: '92.5%',
+  trainingDuration: '3 Months',
 };
 
 // Google Fonts URL for all supported preview fonts
@@ -243,6 +244,9 @@ function CertificatePreview({
 
     // Draw short description (disabled by default)
     drawTextElement('shortDescription', templateConfig.shortDescription, 'A comprehensive course on modern technologies');
+
+    // Draw training duration (disabled by default)
+    drawTextElement('trainingDuration', templateConfig.trainingDuration, SAMPLE_DATA.trainingDuration);
 
     // Draw QR code placeholder
     const qr = templateConfig.qrCode;

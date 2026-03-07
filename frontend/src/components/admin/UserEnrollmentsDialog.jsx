@@ -348,7 +348,7 @@ function UserEnrollmentsDialog({
                                 type="number"
                                 value={marksValue}
                                 onChange={(e) => setMarksValue(e.target.value)}
-                                inputProps={{ min: 0, max: 100, step: 0.1 }}
+                                inputProps={{ min: 0, max: 100, step: 'any' }}
                                 sx={{ width: 80 }}
                                 placeholder="0-100"
                                 label="Marks"

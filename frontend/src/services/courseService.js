@@ -186,7 +186,7 @@ export async function updateCourse(id, courseData, imageOptions = {}) {
   const formData = new FormData();
   formData.append('title', courseOnly.title);
   if (courseOnly.tagline !== undefined) formData.append('tagline', courseOnly.tagline || '');
-  if (courseOnly.courseCode !== undefined) formData.append('courseCode', courseOnly.courseCode || '');
+  if (courseOnly.courseCode) formData.append('courseCode', courseOnly.courseCode);
   if (courseOnly.trainerName !== undefined) formData.append('trainerName', courseOnly.trainerName || '');
   if (courseOnly.shortDescription !== undefined) formData.append('shortDescription', courseOnly.shortDescription || '');
   formData.append('description', courseOnly.description);

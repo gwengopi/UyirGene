@@ -21,9 +21,9 @@ function Payment() {
   const [failureDialog, setFailureDialog] = useState({ open: false, message: '' });
 
   const order = state?.order;
-  const courseId = state?.courseId;
+  const courseId = state?.courseId;     // single-course enrollment OR standalone courseId in a multi-bundle payment
   const bundleId = state?.bundleId;
-  const bundleIds = state?.bundleIds; // array — multi-bundle enrollment
+  const bundleIds = state?.bundleIds;   // array — multi-bundle enrollment
   const flagshipProgramId = state?.flagshipProgramId;
   const courseName = state?.courseName || state?.bundleName || 'course';
   const isMultiBundle = Array.isArray(bundleIds) && bundleIds.length > 0;
@@ -43,7 +43,8 @@ function Payment() {
 
   const confirmPayment = async (paymentData) => {
     if (isMultiBundle) {
-      await confirmMultiBundlePayment(bundleIds, paymentData);
+      // courseId is the optional standalone course included in this combined order
+      await confirmMultiBundlePayment(bundleIds, paymentData, courseId || null);
     } else if (isBundle) {
       await bundleService.confirmBundlePayment(bundleId, paymentData);
     } else if (isFlagship) {

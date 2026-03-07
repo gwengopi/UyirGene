@@ -137,7 +137,8 @@ public class CertificateService {
                         marks,
                         filePath.toString(),
                         template,
-                        trainerName
+                        trainerName,
+                        program.getTrainingDuration()
                 );
             } else {
                 createCertificatePdfDynamic(
@@ -151,7 +152,8 @@ public class CertificateService {
                         marks,
                         filePath.toString(),
                         template,
-                        trainerName
+                        trainerName,
+                        program.getTrainingDuration()
                 );
             }
 
@@ -258,7 +260,8 @@ public class CertificateService {
                         marks,
                         filePath.toString(),
                         template,
-                        effectiveTrainerName
+                        effectiveTrainerName,
+                        course.getCourseDurationText()
                 );
             } else {
                 log.info("Using dynamic certificate generation (no template config)");
@@ -274,7 +277,8 @@ public class CertificateService {
                         marks,
                         filePath.toString(),
                         template,
-                        effectiveTrainerName
+                        effectiveTrainerName,
+                        course.getCourseDurationText()
                 );
             }
 
@@ -311,7 +315,7 @@ public class CertificateService {
                                                 String certificateId, LocalDateTime issuedAt,
                                                 Certificate.CertificateType type, Double marks,
                                                 String filePath, CertificateTemplate template,
-                                                String trainerName) throws IOException, WriterException {
+                                                String trainerName, String trainingDuration) throws IOException, WriterException {
 
         log.info("Creating certificate from template: {}", template.getName());
 
@@ -401,6 +405,11 @@ public class CertificateService {
             // Draw short description
             if (config.getShortDescription() != null && config.getShortDescription().isVisible() && shortDescription != null) {
                 drawText(contentStream, shortDescription, config.getShortDescription(), fontRegular, pageWidth, extraFonts);
+            }
+
+            // Draw training duration
+            if (config.getTrainingDuration() != null && config.getTrainingDuration().isVisible() && trainingDuration != null) {
+                drawText(contentStream, trainingDuration, config.getTrainingDuration(), fontRegular, pageWidth, extraFonts);
             }
 
             // Draw marks if available
@@ -616,13 +625,14 @@ public class CertificateService {
                                               String certificateId, LocalDateTime issuedAt,
                                               Certificate.CertificateType type, Double marks,
                                               String filePath, CertificateTemplate template,
-                                              String trainerName) throws IOException, WriterException {
+                                              String trainerName, String trainingDuration) throws IOException, WriterException {
         // Sanitize all text inputs to prevent control-character encoding errors
         userName = sanitizePdfText(userName);
         courseTitle = sanitizePdfText(courseTitle);
         courseCode = sanitizePdfText(courseCode);
         shortDescription = sanitizePdfText(shortDescription);
         trainerName = sanitizePdfText(trainerName);
+        trainingDuration = sanitizePdfText(trainingDuration);
 
         PDDocument document = new PDDocument();
 
@@ -791,6 +801,18 @@ public class CertificateService {
                 contentStream.setNonStrokingColor(0.39f, 0.39f, 0.39f);
                 contentStream.newLineAtOffset(centerX - descWidth / 2, y);
                 contentStream.showText(descText);
+                contentStream.endText();
+            }
+
+            // Training Duration (if available)
+            if (trainingDuration != null && !trainingDuration.isEmpty()) {
+                y -= 20;
+                float durationWidth = fontRegular.getStringWidth(trainingDuration) / 1000 * 10;
+                contentStream.beginText();
+                contentStream.setFont(fontRegular, 10);
+                contentStream.setNonStrokingColor(0.39f, 0.39f, 0.39f);
+                contentStream.newLineAtOffset(centerX - durationWidth / 2, y);
+                contentStream.showText(trainingDuration);
                 contentStream.endText();
             }
 

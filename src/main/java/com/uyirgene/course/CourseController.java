@@ -165,7 +165,7 @@ public class CourseController {
         }
 
         Course course = Course.builder()
-                .courseCode(courseCode)
+                .courseCode(courseCode != null && !courseCode.isBlank() ? courseCode : null)
                 .title(title)
                 .tagline(tagline)
                 .shortDescription(shortDescription)
@@ -312,7 +312,7 @@ public class CourseController {
             @RequestParam(value = "reminderDays", required = false) Integer reminderDays
     ) throws IOException {
         return repo.findById(id).map(existing -> {
-            existing.setCourseCode(courseCode);
+            existing.setCourseCode(courseCode != null && !courseCode.isBlank() ? courseCode : null);
             existing.setTitle(title);
             existing.setTagline(tagline);
             existing.setShortDescription(shortDescription);

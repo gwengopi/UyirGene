@@ -55,6 +55,8 @@ public class FlagshipProgramDto {
     // Completion reminder SLA (days after enrollment)
     private Integer reminderDays;
 
+    private String trainingDuration;
+
     // Content fields (mirrors Course)
     private String targetAudience;
     private String assessment;
@@ -140,6 +142,7 @@ public class FlagshipProgramDto {
                 .preAssessmentLinks(program.getPreAssessmentLinks())
                 .preAssessmentInstructions(program.getPreAssessmentInstructions())
                 .reminderDays(program.getReminderDays())
+                .trainingDuration(program.getTrainingDuration())
                 .targetAudience(program.getTargetAudience())
                 .assessment(program.getAssessment())
                 .outcome(program.getOutcome())

@@ -22,6 +22,7 @@ public class CourseBundleService {
     private final CourseBundleRepository bundleRepo;
     private final BundlePriceRepository bundlePriceRepo;
     private final CourseRepository courseRepo;
+    private final CoursePriceRepository coursePriceRepo;
     private final EnrollmentRepository enrollmentRepo;
     private final CurrentUserService currentUserService;
     private final PaymentProvider paymentProvider;
@@ -46,6 +47,13 @@ public class CourseBundleService {
     @Transactional(readOnly = true)
     public List<CourseBundleDto> getPublishedBundlesByCategory(String category) {
         return bundleRepo.findByPublishedTrueAndCategoryOrderByDisplayOrderAscIdAsc(category).stream()
+                .map(CourseBundleDto::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<CourseBundleDto> getPublishedBundlesByCourseCategory(String category) {
+        return bundleRepo.findPublishedBundlesByCourseCategory(category).stream()
                 .map(CourseBundleDto::fromEntity)
                 .collect(Collectors.toList());
     }
@@ -354,28 +362,32 @@ public class CourseBundleService {
     // ==================== Multi-Bundle Enrollment ====================
 
     @Transactional
-    public MultiEnrollmentResult startMultiBundleEnrollment(List<Long> bundleIds, String countryCode) {
+    public MultiEnrollmentResult startMultiBundleEnrollment(List<Long> bundleIds, String countryCode, Long standaloneCourseId) {
         User user = currentUserService.getCurrentUser();
-
-        double totalAmount = 0.0;
-        String resolvedCurrency = "INR";
         List<String> warnings = new ArrayList<>();
+
+        boolean useCountryPricing = countryCode != null && !countryCode.isBlank() && !"IN".equalsIgnoreCase(countryCode);
+        String upperCC = useCountryPricing ? countryCode.toUpperCase() : null;
+
+        // Collect loaded bundles and their resolved (price, currency) for two-pass normalization
+        List<CourseBundle> loadedBundles = new ArrayList<>();
+        List<Double> resolvedAmounts = new ArrayList<>();
+        List<String> resolvedCurrencies = new ArrayList<>();
 
         for (Long bundleId : bundleIds) {
             CourseBundle bundle = bundleRepo.findById(bundleId)
                     .orElseThrow(() -> new EntityNotFoundException("Bundle not found: " + bundleId));
-
             if (!bundle.getPublished()) {
                 throw new IllegalStateException("Bundle '" + bundle.getTitle() + "' is not available for purchase");
             }
 
-            // Check ownership for warning
+            // Build ownership warning
             List<Course> alreadyOwned = new ArrayList<>();
             for (Course course : bundle.getCourses()) {
                 Optional<Enrollment> existing = enrollmentRepo.findByUserAndCourse(user, course);
                 if (existing.isPresent() &&
-                    (existing.get().getStatus() == Enrollment.Status.ENROLLED ||
-                     existing.get().getStatus() == Enrollment.Status.COMPLETED)) {
+                        (existing.get().getStatus() == Enrollment.Status.ENROLLED ||
+                         existing.get().getStatus() == Enrollment.Status.COMPLETED)) {
                     alreadyOwned.add(course);
                 }
             }
@@ -384,30 +396,87 @@ public class CourseBundleService {
                 warnings.add("\"" + bundle.getTitle() + "\": you already own " + names);
             }
 
-            // Resolve price
+            // Resolve bundle price
             double price;
             String currency;
-            if (countryCode != null && !countryCode.isBlank() && !"IN".equalsIgnoreCase(countryCode)) {
-                Optional<BundlePrice> bp = bundlePriceRepo.findByBundleAndCountryCode(bundle, countryCode.toUpperCase());
-                if (bp.isPresent()) {
-                    price = bp.get().getAmount();
-                    currency = bp.get().getCurrencyCode();
-                } else {
-                    price = bundle.getPrice();
-                    currency = "INR";
-                }
+            if (useCountryPricing) {
+                Optional<BundlePrice> bp = bundlePriceRepo.findByBundleAndCountryCode(bundle, upperCC);
+                price = bp.map(BundlePrice::getAmount).orElse(bundle.getPrice());
+                currency = bp.map(BundlePrice::getCurrencyCode).orElse("INR");
             } else {
                 price = bundle.getPrice();
                 currency = "INR";
             }
 
-            totalAmount += price;
-            resolvedCurrency = currency; // use last resolved currency (should be consistent)
+            loadedBundles.add(bundle);
+            resolvedAmounts.add(price);
+            resolvedCurrencies.add(currency);
+        }
+
+        // Resolve standalone course price (if provided and not already owned)
+        Course standalone = null;
+        boolean standaloneAlreadyOwned = true;
+        double standaloneAmount = 0.0;
+        String standaloneCurrency = "INR";
+
+        if (standaloneCourseId != null) {
+            standalone = courseRepo.findById(standaloneCourseId)
+                    .orElseThrow(() -> new EntityNotFoundException("Course not found: " + standaloneCourseId));
+            Optional<Enrollment> existing = enrollmentRepo.findByUserAndCourse(user, standalone);
+            standaloneAlreadyOwned = existing.isPresent() &&
+                    (existing.get().getStatus() == Enrollment.Status.ENROLLED ||
+                     existing.get().getStatus() == Enrollment.Status.COMPLETED);
+            if (!standaloneAlreadyOwned) {
+                if (useCountryPricing) {
+                    Optional<CoursePrice> cp = coursePriceRepo.findByCourseAndCountryCode(standalone, upperCC);
+                    standaloneAmount = cp.map(CoursePrice::getAmount)
+                            .orElse(standalone.getPrice() != null ? standalone.getPrice() : 0.0);
+                    standaloneCurrency = cp.map(CoursePrice::getCurrencyCode).orElse("INR");
+                } else {
+                    standaloneAmount = standalone.getPrice() != null ? standalone.getPrice() : 0.0;
+                    standaloneCurrency = "INR";
+                }
+                resolvedCurrencies.add(standaloneCurrency);
+            }
+        }
+
+        // Determine effective currency:
+        // Priority: (1) standalone course's resolved currency (the currency the user was
+        // browsing in when they clicked Enroll), (2) first non-INR bundle currency,
+        // (3) INR as final fallback.
+        // Bundles that had no country-specific price and fell back to INR will be charged
+        // at their base price amount but in the effective currency — consistent with what
+        // the frontend dialog displays.
+        String effectiveCurrency = "INR";
+        if (standalone != null && !standaloneAlreadyOwned && !"INR".equals(standaloneCurrency)) {
+            effectiveCurrency = standaloneCurrency;
+        } else {
+            for (String c : resolvedCurrencies) {
+                if (!"INR".equals(c)) { effectiveCurrency = c; break; }
+            }
+        }
+
+        // Compute total in effective currency.
+        // For items whose resolved currency differs from the effective one, use the INR base price.
+        double totalAmount = 0.0;
+        for (int i = 0; i < loadedBundles.size(); i++) {
+            if (resolvedCurrencies.get(i).equals(effectiveCurrency)) {
+                totalAmount += resolvedAmounts.get(i);
+            } else {
+                totalAmount += loadedBundles.get(i).getPrice(); // INR base price
+            }
+        }
+        if (standalone != null && !standaloneAlreadyOwned) {
+            if (standaloneCurrency.equals(effectiveCurrency)) {
+                totalAmount += standaloneAmount;
+            } else {
+                totalAmount += standalone.getPrice() != null ? standalone.getPrice() : 0.0;
+            }
         }
 
         long amountSmallestUnit = Math.round(totalAmount * 100);
         PaymentOrder po = paymentProvider.createOrder(
-                amountSmallestUnit, resolvedCurrency, "multi-bundle-" + System.currentTimeMillis());
+                amountSmallestUnit, effectiveCurrency, "multi-bundle-" + System.currentTimeMillis());
 
         EnrollmentResult.RazorpayOrder order = new EnrollmentResult.RazorpayOrder(
                 po.getId(), po.getAmount(), po.getCurrency(), po.getKeyId());
@@ -418,7 +487,8 @@ public class CourseBundleService {
 
     @Transactional
     public List<Enrollment> confirmMultiBundlePayment(List<Long> bundleIds, String razorpayPaymentId,
-                                                       String razorpayOrderId, String signature) {
+                                                       String razorpayOrderId, String signature,
+                                                       Long standaloneCourseId) {
         // Verify payment signature once for the combined order
         boolean ok = paymentProvider.verifySignature(razorpayOrderId, razorpayPaymentId, signature);
         if (!ok) {
@@ -467,6 +537,36 @@ public class CourseBundleService {
             }
 
             allEnrollments.addAll(newEnrollments);
+        }
+
+        // Also enroll in the standalone course that was part of this combined payment
+        if (standaloneCourseId != null) {
+            Course standalone = courseRepo.findById(standaloneCourseId)
+                    .orElseThrow(() -> new EntityNotFoundException("Course not found: " + standaloneCourseId));
+            Optional<Enrollment> existing = enrollmentRepo.findByUserAndCourse(user, standalone);
+            boolean alreadyEnrolled = existing.isPresent() &&
+                    (existing.get().getStatus() == Enrollment.Status.ENROLLED ||
+                     existing.get().getStatus() == Enrollment.Status.COMPLETED);
+            if (!alreadyEnrolled) {
+                Enrollment standaloneEnrollment;
+                if (existing.isPresent()) {
+                    Enrollment e = existing.get();
+                    e.setStatus(Enrollment.Status.ENROLLED);
+                    e.setPaymentOrderId(razorpayOrderId);
+                    standaloneEnrollment = enrollmentRepo.save(e);
+                } else {
+                    standaloneEnrollment = enrollmentRepo.save(Enrollment.builder()
+                            .user(user)
+                            .course(standalone)
+                            .enrolledAt(LocalDateTime.now())
+                            .status(Enrollment.Status.ENROLLED)
+                            .paymentOrderId(razorpayOrderId)
+                            .build());
+                }
+                allEnrollments.add(standaloneEnrollment);
+                // Send individual enrollment confirmation email for the standalone course
+                mailService.sendEnrollmentSuccess(user, standalone);
+            }
         }
 
         return allEnrollments;

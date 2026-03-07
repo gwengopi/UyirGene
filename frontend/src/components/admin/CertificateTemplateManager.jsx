@@ -877,6 +877,7 @@ function CertificateTemplateManager() {
                       {renderTextElementConfig('Course Code', 'courseCode', templateConfig.courseCode)}
                       {renderTextElementConfig('Trainer Name', 'trainerName', templateConfig.trainerName)}
                       {renderTextElementConfig('Short Description', 'shortDescription', templateConfig.shortDescription)}
+                      {renderTextElementConfig('Duration of Training', 'trainingDuration', templateConfig.trainingDuration)}
                       {renderTextElementConfig('Score/Marks', 'marks', templateConfig.marks)}
                       {renderTextElementConfig('Issue Date', 'issueDate', templateConfig.issueDate)}
                       {renderTextElementConfig('Certificate ID', 'certificateId', templateConfig.certificateId)}

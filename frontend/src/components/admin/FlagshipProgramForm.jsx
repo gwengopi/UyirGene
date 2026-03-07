@@ -55,6 +55,7 @@ const empty = () => ({
   preAssessmentLinks: [],
   preAssessmentInstructions: 'Complete the pre-assessment before starting your learning journey. This helps us understand your baseline knowledge and customize your learning experience.',
   reminderDays: '',
+  trainingDuration: '',
   // Course detail fields
   targetAudience: '',
   assessment: '',
@@ -108,6 +109,7 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
         })(),
         preAssessmentInstructions: program.preAssessmentInstructions || '',
         reminderDays: program.reminderDays != null ? program.reminderDays.toString() : '',
+        trainingDuration: program.trainingDuration || '',
         targetAudience: program.targetAudience || '',
         assessment: program.assessment || '',
         outcome: program.outcome || '',
@@ -275,6 +277,7 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
       ));
       if (form.preAssessmentInstructions.trim()) fd.append('preAssessmentInstructions', form.preAssessmentInstructions.trim());
       if (form.reminderDays) fd.append('reminderDays', parseInt(form.reminderDays, 10));
+      if (form.trainingDuration.trim()) fd.append('trainingDuration', form.trainingDuration.trim());
 
       // Course detail fields
       if (form.targetAudience.trim()) fd.append('targetAudience', form.targetAudience.trim());
@@ -539,6 +542,14 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
               onChange={(e) => set('outcome', e.target.value)}
               fullWidth size="small" multiline rows={3}
               placeholder="What will participants achieve upon completion?"
+            />
+            <TextField
+              label="Duration of Training"
+              value={form.trainingDuration}
+              onChange={(e) => set('trainingDuration', e.target.value)}
+              fullWidth size="small"
+              placeholder="e.g., 3 Months, 40 Hours, 6 Weeks"
+              helperText="Shown on the program detail page and printed on the certificate"
             />
             {/* Exam Details — array of strings */}
             <Box>

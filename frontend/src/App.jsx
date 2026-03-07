@@ -105,6 +105,19 @@ function AppContent() {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
 
+  // Prevent scroll wheel from accidentally changing number input values.
+  // Without this, scrolling the page while a number input is focused increments/
+  // decrements the value by the step amount (e.g. 80 → 79.9 with step=0.1).
+  useEffect(() => {
+    const preventNumberScroll = (e) => {
+      if (document.activeElement?.type === 'number') {
+        document.activeElement.blur();
+      }
+    };
+    document.addEventListener('wheel', preventNumberScroll, { passive: true });
+    return () => document.removeEventListener('wheel', preventNumberScroll);
+  }, []);
+
   // Restore body scroll on route change (cleanup after modals/payment flows)
   useEffect(() => {
     // Reset any scroll locks that might have been left by modals or Razorpay

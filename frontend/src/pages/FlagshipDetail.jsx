@@ -520,6 +520,54 @@ function FlagshipDetail() {
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Breadcrumb items={breadcrumbItems} />
 
+        {/* ── Mobile-only quick enroll bar ─────────────────────────────────── */}
+        {!isEnrolled && !learnMode && (
+          <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 3 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                border: '1px solid',
+                borderColor: '#7B2D8B',
+                background: 'rgba(123,45,139,0.06)',
+              }}
+            >
+              {hasCountryPrices && (
+                <Autocomplete
+                  options={countryOptions}
+                  getOptionLabel={(option) => `${option.name} (${option.symbol})`}
+                  value={selectedOption || null}
+                  onChange={(_, newValue) => { if (newValue) setSelectedCountry(newValue.code); }}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Select your country" size="small" />
+                  )}
+                  isOptionEqualToValue={(option, value) => option.code === value?.code}
+                  disableClearable
+                  fullWidth
+                  size="small"
+                  sx={{ mb: 1.5 }}
+                />
+              )}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography variant="h5" fontWeight={800} sx={{ flexShrink: 0, color: '#7B2D8B' }}>
+                  {displayPrice.amount ? formatCurrency(displayPrice.amount, displayPrice.currency) : 'Free'}
+                </Typography>
+                <Button
+                  variant="contained"
+                  size="large"
+                  fullWidth
+                  onClick={handleEnroll}
+                  disabled={enrolling}
+                  sx={{ fontWeight: 700, bgcolor: '#7B2D8B', '&:hover': { bgcolor: '#6A1B7A' } }}
+                >
+                  {enrolling ? <CircularProgress size={22} color="inherit" /> : 'Enroll & Get Certified'}
+                </Button>
+              </Box>
+            </Paper>
+          </Box>
+        )}
+
         <Grid container spacing={4} sx={{ mt: 0.5 }}>
           {/* Left: video player (learn mode) OR content sections */}
           <Grid item xs={12} md={8}>
@@ -660,6 +708,14 @@ function FlagshipDetail() {
                   </CourseStyleField>
                 )}
 
+                {program.trainingDuration && (
+                  <CourseStyleField icon={<ScheduleIcon color="primary" />} label="Duration of Training">
+                    <Typography color="text.secondary">
+                      {program.trainingDuration}
+                    </Typography>
+                  </CourseStyleField>
+                )}
+
                 {examDetails.length > 0 && (
                   <CourseStyleField icon={<QuizIcon color="primary" />} label="Exam Details">
                     <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0 }}>
@@ -679,9 +735,9 @@ function FlagshipDetail() {
                   </Box>
                 )}
 
-                {/* CTA at bottom of content */}
+                {/* CTA at bottom of content — hidden on mobile (top bar + sidebar card cover it) */}
                 {!isEnrolled && (
-                  <Box sx={{ textAlign: 'center', mt: 2, mb: 2 }}>
+                  <Box sx={{ textAlign: 'center', mt: 2, mb: 2, display: { xs: 'none', md: 'block' } }}>
                     <Button
                       variant="contained"
                       size="large"

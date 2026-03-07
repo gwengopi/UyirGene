@@ -196,6 +196,10 @@ export const DEFAULT_TEMPLATE_CONFIG = {
     x: 297.5, y: 260, fontSize: 10, fontColor: '#636363',
     centered: true, visible: false, fontStyle: 'normal', fontFamily: 'oswald',
   },
+  trainingDuration: {
+    x: 297.5, y: 242, fontSize: 10, fontColor: '#636363',
+    centered: true, visible: false, fontStyle: 'normal', fontFamily: 'oswald',
+  },
   issueDate: {
     x: 297.5, y: 350, fontSize: 12, fontColor: '#636363',
     centered: true, visible: true, fontStyle: 'italic', fontFamily: 'oswald',

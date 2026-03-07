@@ -32,7 +32,7 @@ import QuizIcon from '@mui/icons-material/Quiz';
 import { Button, Breadcrumb, LoadingSpinner, SEO } from '../components/common';
 import { courseSchema } from '../components/common/SEO';
 import { VideoPlayer, VideoList, ManualSection, EnrollmentUpsellDialog } from '../components/course';
-import { getBundlesByCourse, startMultiBundleEnrollment } from '../services/bundleService';
+import { getBundlesByCourseCategory, startMultiBundleEnrollment } from '../services/bundleService';
 import { ProgressTracker } from '../components/user';
 import { courseService, enrollmentService, videoService, certificateService } from '../services';
 import { useAuth, useToast } from '../store';
@@ -94,14 +94,19 @@ function CourseDetail() {
     const loadCourse = async () => {
       setLoading(true);
       try {
-        // Fire all three independent requests simultaneously
-        const [courseData, bundles, enrolled] = await Promise.all([
+        // Fire course and enrollment in parallel
+        const [courseData, enrolled] = await Promise.all([
           courseService.getCourse(id),
-          getBundlesByCourse(id).catch(() => []),
           isAuthenticated() ? enrollmentService.getEnrolledCourses().catch(() => null) : Promise.resolve(null),
         ]);
 
         setCourse(courseData);
+
+        // Fetch combo deals for ALL courses in the same category.
+        // Uses course-category lookup: finds bundles whose member courses share this category.
+        const bundles = courseData?.category
+          ? await getBundlesByCourseCategory(courseData.category).catch(() => [])
+          : [];
         setAvailableBundles(bundles || []);
 
         if (enrolled) {
@@ -207,18 +212,23 @@ function CourseDetail() {
     }
   };
 
-  // Enroll in multiple bundles via single Razorpay payment
-  const handleEnrollBundles = async (bundleIds) => {
+  // Enroll in multiple bundles via a single Razorpay payment.
+  // courseIsStandalone=true means the user also selected the current course (not inside any bundle),
+  // so its price is included in the same order and it is enrolled on confirmation.
+  const handleEnrollBundles = async (bundleIds, courseIsStandalone = false) => {
     setUpsellOpen(false);
     setEnrolling(true);
     try {
-      const result = await startMultiBundleEnrollment(bundleIds, selectedCountry);
+      const standaloneCourseId = courseIsStandalone ? id : null;
+      const result = await startMultiBundleEnrollment(bundleIds, selectedCountry, standaloneCourseId);
       const order = result?.order;
       if (order) {
+        const bundlePart = `${bundleIds.length} bundle${bundleIds.length > 1 ? 's' : ''}`;
         navigate(ROUTES.PAYMENT, {
           state: {
             bundleIds,
-            courseName: `${bundleIds.length} bundle${bundleIds.length > 1 ? 's' : ''}`,
+            courseId: standaloneCourseId, // passed to confirm so backend enrolls in it
+            courseName: courseIsStandalone ? `${bundlePart} + ${course?.title}` : bundlePart,
             order,
           },
         });
@@ -527,6 +537,62 @@ function CourseDetail() {
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Breadcrumb items={breadcrumbItems} />
 
+        {/* ── Mobile-only quick enroll bar ─────────────────────────────────── */}
+        {!isEnrolled && !learnMode && (
+          <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 3 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                border: '1px solid',
+                borderColor: 'primary.light',
+                background: (theme) =>
+                  theme.palette.mode === 'dark'
+                    ? 'rgba(25,118,210,0.08)'
+                    : 'rgba(25,118,210,0.05)',
+              }}
+            >
+              {hasCountryPrices && (() => {
+                const countryOptions = SUPPORTED_COUNTRIES.filter(
+                  c => c.code === 'IN' || course.countryPrices?.some(cp => cp.countryCode === c.code)
+                );
+                const selectedOption = countryOptions.find(c => c.code === selectedCountry) || countryOptions[0];
+                return (
+                  <Autocomplete
+                    options={countryOptions}
+                    getOptionLabel={(option) => `${option.name} (${option.symbol})`}
+                    value={selectedOption}
+                    onChange={(_, newValue) => { if (newValue) setSelectedCountry(newValue.code); }}
+                    renderInput={(params) => <TextField {...params} label="Select your country" size="small" />}
+                    isOptionEqualToValue={(option, value) => option.code === value?.code}
+                    disableClearable
+                    fullWidth
+                    size="small"
+                    sx={{ mb: 1.5 }}
+                  />
+                );
+              })()}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography variant="h5" color="primary" fontWeight={800} sx={{ flexShrink: 0 }}>
+                  {displayPrice.amount ? formatCurrency(displayPrice.amount, displayPrice.currency) : 'Free'}
+                </Typography>
+                <Button
+                  variant="contained"
+                  size="large"
+                  fullWidth
+                  onClick={handleEnroll}
+                  loading={enrolling}
+                  disabled={loading}
+                  sx={{ fontWeight: 700 }}
+                >
+                  Enroll & Get Certified
+                </Button>
+              </Box>
+            </Paper>
+          </Box>
+        )}
+
         <Grid container spacing={4} sx={{ mt: 0.5 }}>
           {/* ── Main content ── */}
           <Grid item xs={12} md={8}>
@@ -697,8 +763,8 @@ function CourseDetail() {
                   </Paper>
                 )}
 
-                {/* CTA buttons */}
-                <Box sx={{ textAlign: 'center', mt: 3, mb: 2 }}>
+                {/* CTA buttons — hidden on mobile (top bar + sidebar card cover it) */}
+                <Box sx={{ textAlign: 'center', mt: 3, mb: 2, display: { xs: 'none', md: 'block' } }}>
                   {!isEnrolled && (
                     <Button variant="contained" size="large" onClick={handleEnroll} loading={enrolling} disabled={loading}>
                       {displayPrice.amount ? `Enroll for ${formatCurrency(displayPrice.amount, displayPrice.currency)}` : 'Enroll Free'}
@@ -902,6 +968,7 @@ function CourseDetail() {
           open={upsellOpen}
           onClose={() => setUpsellOpen(false)}
           course={course}
+          availableBundles={availableBundles}
           selectedCountry={selectedCountry}
           displayPrice={displayPrice}
           enrolledCourseIds={enrolledCourseIds}

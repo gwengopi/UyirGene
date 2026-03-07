@@ -3,6 +3,7 @@ import api from './api';
 const BUNDLE_ENDPOINTS = {
   LIST: '/api/bundles',
   BY_COURSE: (courseId) => `/api/bundles/by-course/${courseId}`,
+  BY_COURSE_CATEGORY: '/api/bundles/by-course-category',
   DETAIL: (id) => `/api/bundles/${id}`,
   ENROLL: (id) => `/api/bundles/${id}/enroll`,
   CONFIRM: (id) => `/api/bundles/${id}/enroll/confirm`,
@@ -19,6 +20,11 @@ const BUNDLE_ENDPOINTS = {
 
 export async function getBundlesByCourse(courseId) {
   const response = await api.get(BUNDLE_ENDPOINTS.BY_COURSE(courseId));
+  return response.data;
+}
+
+export async function getBundlesByCourseCategory(category) {
+  const response = await api.get(BUNDLE_ENDPOINTS.BY_COURSE_CATEGORY, { params: { category } });
   return response.data;
 }
 
@@ -50,13 +56,17 @@ export async function confirmBundlePayment(bundleId, paymentData) {
   return response.data;
 }
 
-export async function startMultiBundleEnrollment(bundleIds, countryCode) {
-  const response = await api.post(BUNDLE_ENDPOINTS.MULTI_ENROLL, { bundleIds, countryCode });
+export async function startMultiBundleEnrollment(bundleIds, countryCode, courseId) {
+  const body = { bundleIds, countryCode };
+  if (courseId) body.courseId = Number(courseId);
+  const response = await api.post(BUNDLE_ENDPOINTS.MULTI_ENROLL, body);
   return response.data;
 }
 
-export async function confirmMultiBundlePayment(bundleIds, paymentData) {
-  const response = await api.post(BUNDLE_ENDPOINTS.MULTI_CONFIRM, { bundleIds, ...paymentData });
+export async function confirmMultiBundlePayment(bundleIds, paymentData, courseId) {
+  const body = { bundleIds, ...paymentData };
+  if (courseId) body.courseId = Number(courseId);
+  const response = await api.post(BUNDLE_ENDPOINTS.MULTI_CONFIRM, body);
   return response.data;
 }
 

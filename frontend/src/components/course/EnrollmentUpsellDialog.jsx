@@ -1,26 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Box, Typography, Checkbox, Divider, Chip, CircularProgress, Alert,
+  Box, Typography, Checkbox, Divider, Chip,
 } from '@mui/material';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import SchoolIcon from '@mui/icons-material/School';
 import { Button } from '../common';
-import { getBundlesByCourse } from '../../services/bundleService';
+// bundles are passed in as a prop — no internal fetch needed
 import { formatCurrency } from '../../utils/formatters';
 
 /**
  * Resolves the display price for a bundle based on country.
  * Returns { amount, currency }.
+ *
+ * fallbackCurrency — used when no country-specific price is configured for the bundle.
+ * Defaults to 'INR' (the base price currency), but callers pass the course's display
+ * currency so that all prices in the dialog are shown in the same currency.
  */
-function resolveBundlePrice(bundle, countryCode) {
+function resolveBundlePrice(bundle, countryCode, fallbackCurrency = 'INR') {
   if (!countryCode || countryCode === 'IN') {
     return { amount: bundle.price, currency: 'INR' };
   }
   const cp = bundle.countryPrices?.find((p) => p.countryCode === countryCode);
   if (cp) return { amount: cp.amount, currency: cp.currencyCode };
-  return { amount: bundle.price, currency: 'INR' };
+  // No country-specific price → treat the base price as being in the fallback currency
+  // (typically the same currency the individual course is priced in).
+  return { amount: bundle.price, currency: fallbackCurrency };
 }
 
 /**
@@ -40,28 +47,24 @@ function EnrollmentUpsellDialog({
   open,
   onClose,
   course,
+  availableBundles = [],
   selectedCountry,
   displayPrice,
   enrolledCourseIds = new Set(),
   onEnrollSingle,
   onEnrollBundles,
 }) {
-  const [bundles, setBundles] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const bundles = availableBundles;
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [courseSelected, setCourseSelected] = useState(true);
 
-  // Fetch bundles whenever dialog opens
+  // Reset selection whenever dialog opens
   useEffect(() => {
-    if (!open || !course?.id) return;
-    let cancelled = false;
-    setLoading(true);
-    setSelectedIds(new Set());
-    getBundlesByCourse(course.id)
-      .then((data) => { if (!cancelled) setBundles(data || []); })
-      .catch(() => { if (!cancelled) setBundles([]); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [open, course?.id]);
+    if (open) {
+      setSelectedIds(new Set());
+      setCourseSelected(true);
+    }
+  }, [open]);
 
   const toggleBundle = (id) => {
     setSelectedIds((prev) => {
@@ -72,18 +75,66 @@ function EnrollmentUpsellDialog({
     });
   };
 
-  // Compute total for selected bundles
+  // ---- PRICE COMPUTATION ----
+
   const selectedBundles = bundles.filter((b) => selectedIds.has(b.id));
-  const totalInfo = selectedBundles.reduce(
-    (acc, bundle) => {
-      const { amount, currency } = resolveBundlePrice(bundle, selectedCountry);
-      return { amount: acc.amount + amount, currency };
-    },
-    { amount: 0, currency: displayPrice?.currency || 'INR' }
+  // Use the course's display currency throughout the dialog so every price is consistent.
+  // Bundles without a country-specific price fall back to this same currency.
+  const effectiveCurrency = displayPrice?.currency || 'INR';
+
+  // Bundle total — each bundle resolves to either its country price or the course's currency
+  const bundleTotalAmount = selectedBundles.reduce((sum, b) => {
+    const { amount } = resolveBundlePrice(b, selectedCountry, effectiveCurrency);
+    return sum + amount;
+  }, 0);
+
+  // Is the current course already inside one of the selected bundles?
+  const courseInSelectedBundles = selectedBundles.some((b) =>
+    b.courses?.some((c) => Number(c.id) === Number(course?.id))
   );
 
-  const handleConfirmBundles = () => {
-    onEnrollBundles([...selectedIds]);
+  // Course contribution — always in the same effective currency
+  const courseAmountInEffective = displayPrice?.amount || 0;
+
+  const courseContribution = courseSelected && !courseInSelectedBundles
+    ? courseAmountInEffective
+    : 0;
+
+  // Grand total — always in a single consistent currency
+  const grandTotal = {
+    amount: bundleTotalAmount + courseContribution,
+    currency: effectiveCurrency,
+  };
+
+  // true when user wants the course enrolled separately (not covered by any bundle)
+  const courseIsStandalone = courseSelected && !courseInSelectedBundles && selectedIds.size > 0;
+
+  const nothingSelected = !courseSelected && selectedIds.size === 0;
+
+  let confirmLabel;
+  if (nothingSelected) {
+    confirmLabel = 'Select an option above';
+  } else if (selectedIds.size > 0) {
+    const bundlePart = `${selectedIds.size} bundle${selectedIds.size > 1 ? 's' : ''}`;
+    const totalStr = formatCurrency(grandTotal.amount, grandTotal.currency);
+    confirmLabel = courseIsStandalone
+      ? `Enroll in ${bundlePart} + this course — ${totalStr}`
+      : `Enroll in ${bundlePart} — ${totalStr}`;
+  } else {
+    // Only the course is selected
+    confirmLabel = courseAmountInEffective
+      ? `Enroll in this course — ${formatCurrency(courseAmountInEffective, effectiveCurrency)}`
+      : 'Enroll in this course (Free)';
+  }
+
+  // If bundles selected → bundle enrollment (also enroll standalone course if needed);
+  // otherwise → single course enrollment
+  const handleConfirm = () => {
+    if (selectedIds.size > 0) {
+      onEnrollBundles([...selectedIds], courseIsStandalone);
+    } else {
+      onEnrollSingle();
+    }
   };
 
   return (
@@ -99,18 +150,90 @@ function EnrollmentUpsellDialog({
       </DialogTitle>
 
       <DialogContent dividers sx={{ p: 0 }}>
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-            <CircularProgress />
+        {/* Current course row — always shown at the top */}
+        <Box
+          sx={{
+            p: 2.5,
+            cursor: courseInSelectedBundles ? 'default' : 'pointer',
+            opacity: courseInSelectedBundles ? 0.75 : 1,
+            bgcolor: courseSelected && !courseInSelectedBundles && selectedIds.size === 0
+              ? 'action.selected'
+              : 'transparent',
+            transition: 'background-color 0.15s',
+            '&:hover': courseInSelectedBundles ? {} : { bgcolor: 'action.hover' },
+          }}
+          onClick={() => !courseInSelectedBundles && setCourseSelected((v) => !v)}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+            <Checkbox
+              checked={courseSelected}
+              disabled={courseInSelectedBundles}
+              onClick={(e) => e.stopPropagation()}
+              onChange={() => !courseInSelectedBundles && setCourseSelected((v) => !v)}
+              sx={{ mt: -0.5, p: 0 }}
+            />
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 0.5 }}>
+                <SchoolIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                <Typography variant="subtitle1" fontWeight={700}>{course?.title}</Typography>
+                <Chip
+                  label="Your selection"
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                  sx={{ height: 20, fontSize: '0.7rem' }}
+                />
+                {courseInSelectedBundles && (
+                  <Chip
+                    label="Included in bundle"
+                    size="small"
+                    color="success"
+                    sx={{ height: 20, fontSize: '0.7rem' }}
+                  />
+                )}
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                {courseInSelectedBundles ? (
+                  <>
+                    <Typography
+                      variant="h6"
+                      color="text.disabled"
+                      fontWeight={700}
+                      sx={{ textDecoration: 'line-through' }}
+                    >
+                      {displayPrice?.amount
+                        ? formatCurrency(displayPrice.amount, displayPrice.currency)
+                        : 'Free'}
+                    </Typography>
+                    <Typography variant="caption" color="success.main" fontWeight={600}>
+                      Free with bundle
+                    </Typography>
+                  </>
+                ) : (
+                  <>
+                    <Typography variant="h6" color="primary" fontWeight={700}>
+                      {courseAmountInEffective
+                        ? formatCurrency(courseAmountInEffective, effectiveCurrency)
+                        : 'Free'}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">(single course)</Typography>
+                  </>
+                )}
+              </Box>
+            </Box>
           </Box>
-        ) : bundles.length === 0 ? (
-          <Box sx={{ p: 3 }}>
-            <Alert severity="info">No bundle deals available for this course right now.</Alert>
-          </Box>
-        ) : (
+        </Box>
+
+        {bundles.length > 0 && (
+          <Divider>
+            <Chip label="or upgrade to a bundle deal" size="small" sx={{ fontSize: '0.7rem' }} />
+          </Divider>
+        )}
+
+        {bundles.length > 0 && (
           <Box>
             {bundles.map((bundle, idx) => {
-              const { amount: bundleAmount, currency: bundleCurrency } = resolveBundlePrice(bundle, selectedCountry);
+              const { amount: bundleAmount, currency: bundleCurrency } = resolveBundlePrice(bundle, selectedCountry, effectiveCurrency);
               const isChecked = selectedIds.has(bundle.id);
 
               // Which courses in this bundle does user already own?
@@ -216,8 +339,8 @@ function EnrollmentUpsellDialog({
       </DialogContent>
 
       <DialogActions sx={{ p: 2.5, flexDirection: 'column', gap: 1, alignItems: 'stretch' }}>
-        {/* Running total */}
-        {selectedIds.size > 0 && (
+        {/* Running total — always shown when anything is selected */}
+        {!nothingSelected && (
           <Box
             sx={{
               display: 'flex',
@@ -232,36 +355,26 @@ function EnrollmentUpsellDialog({
             }}
           >
             <Typography variant="body2" fontWeight={600}>
-              {selectedIds.size} bundle{selectedIds.size > 1 ? 's' : ''} selected
+              {selectedIds.size > 0 && courseIsStandalone
+                ? `${selectedIds.size} bundle${selectedIds.size > 1 ? 's' : ''} + this course`
+                : selectedIds.size > 0
+                  ? `${selectedIds.size} bundle${selectedIds.size > 1 ? 's' : ''} selected`
+                  : 'This course'}
             </Typography>
             <Typography variant="h6" fontWeight={700}>
-              {formatCurrency(totalInfo.amount, totalInfo.currency)}
+              {formatCurrency(grandTotal.amount, grandTotal.currency)}
             </Typography>
           </Box>
         )}
 
-        {/* Confirm bundles */}
         <Button
           variant="contained"
           fullWidth
           size="large"
-          onClick={handleConfirmBundles}
-          disabled={selectedIds.size === 0}
+          onClick={handleConfirm}
+          disabled={nothingSelected}
         >
-          {selectedIds.size > 0
-            ? `Enroll in ${selectedIds.size} bundle${selectedIds.size > 1 ? 's' : ''} — ${formatCurrency(totalInfo.amount, totalInfo.currency)}`
-            : 'Select a bundle above'}
-        </Button>
-
-        {/* Skip — single course */}
-        <Button
-          variant="outlined"
-          fullWidth
-          onClick={onEnrollSingle}
-        >
-          {displayPrice?.amount
-            ? `Just enroll in this course — ${formatCurrency(displayPrice.amount, displayPrice.currency)}`
-            : 'Just enroll in this course (Free)'}
+          {confirmLabel}
         </Button>
       </DialogActions>
     </Dialog>

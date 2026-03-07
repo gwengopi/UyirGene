@@ -121,4 +121,7 @@ public class FlagshipProgram {
     @Column(name = "created_at")
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "training_duration")
+    private String trainingDuration;
 }

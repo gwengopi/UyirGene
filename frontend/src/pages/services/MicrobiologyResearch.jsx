@@ -148,10 +148,9 @@ function MicrobiologyResearch() {
       <Box sx={{ position: 'relative', borderRadius: 3, overflow: 'hidden', mb: 6 }}>
         <CardMedia
           component="img"
-          height={300}
           image={getImage('SERVICE_MICROBIOLOGY', IMAGES.SERVICE_MICROBIOLOGY)}
           alt="Microbiology Research Lab"
-          sx={{ objectFit: 'cover', filter: 'brightness(0.3)' }}
+          sx={{ objectFit: 'cover', filter: 'brightness(0.3)', height: { xs: 180, sm: 220, md: 260 } }}
         />
         <Box
           sx={{

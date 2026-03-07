@@ -87,6 +87,19 @@ public class TemplateConfigDto {
             .fontFamily("helvetica")
             .build();
 
+    // Training duration position
+    @Builder.Default
+    private TextElement trainingDuration = TextElement.builder()
+            .x(297.5f)
+            .y(242f)
+            .fontSize(10)
+            .fontColor("#636363")
+            .centered(true)
+            .visible(false)  // Disabled by default; admin can enable via template config
+            .fontStyle("normal")
+            .fontFamily("helvetica")
+            .build();
+
     // Issue date position
     @Builder.Default
     private TextElement issueDate = TextElement.builder()
