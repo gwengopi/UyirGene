@@ -16,6 +16,9 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     void deleteByUserId(Long userId);
     void deleteByCourse(Course course);
 
+    /** Find enrollment by Razorpay order ID — used by webhook to confirm payment. */
+    Optional<Enrollment> findByPaymentOrderId(String paymentOrderId);
+
     /** Returns all course enrollments eligible for a completion reminder:
      *  course has reminderDays set, status is ENROLLED, reminder not yet sent. */
     @Query("SELECT e FROM Enrollment e JOIN FETCH e.user JOIN FETCH e.course c " +

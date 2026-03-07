@@ -52,6 +52,7 @@ public class SecurityConfig {
                             "/api/service-diagnostics/**",
                             "/api/careers/**",
                             "/api/marketing/unsubscribe",
+                            "/api/payment/webhook",
                             "/actuator/health"
                     ).permitAll()
                     // Page-view tracking (public, fire-and-forget)

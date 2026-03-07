@@ -1,11 +1,33 @@
-# Ignore all node_modules everywhere
+# Maven build output (compiled classes, jars)
+target/
+
+# Node modules
 **/node_modules/
 
-# Optional – ignore build artifacts
+# Frontend build output
 dist/
 build/
 
-# IDE files (optional but recommended)
+# Environment variables — NEVER commit this
+.env
+.env.local
+.env.production
+
+# IDE files
 .idea/
 .vscode/
 *.iml
+
+# Runtime uploads (certificates, images uploaded by users)
+uploads/
+
+# OS artifacts
+.DS_Store
+nul
+frontend/nul
+Thumbs.db
+
+# Binary installers / downloaded files
+*.dmg
+*.exe
+*.pkg

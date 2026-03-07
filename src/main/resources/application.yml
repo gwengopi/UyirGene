@@ -77,6 +77,12 @@ jwt:
 google:
   client-id: ${GOOGLE_CLIENT_ID:}
 
+payment:
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID:}
+    key-secret: ${RAZORPAY_KEY_SECRET:}
+    webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+
 app:
   base-url: ${APP_BASE_URL:http://localhost:8080}
   mail:

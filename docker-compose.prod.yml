@@ -3,7 +3,7 @@ version: '3.8'
 services:
   db:
     image: postgres:15-alpine
-    container_name: uyirgene-db-prod
+    container_name: uyirgene-db
     environment:
       POSTGRES_DB: ${DB_NAME:-UyirGene}
       POSTGRES_USER: ${DB_USERNAME}
@@ -11,7 +11,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - uyirgene-network
+      - internal
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
@@ -23,54 +23,85 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: uyirgene-backend-prod
-    ports:
-      - "8080:8080"
+    container_name: uyirgene-backend
+    # No ports exposed — only accessible internally via nginx proxy
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DATABASE_URL: jdbc:postgresql://db:5432/${DB_NAME:-UyirGene}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      JWT_SECRET: ${JWT_SECRET}
+      VIDEO_ENCRYPTION_KEY: ${VIDEO_ENCRYPTION_KEY}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      APP_BASE_URL: ${APP_BASE_URL}
       MAIL_HOST: ${MAIL_HOST}
       MAIL_PORT: ${MAIL_PORT}
       MAIL_USERNAME: ${MAIL_USERNAME}
       MAIL_PASSWORD: ${MAIL_PASSWORD}
+      MAIL_FROM: ${MAIL_FROM:-${MAIL_USERNAME}}
+      MARKETING_MAIL_HOST: ${MARKETING_MAIL_HOST:-}
+      MARKETING_MAIL_PORT: ${MARKETING_MAIL_PORT:-}
+      MARKETING_MAIL_USERNAME: ${MARKETING_MAIL_USERNAME:-}
+      MARKETING_MAIL_PASSWORD: ${MARKETING_MAIL_PASSWORD:-}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
       PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-mock}
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+    volumes:
+      - uploads_data:/app/uploads
+      - logs_data:/var/log/uyirgene
     depends_on:
       db:
         condition: service_healthy
     networks:
-      - uyirgene-network
+      - internal
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 90s
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: ${API_URL:-https://api.yourdomain.com}
+        VITE_API_URL: ${APP_BASE_URL}
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
-    container_name: uyirgene-frontend-prod
+    container_name: uyirgene-frontend
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
-      - uyirgene-network
+      - internal
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: uyirgene-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    # Renews certificate every 12 hours (certbot skips if not due)
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done;'"
     restart: unless-stopped
 
 volumes:
   postgres_data:
     driver: local
+  uploads_data:
+    driver: local
+  logs_data:
+    driver: local
 
 networks:
-  uyirgene-network:
+  internal:
     driver: bridge
