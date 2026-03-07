@@ -48,7 +48,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: ${API_URL:-http://13.232.159.64:8080}
+        VITE_API_URL: ${API_URL:-http://43.205.114.234:8080}
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     container_name: uyirgene-frontend
     ports:
