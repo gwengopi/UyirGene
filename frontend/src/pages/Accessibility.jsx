@@ -32,7 +32,7 @@ function Accessibility() {
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <SEO title="Accessibility" description="Accessibility statement for Uyirgene International's learning platform." path="/accessibility" noindex />
+      <SEO title="Accessibility" description="Accessibility statement for Uyir Tech (Uyirgene International)'s learning platform." path="/accessibility" noindex />
       <Breadcrumb items={[{ label: 'Accessibility', path: '/accessibility' }]} />
 
       <Box sx={{ textAlign: 'center', mb: 6 }}>

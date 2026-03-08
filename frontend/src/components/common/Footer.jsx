@@ -13,7 +13,7 @@ import { useUI, useConfig } from '../../store';
 
 // Default fallback data
 const DEFAULT_TAGLINE = 'Professional Training Institute | ISO 9001 Certified | Training Partner of Skill India Digital Hub (Govt of India)';
-const DEFAULT_COPYRIGHT = 'Uyirgene International. All rights reserved.';
+const DEFAULT_COPYRIGHT = 'Uyir Tech (Uyirgene International). All rights reserved.';
 const DEFAULT_BOTTOM_TEXT = 'Excellence in Food Safety & Quality Training';
 
 const DEFAULT_SOCIAL_LINKS = [
@@ -36,11 +36,10 @@ const DEFAULT_SUPPORT_LINKS = [
 ];
 
 const DEFAULT_LEGAL_LINKS = [
-  { label: 'Terms of Service', path: '/terms' },
+  { label: 'Terms & Conditions', path: '/terms' },
   { label: 'Privacy Policy', path: '/privacy' },
   { label: 'Cookie Policy', path: '/cookies' },
   { label: 'Refund Policy', path: '/refund' },
-  { label: 'Accessibility', path: '/accessibility' },
 ];
 
 // Icon mapping

@@ -74,6 +74,8 @@ export const ROUTES = {
   HOME: '/',
   LOGIN: '/login',
   REGISTER: '/register',
+  FORGOT_PASSWORD: '/forgot-password',
+  RESET_PASSWORD: '/reset-password',
   SERVICES: '/services',
   SERVICES_MICROBIOLOGY: '/services/microbiology-research',
   SERVICES_CERTIFICATION: '/services/certification',
@@ -284,6 +286,7 @@ export const IMAGES = {
   // Logo
   LOGO: 'https://img1.wsimg.com/isteam/ip/1026513f-a4fe-4205-ac72-b744196cbd6f/UI_color-removebg-preview%202.png/:/rs=h:80,cg:true,m/qt=q:100/ll',
   LOGO_SMALL: 'https://img1.wsimg.com/isteam/ip/1026513f-a4fe-4205-ac72-b744196cbd6f/UI_color-removebg-preview%202.png/:/rs=h:40,cg:true,m/qt=q:100/ll',
+  FAVICON: 'https://uyirgene.com/favicon.ico',
 
   // Hero images
   HERO_MAIN: 'https://img1.wsimg.com/isteam/ip/1026513f-a4fe-4205-ac72-b744196cbd6f/blob-91a7f99.png/:/rs=w:1920,h:1080,cg:true,m/qt=q:95',

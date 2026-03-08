@@ -58,6 +58,20 @@ export function ConfigProvider({ children }) {
     loadConfig();
   }, []);
 
+  // Dynamically update browser tab favicon whenever FAVICON config changes
+  useEffect(() => {
+    const faviconUrl = images.FAVICON || DEFAULT_IMAGES.FAVICON;
+    if (!faviconUrl) return;
+    let link = document.querySelector("link[rel~='icon']");
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.head.appendChild(link);
+    }
+    link.type = faviconUrl.endsWith('.ico') ? 'image/x-icon' : 'image/png';
+    link.href = faviconUrl;
+  }, [images.FAVICON]);
+
   // Refresh images
   const refreshImages = useCallback(async () => {
     try {

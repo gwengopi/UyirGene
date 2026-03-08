@@ -5,7 +5,7 @@ import { Breadcrumb, SEO } from '../components/common';
 function Refund() {
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <SEO title="Refund Policy" description="Refund policy for Uyirgene International courses and services." path="/refund" noindex />
+      <SEO title="Refund Policy" description="Refund policy for Uyir Tech (Uyirgene International) courses and services." path="/refund" noindex />
       <Breadcrumb items={[{ label: 'Return & Refund Policy', path: '/refund' }]} />
 
       <Typography variant="h3" component="h1" gutterBottom fontWeight={700}>
@@ -79,7 +79,7 @@ function Refund() {
 
           <Alert severity="warning" sx={{ mt: 3 }}>
             <Typography variant="body2">
-              <strong>Note:</strong> All refunds will be processed within 20 working days after the refund request is approved by Uyirgene International.
+              <strong>Note:</strong> All refunds will be processed within 20 working days after the refund request is approved by Uyir Tech (Uyirgene International).
             </Typography>
           </Alert>
         </Box>

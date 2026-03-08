@@ -246,7 +246,7 @@ function CourseDetail() {
   // Handle enrollment — shows upsell dialog if bundles exist
   const handleEnroll = async () => {
     if (!isAuthenticated()) {
-      navigate(ROUTES.REGISTER);
+      navigate(ROUTES.LOGIN, { state: { from: location } });
       return;
     }
 

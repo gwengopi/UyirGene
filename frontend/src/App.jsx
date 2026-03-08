@@ -30,6 +30,8 @@ const Courses = lazy(() => import('./pages/Courses'));
 const CourseDetail = lazy(() => import('./pages/CourseDetail'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const CertificateVerify = lazy(() => import('./pages/CertificateVerify'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const MyCourses = lazy(() => import('./pages/MyCourses'));
@@ -181,6 +183,8 @@ function AppContent() {
                 </PublicRoute>
               }
             />
+            <Route path={ROUTES.FORGOT_PASSWORD} element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+            <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
 
             {/* Protected routes - requires authentication */}
             <Route

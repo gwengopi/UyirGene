@@ -38,6 +38,12 @@ public class User {
     @Column(name = "marketing_opt_out_token", length = 64)
     private String marketingOptOutToken;
 
+    @Column(name = "password_reset_token", length = 64)
+    private String passwordResetToken;
+
+    @Column(name = "password_reset_token_expiry")
+    private LocalDateTime passwordResetTokenExpiry;
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {

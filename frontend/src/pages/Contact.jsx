@@ -165,7 +165,7 @@ function Contact() {
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <SEO
         title="Contact Us"
-        description="Get in touch with Uyirgene International. Reach us at our offices in Chennai, Bengaluru, Coimbatore & Sattur for training, testing, and certification inquiries."
+        description="Get in touch with Uyir Tech (Uyirgene International). Reach us at our offices in Chennai, Bengaluru, Coimbatore & Sattur for training, testing, and certification inquiries."
         path="/contact"
       />
       <Breadcrumb items={[{ label: 'Contact Us', path: '/contact' }]} />
@@ -349,7 +349,7 @@ function Contact() {
 
             <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
               <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                Uyirgene International
+                Uyir Tech (Uyirgene International)
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Professional Training Institute | ISO 9001 Certified | Training Partner of Skill India Digital Hub (Govt of India)

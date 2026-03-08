@@ -11,4 +11,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByMarketingOptOutFalseOrMarketingOptOutIsNull();
 
     Optional<User> findByMarketingOptOutToken(String token);
+
+    Optional<User> findByPasswordResetToken(String token);
 }

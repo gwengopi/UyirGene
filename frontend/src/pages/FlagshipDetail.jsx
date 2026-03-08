@@ -286,7 +286,7 @@ function FlagshipDetail() {
 
   const handleEnroll = useCallback(async () => {
     if (!isAuthenticated()) {
-      navigate(ROUTES.LOGIN, { state: { from: `/flagship/${id}` } });
+      navigate(ROUTES.LOGIN, { state: { from: { pathname: `/flagship/${id}` } } });
       return;
     }
     if (isEnrolled) {

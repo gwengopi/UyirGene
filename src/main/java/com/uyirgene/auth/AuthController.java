@@ -33,6 +33,7 @@ public class AuthController {
     private final CurrentUserService currentUserService;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final PasswordResetService passwordResetService;
 
     @PostMapping("/register")
     @Operation(summary = "Register a new user")
@@ -111,6 +112,37 @@ public class AuthController {
             }
             User updated = userService.updateProfile(u, req.getName(), req.getCurrentPassword(), req.getNewPassword());
             return ResponseEntity.ok(new MeResponse(updated.getId(), updated.getEmail(), updated.getName(), updated.getRole()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Email is required"));
+        }
+        passwordResetService.generateAndSendToken(email.trim().toLowerCase());
+        return ResponseEntity.ok(Map.of("message", "If an account exists with this email, a reset link has been sent."));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> body) {
+        String token = body.get("token");
+        String newPassword = body.get("newPassword");
+        if (token == null || token.isBlank() || newPassword == null || newPassword.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Token and new password are required"));
+        }
+        if (newPassword.length() < 8) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Password must be at least 8 characters"));
+        }
+        if (!newPassword.matches(".*[A-Z].*") || !newPassword.matches(".*[a-z].*") || !newPassword.matches(".*[0-9].*")) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Password must contain uppercase, lowercase, and a number"));
+        }
+        try {
+            passwordResetService.resetPassword(token, newPassword);
+            return ResponseEntity.ok(Map.of("message", "Password reset successfully. Please log in."));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }

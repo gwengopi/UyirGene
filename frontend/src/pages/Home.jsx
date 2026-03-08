@@ -207,9 +207,9 @@ function Home() {
       <Box
         sx={{
           position: 'relative',
-          minHeight: '100vh',
-          mt: { xs: '-56px', sm: '-64px' },
-          pt: { xs: '56px', sm: '64px' },
+          minHeight: { xs: '100vh', md: '88vh' },
+          mt: { xs: '-48px', sm: '-52px' },
+          pt: { xs: '48px', sm: '52px' },
           display: 'flex',
           alignItems: 'center',
           overflow: 'hidden',
@@ -323,7 +323,7 @@ function Home() {
                   src={getImage('LOGO_MAIN', IMAGES.LOGO)}
                   alt="Uyirgene International"
                   sx={{
-                    height: { xs: 50, md: 70 },
+                    height: { xs: 40, md: 55 },
                     mb: 3,
                     filter: 'brightness(1.3) drop-shadow(0 2px 8px rgba(0,0,0,0.3))',
                     animation: 'heroFadeUp 0.8s ease-out both',
@@ -338,7 +338,7 @@ function Home() {
                     fontWeight: 800,
                     color: '#fff',
                     lineHeight: 1.15,
-                    fontSize: { xs: '2rem', sm: '2.6rem', md: '3.2rem' },
+                    fontSize: { xs: '1.6rem', sm: '2rem', md: '2.4rem' },
                     animation: 'heroFadeUp 0.8s ease-out 0.15s both',
                     textShadow: '0 2px 30px rgba(0,0,0,0.25)',
                     mb: 1,
@@ -352,7 +352,7 @@ function Home() {
                   sx={{
                     display: 'block',
                     fontWeight: 800,
-                    fontSize: { xs: '2rem', sm: '2.6rem', md: '3.2rem' },
+                    fontSize: { xs: '1.6rem', sm: '2rem', md: '2.4rem' },
                     lineHeight: 1.15,
                     background: 'linear-gradient(90deg, #64B5F6 0%, #81D4FA 50%, #B2EBF2 100%)',
                     WebkitBackgroundClip: 'text',
@@ -397,9 +397,9 @@ function Home() {
                     onClick={() => navigate(ROUTES.COURSES)}
                     endIcon={<ArrowForwardIcon />}
                     sx={{
-                      px: 4,
-                      py: 1.5,
-                      fontSize: '1rem',
+                      px: 3,
+                      py: 1,
+                      fontSize: '0.875rem',
                       fontWeight: 600,
                       borderRadius: 2,
                       boxShadow: '0 4px 20px rgba(79, 102, 114, 0.5)',
@@ -414,9 +414,9 @@ function Home() {
                       onClick={() => navigate(ROUTES.REGISTER)}
                       startIcon={<PlayArrowIcon />}
                       sx={{
-                        px: 4,
-                        py: 1.5,
-                        fontSize: '1rem',
+                        px: 3,
+                        py: 1,
+                        fontSize: '0.875rem',
                         fontWeight: 600,
                         borderRadius: 2,
                         color: '#fff',
@@ -439,7 +439,7 @@ function Home() {
                   sx={{
                     display: 'flex',
                     gap: { xs: 2, md: 4 },
-                    mt: 5,
+                    mt: 3,
                     justifyContent: { xs: 'center', md: 'flex-start' },
                     animation: 'heroFadeUp 0.8s ease-out 0.7s both',
                   }}

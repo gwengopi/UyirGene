@@ -9,6 +9,7 @@ export { default as BlogForm } from './BlogForm';
 export { default as UserManager } from './UserManager';
 export { default as Analytics } from './Analytics';
 export { default as SiteConfigManager } from './SiteConfigManager';
+export { default as LogoManager } from './LogoManager';
 export { default as MasterDataManager } from './MasterDataManager';
 export { default as UserEnrollmentsDialog } from './UserEnrollmentsDialog';
 export { default as CertificateTemplateManager } from './CertificateTemplateManager';

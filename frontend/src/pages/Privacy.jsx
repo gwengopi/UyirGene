@@ -5,7 +5,7 @@ import { Breadcrumb, SEO } from '../components/common';
 function Privacy() {
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <SEO title="Privacy Policy" description="Privacy Policy for Uyirgene International. Learn how we collect, use and protect your personal data." path="/privacy" noindex />
+      <SEO title="Privacy Policy" description="Privacy Policy for Uyir Tech (Uyirgene International). Learn how we collect, use and protect your personal data." path="/privacy" noindex />
       <Breadcrumb items={[{ label: 'Privacy Policy', path: '/privacy' }]} />
 
       <Typography variant="h3" component="h1" gutterBottom fontWeight={700}>
@@ -15,7 +15,7 @@ function Privacy() {
       <Paper sx={{ p: 4 }}>
         <Box sx={{ '& h2': { mt: 4, mb: 2 }, '& p': { mb: 2, color: 'text.secondary' } }}>
           <Typography variant="body1">
-            At Uyirgene International Food-Safety-Training, we are committed to safeguarding and preserving the privacy of our visitors. This Privacy Policy explains what happens to any personal data that you provide to us, or that we collect from you whilst you visit our site.
+            At Uyir Tech (Uyirgene International) Food-Safety-Training, we are committed to safeguarding and preserving the privacy of our visitors. This Privacy Policy explains what happens to any personal data that you provide to us, or that we collect from you whilst you visit our site.
           </Typography>
           <Typography variant="body1">
             We do update this Policy from time to time so please do review this Policy regularly.

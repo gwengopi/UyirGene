@@ -12,7 +12,7 @@ import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 import ArticleIcon from '@mui/icons-material/Article';
 import AutoStoriesIcon from '@mui/icons-material/AutoStories';
 import VerifiedIcon from '@mui/icons-material/Verified';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import standardsService from '../services/standardsService';
 import { useAuth } from '../store';
 import { ROUTES } from '../utils/constants';
@@ -56,6 +56,7 @@ function getFileBadge(contentType) {
 /* ─── Card ──────────────────────────────────────────────────────── */
 function StandardCard({ standard, isAuthenticated, onDownload, downloading, index }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const theme    = useTheme();
   const isDark   = theme.palette.mode === 'dark';
   const cs      = getCatStyle(standard.category);
@@ -65,7 +66,7 @@ function StandardCard({ standard, isAuthenticated, onDownload, downloading, inde
   const showNew  = isRecentlyAdded(standard.createdAt);
 
   const handleDownload = () => {
-    if (!isAuthenticated) { navigate(ROUTES.LOGIN); return; }
+    if (!isAuthenticated) { navigate(ROUTES.LOGIN, { state: { from: location } }); return; }
     onDownload(standard.id, standard.fileName || standard.title + '.pdf');
   };
 

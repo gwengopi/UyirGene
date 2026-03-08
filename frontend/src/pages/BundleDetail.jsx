@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Container,
   Grid,
@@ -37,6 +37,7 @@ import * as bundleService from '../services/bundleService';
 function BundleDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated } = useAuth();
   const { showSuccess, showError } = useToast();
   const { getImage } = useConfig();
@@ -67,7 +68,7 @@ function BundleDetail() {
   const handleEnroll = async () => {
     if (!isAuthenticated()) {
       showError('Please login to purchase this bundle');
-      navigate(ROUTES.LOGIN);
+      navigate(ROUTES.LOGIN, { state: { from: location } });
       return;
     }
 

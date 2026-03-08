@@ -5,6 +5,8 @@ const AUTH_ENDPOINTS = {
   LOGIN: '/api/auth/login',
   GOOGLE: '/api/auth/google',
   ME: '/api/auth/me',
+  FORGOT_PASSWORD: '/api/auth/forgot-password',
+  RESET_PASSWORD: '/api/auth/reset-password',
 };
 
 /**
@@ -52,6 +54,22 @@ export async function updateProfile(profileData) {
 }
 
 /**
+ * Request a password reset email
+ */
+export async function forgotPassword(email) {
+  const response = await api.post(AUTH_ENDPOINTS.FORGOT_PASSWORD, { email });
+  return response.data;
+}
+
+/**
+ * Reset password using the token from email
+ */
+export async function resetPassword(token, newPassword) {
+  const response = await api.post(AUTH_ENDPOINTS.RESET_PASSWORD, { token, newPassword });
+  return response.data;
+}
+
+/**
  * Logout user - clears auth token
  */
 export function logout() {
@@ -74,4 +92,6 @@ export default {
   updateProfile,
   logout,
   hasRole,
+  forgotPassword,
+  resetPassword,
 };

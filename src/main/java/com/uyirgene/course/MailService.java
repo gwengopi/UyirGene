@@ -405,6 +405,32 @@ public class MailService {
         }
     }
 
+    @Async
+    public void sendPasswordReset(User user, String resetLink) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, false, "UTF-8");
+            helper.setTo(user.getEmail());
+            setFrom(helper);
+            helper.setSubject("Reset your " + appName + " password");
+            String html = "<div style='font-family:sans-serif;max-width:600px;margin:40px auto;padding:32px;border:1px solid #e0e0e0;border-radius:8px'>"
+                    + "<h2 style='color:#455a64;margin-top:0'>Password Reset Request</h2>"
+                    + "<p>Hi " + safe(user.getName()) + ",</p>"
+                    + "<p>We received a request to reset your " + appName + " password. Click the button below to choose a new password. This link expires in <strong>1 hour</strong>.</p>"
+                    + "<p style='margin:32px 0'><a href='" + resetLink + "' style='background:#455a64;color:#fff;padding:13px 28px;border-radius:6px;text-decoration:none;font-weight:600;font-size:15px'>Reset Password</a></p>"
+                    + "<p style='color:#666;font-size:14px'>If the button doesn't work, copy and paste this link into your browser:</p>"
+                    + "<p style='color:#455a64;font-size:13px;word-break:break-all'>" + resetLink + "</p>"
+                    + "<hr style='border:none;border-top:1px solid #eee;margin:24px 0'/>"
+                    + "<p style='color:#999;font-size:12px'>If you didn't request a password reset, you can safely ignore this email. Your password won't change.</p>"
+                    + "</div>";
+            helper.setText(html, true);
+            mailSender.send(msg);
+            log.info("Password reset email sent to {}", user.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to send password reset email to {}: {}", user.getEmail(), e.getMessage(), e);
+        }
+    }
+
     private String getFromEmail() {
         if (mailFrom != null && !mailFrom.isBlank()) return mailFrom;
         if (mailUsername != null && !mailUsername.isBlank()) return mailUsername;

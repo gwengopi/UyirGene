@@ -5,7 +5,7 @@ import { Breadcrumb, SEO } from '../components/common';
 function Terms() {
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <SEO title="Terms of Service" description="Terms of Service for Uyirgene International's learning platform and services." path="/terms" noindex />
+      <SEO title="Terms & Conditions" description="Terms & Conditions for Uyir Tech (Uyirgene International)'s learning platform and services." path="/terms" noindex />
       <Breadcrumb items={[{ label: 'Terms & Conditions', path: '/terms' }]} />
 
       <Typography variant="h3" component="h1" gutterBottom fontWeight={700}>
@@ -18,7 +18,7 @@ function Terms() {
             Welcome to www.uyirgene.com!
           </Typography>
           <Typography variant="body1">
-            These terms and conditions outline the rules and regulations for the use of Uyirgene International's Website, located at www.uyirgene.com.
+            These terms and conditions outline the rules and regulations for the use of Uyir Tech (Uyirgene International)'s Website, located at www.uyirgene.com.
           </Typography>
           <Typography variant="body1">
             By accessing this website we assume you accept these terms and conditions. Do not continue to use www.uyirgene.com if you do not agree to take all of the terms and conditions stated on this page.
@@ -31,7 +31,7 @@ function Terms() {
             Cookies
           </Typography>
           <Typography variant="body1">
-            We employ the use of cookies. By accessing www.uyirgene.com, you agreed to use cookies in agreement with the Uyirgene International's Privacy Policy.
+            We employ the use of cookies. By accessing www.uyirgene.com, you agreed to use cookies in agreement with the Uyir Tech (Uyirgene International)'s Privacy Policy.
           </Typography>
           <Typography variant="body1">
             Most interactive websites use cookies to let us retrieve the user's details for each visit. Cookies are used by our website to enable the functionality of certain areas to make it easier for people visiting our website. Some of our affiliate/advertising partners may also use cookies.
@@ -104,7 +104,7 @@ function Terms() {
             Fees Structure
           </Typography>
           <Typography variant="body1">
-            Uyirgene International will fix fees structure.
+            Uyir Tech (Uyirgene International) will fix fees structure.
           </Typography>
 
           <Typography variant="h5" component="h2" fontWeight={600}>
@@ -141,7 +141,7 @@ function Terms() {
             Contact Us
           </Typography>
           <Typography variant="body1">
-            Uyirgene International
+            Uyir Tech (Uyirgene International)
           </Typography>
           <Typography variant="body1">
             Bharathi Nagar, NGO Colony, Sattur, Tamil Nadu, India

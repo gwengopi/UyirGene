@@ -342,6 +342,7 @@ public class SiteConfigService {
         // Logo images
         createIfNotExists("LOGO_MAIN", "https://img1.wsimg.com/isteam/ip/1026513f-a4fe-4205-ac72-b744196cbd6f/UI_color-removebg-preview%202.png/:/rs=h:80,cg:true,m/qt=q:100/ll", "IMAGE", "LOGO", "Main logo");
         createIfNotExists("LOGO_SMALL", "https://img1.wsimg.com/isteam/ip/1026513f-a4fe-4205-ac72-b744196cbd6f/UI_color-removebg-preview%202.png/:/rs=h:40,cg:true,m/qt=q:100/ll", "IMAGE", "LOGO", "Small logo for navbar");
+        createIfNotExists("FAVICON", "https://uyirgene.com/favicon.ico", "IMAGE", "LOGO", "Browser tab favicon (32x32 recommended)");
 
         // Hero images
         createIfNotExists("HERO_MAIN", "https://img1.wsimg.com/isteam/ip/1026513f-a4fe-4205-ac72-b744196cbd6f/blob-91a7f99.png/:/rs=w:1920,h:1080,cg:true,m/qt=q:95", "IMAGE", "HERO", "Main hero background");

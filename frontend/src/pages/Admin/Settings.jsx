@@ -10,7 +10,8 @@ import VerifiedIcon from '@mui/icons-material/Verified';
 import ScienceIcon from '@mui/icons-material/Science';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import WorkIcon from '@mui/icons-material/Work';
-import { AdminLayout, SiteConfigManager, MasterDataManager, FaqManager, FooterConfigManager, GoogleReviewManager, ServiceCertificationManager, ServiceTestingManager, ServiceDiagnosticsManager, CareerManager } from '../../components/admin';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import { AdminLayout, SiteConfigManager, MasterDataManager, FaqManager, FooterConfigManager, GoogleReviewManager, ServiceCertificationManager, ServiceTestingManager, ServiceDiagnosticsManager, CareerManager, LogoManager } from '../../components/admin';
 
 function TabPanel({ children, value, index, ...props }) {
   return (
@@ -58,104 +59,115 @@ function Settings() {
             allowScrollButtonsMobile
           >
             <Tab
+              icon={<AutoAwesomeIcon />}
+              iconPosition="start"
+              label="Logo"
+              id="settings-tab-0"
+              aria-controls="settings-tabpanel-0"
+            />
+            <Tab
               icon={<ImageIcon />}
               iconPosition="start"
               label="Site Images & Config"
-              id="settings-tab-0"
-              aria-controls="settings-tabpanel-0"
+              id="settings-tab-1"
+              aria-controls="settings-tabpanel-1"
             />
             <Tab
               icon={<ListIcon />}
               iconPosition="start"
               label="Master Data (Dropdowns)"
-              id="settings-tab-1"
-              aria-controls="settings-tabpanel-1"
+              id="settings-tab-2"
+              aria-controls="settings-tabpanel-2"
             />
             <Tab
               icon={<QuestionAnswerIcon />}
               iconPosition="start"
               label="FAQ Management"
-              id="settings-tab-2"
-              aria-controls="settings-tabpanel-2"
+              id="settings-tab-3"
+              aria-controls="settings-tabpanel-3"
             />
             <Tab
               icon={<WebAssetIcon />}
               iconPosition="start"
               label="Footer Configuration"
-              id="settings-tab-3"
-              aria-controls="settings-tabpanel-3"
+              id="settings-tab-4"
+              aria-controls="settings-tabpanel-4"
             />
             <Tab
               icon={<RateReviewIcon />}
               iconPosition="start"
               label="Google Reviews"
-              id="settings-tab-4"
-              aria-controls="settings-tabpanel-4"
+              id="settings-tab-5"
+              aria-controls="settings-tabpanel-5"
             />
             <Tab
               icon={<VerifiedIcon />}
               iconPosition="start"
               label="Service Certifications"
-              id="settings-tab-5"
-              aria-controls="settings-tabpanel-5"
+              id="settings-tab-6"
+              aria-controls="settings-tabpanel-6"
             />
             <Tab
               icon={<ScienceIcon />}
               iconPosition="start"
               label="Service Testings"
-              id="settings-tab-6"
-              aria-controls="settings-tabpanel-6"
+              id="settings-tab-7"
+              aria-controls="settings-tabpanel-7"
             />
             <Tab
               icon={<LocalHospitalIcon />}
               iconPosition="start"
               label="Clinical Research"
-              id="settings-tab-7"
-              aria-controls="settings-tabpanel-7"
+              id="settings-tab-8"
+              aria-controls="settings-tabpanel-8"
             />
             <Tab
               icon={<WorkIcon />}
               iconPosition="start"
               label="Careers"
-              id="settings-tab-8"
-              aria-controls="settings-tabpanel-8"
+              id="settings-tab-9"
+              aria-controls="settings-tabpanel-9"
             />
           </Tabs>
         </Box>
 
         <TabPanel value={activeTab} index={0}>
-          <SiteConfigManager />
+          <LogoManager />
         </TabPanel>
 
         <TabPanel value={activeTab} index={1}>
-          <MasterDataManager />
+          <SiteConfigManager />
         </TabPanel>
 
         <TabPanel value={activeTab} index={2}>
-          <FaqManager />
+          <MasterDataManager />
         </TabPanel>
 
         <TabPanel value={activeTab} index={3}>
-          <FooterConfigManager />
+          <FaqManager />
         </TabPanel>
 
         <TabPanel value={activeTab} index={4}>
-          <GoogleReviewManager />
+          <FooterConfigManager />
         </TabPanel>
 
         <TabPanel value={activeTab} index={5}>
-          <ServiceCertificationManager />
+          <GoogleReviewManager />
         </TabPanel>
 
         <TabPanel value={activeTab} index={6}>
-          <ServiceTestingManager />
+          <ServiceCertificationManager />
         </TabPanel>
 
         <TabPanel value={activeTab} index={7}>
-          <ServiceDiagnosticsManager />
+          <ServiceTestingManager />
         </TabPanel>
 
         <TabPanel value={activeTab} index={8}>
+          <ServiceDiagnosticsManager />
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={9}>
           <CareerManager />
         </TabPanel>
       </Container>

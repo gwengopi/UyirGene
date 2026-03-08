@@ -255,7 +255,7 @@ function Navbar() {
   return (
     <>
       <AppBar position="fixed" component="nav">
-        <Toolbar>
+        <Toolbar sx={{ minHeight: { xs: '48px !important', md: '52px !important' }, py: 0 }}>
           {isMobile && (
             <IconButton
               color="inherit"
@@ -284,7 +284,7 @@ function Navbar() {
               src={getImage('LOGO_SMALL', IMAGES.LOGO_SMALL)}
               alt="Uyirgene International"
               sx={{
-                height: { xs: 32, md: 40 },
+                height: { xs: 28, md: 34 },
                 filter: 'brightness(1.2)',
               }}
             />
@@ -450,7 +450,7 @@ function Navbar() {
           )}
         </Toolbar>
       </AppBar>
-      <Toolbar />
+      <Toolbar sx={{ minHeight: { xs: '48px !important', md: '52px !important' } }} />
 
       <Drawer
         variant="temporary"

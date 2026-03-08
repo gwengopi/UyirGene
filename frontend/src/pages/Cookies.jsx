@@ -34,7 +34,7 @@ function Cookies() {
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <SEO title="Cookie Policy" description="Cookie Policy for Uyirgene International's website and learning platform." path="/cookies" noindex />
+      <SEO title="Cookie Policy" description="Cookie Policy for Uyir Tech (Uyirgene International)'s website and learning platform." path="/cookies" noindex />
       <Breadcrumb items={[{ label: 'Cookie Policy', path: '/cookies' }]} />
 
       <Typography variant="h3" component="h1" gutterBottom fontWeight={700}>
