@@ -13,4 +13,4 @@ Disallow: /register
 Disallow: /unauthorized
 
 # Sitemap
-Sitemap: https://uyirgene.com/sitemap.xml
+Sitemap: https://learn.uyirgene.com/sitemap.xml

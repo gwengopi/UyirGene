@@ -9,7 +9,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const BASE_URL = 'https://uyirgene.com';
+const BASE_URL = 'https://learn.uyirgene.com';
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:8080';
 
 // Static routes with priority and change frequency
