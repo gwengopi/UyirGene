@@ -10,11 +10,14 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/sw.js')
-      .then((registration) => {
-        console.log('SW registered:', registration);
+      .then(() => {
+        // When a new SW takes control (new build deployed), reload to get fresh assets
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          window.location.reload();
+        });
       })
-      .catch((error) => {
-        console.log('SW registration failed:', error);
+      .catch(() => {
+        // SW registration failed silently — app still works without SW
       });
   });
 }
