@@ -53,10 +53,9 @@ public class SecurityConfig {
                             "/api/careers/**",
                             "/api/marketing/unsubscribe",
                             "/api/payment/webhook",
+                            "/api/analytics/pageview",
                             "/actuator/health"
                     ).permitAll()
-                    // Page-view tracking (public, fire-and-forget)
-                    .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/analytics/pageview").permitAll()
                     // Course & bundle public endpoints (read-only)
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/courses/**").permitAll()
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/bundles", "/api/bundles/{id}", "/api/bundles/{id}/thumbnail", "/api/bundles/by-course/{courseId}", "/api/bundles/by-course-category").permitAll()
