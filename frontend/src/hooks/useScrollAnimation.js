@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
  * Returns a ref to attach to the element and a boolean `isVisible`.
  */
 export function useScrollAnimation(options = {}) {
-  const { threshold = 0.15, rootMargin = '0px 0px -50px 0px', triggerOnce = true } = options;
+  const { threshold = 0.15, rootMargin = '0px', triggerOnce = true } = options;
   const [node, setNode] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
 
