@@ -390,7 +390,7 @@ public class SiteConfigService {
         createIfNotExists("FOOTER_SOCIAL_LINKS", "[{\"name\":\"Facebook\",\"url\":\"https://facebook.com/uyirgene\",\"icon\":\"facebook\"},{\"name\":\"Twitter\",\"url\":\"https://twitter.com/uyirgene\",\"icon\":\"twitter\"},{\"name\":\"LinkedIn\",\"url\":\"https://linkedin.com/company/uyirgene\",\"icon\":\"linkedin\"},{\"name\":\"YouTube\",\"url\":\"https://youtube.com/@uyirgene\",\"icon\":\"youtube\"},{\"name\":\"WhatsApp\",\"url\":\"https://wa.me/919943712383\",\"icon\":\"whatsapp\"},{\"name\":\"Instagram\",\"url\":\"https://instagram.com/uyirgene\",\"icon\":\"instagram\"}]", "JSON", "FOOTER", "Social media links (JSON array with name, url, icon)");
 
         // Footer Platform Links (JSON array)
-        createIfNotExists("FOOTER_PLATFORM_LINKS", "[{\"label\":\"Courses\",\"path\":\"/courses\"},{\"label\":\"About Us\",\"path\":\"/about\"},{\"label\":\"Blog\",\"path\":\"/blogs\"},{\"label\":\"Careers\",\"path\":\"/careers\"}]", "JSON", "FOOTER", "Platform section links (JSON array with label, path)");
+        createIfNotExists("FOOTER_PLATFORM_LINKS", "[{\"label\":\"Courses\",\"path\":\"/courses\"},{\"label\":\"About Us\",\"path\":\"/about\"},{\"label\":\"Blog\",\"path\":\"/blog\"},{\"label\":\"Careers\",\"path\":\"/careers\"}]", "JSON", "FOOTER", "Platform section links (JSON array with label, path)");
 
         // Footer Support Links (JSON array)
         createIfNotExists("FOOTER_SUPPORT_LINKS", "[{\"label\":\"Contact Us\",\"path\":\"/contact\"},{\"label\":\"FAQs\",\"path\":\"/faq\"}]", "JSON", "FOOTER", "Support section links (JSON array with label, path)");
