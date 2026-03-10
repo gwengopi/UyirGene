@@ -420,7 +420,7 @@ export default function MarketingCampaigns() {
       </Box>
 
       {/* Preview Dialog */}
-      <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} maxWidth="md" fullWidth>
+      <Dialog open={previewOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') setPreviewOpen(false); }} disableEscapeKeyDown maxWidth="md" fullWidth>
         <DialogTitle>Email Preview</DialogTitle>
         <DialogContent dividers sx={{ p: 0 }}>
           <iframe
@@ -435,7 +435,7 @@ export default function MarketingCampaigns() {
       </Dialog>
 
       {/* Confirm Send Dialog */}
-      <Dialog open={confirmOpen} onClose={() => !sending && setConfirmOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={confirmOpen} onClose={(e, reason) => { if (reason !== 'backdropClick' && !sending) setConfirmOpen(false); }} disableEscapeKeyDown maxWidth="sm" fullWidth>
         <DialogTitle>Confirm Campaign Send</DialogTitle>
         <DialogContent>
           <Typography gutterBottom>
@@ -462,7 +462,7 @@ export default function MarketingCampaigns() {
       </Dialog>
 
       {/* Cancel Confirm Dialog */}
-      <Dialog open={cancelConfirmId !== null} onClose={() => setCancelConfirmId(null)}>
+      <Dialog open={cancelConfirmId !== null} onClose={(e, reason) => { if (reason !== 'backdropClick') setCancelConfirmId(null); }} disableEscapeKeyDown>
         <DialogTitle>Cancel Campaign?</DialogTitle>
         <DialogContent>
           <Typography>Unsent batches will not be delivered.</Typography>

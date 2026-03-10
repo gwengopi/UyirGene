@@ -250,7 +250,7 @@ function MasterDataManager() {
       )}
 
       {/* Add/Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+      <Dialog open={dialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') handleCloseDialog(); }} disableEscapeKeyDown maxWidth="sm" fullWidth>
         <DialogTitle>
           {editingItem ? 'Edit Master Data' : 'Add Master Data'}
         </DialogTitle>

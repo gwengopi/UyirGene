@@ -217,7 +217,7 @@ function LogoManager() {
       )}
 
       {/* Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
+      <Dialog open={dialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') closeDialog(); }} disableEscapeKeyDown maxWidth="sm" fullWidth>
         <DialogTitle>{activeItem ? `Edit ${activeItem.label}` : 'Edit Logo'}</DialogTitle>
         {saving && <LinearProgress />}
         <DialogContent>

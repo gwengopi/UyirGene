@@ -243,7 +243,8 @@ export default function AdminMailTemplates() {
       {/* Edit Dialog — wider when preview is available */}
       <Dialog
         open={editOpen}
-        onClose={handleClose}
+        onClose={(e, reason) => { if (reason !== 'backdropClick') handleClose(); }}
+        disableEscapeKeyDown
         maxWidth={hasPreview ? 'lg' : 'sm'}
         fullWidth
       >

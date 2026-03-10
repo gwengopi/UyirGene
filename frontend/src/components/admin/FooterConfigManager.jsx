@@ -543,7 +543,7 @@ function FooterConfigManager() {
       </TabPanel>
 
       {/* Add/Edit Link Dialog */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+      <Dialog open={dialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') handleCloseDialog(); }} disableEscapeKeyDown maxWidth="sm" fullWidth>
         <DialogTitle>
           {editingIndex !== null ? 'Edit' : 'Add'} {dialogType.charAt(0).toUpperCase() + dialogType.slice(1)} Link
         </DialogTitle>

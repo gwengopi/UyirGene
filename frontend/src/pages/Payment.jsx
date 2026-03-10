@@ -117,7 +117,7 @@ function Payment() {
       </Paper>
 
       {/* Payment Failure Dialog */}
-      <Dialog open={failureDialog.open} onClose={() => setFailureDialog({ open: false, message: '' })}>
+      <Dialog open={failureDialog.open} onClose={(e, reason) => { if (reason !== 'backdropClick') setFailureDialog({ open: false, message: '' }); }} disableEscapeKeyDown>
         <DialogTitle sx={{ color: 'error.main' }}>Payment Failed</DialogTitle>
         <DialogContent>
           <DialogContentText>{failureDialog.message}</DialogContentText>

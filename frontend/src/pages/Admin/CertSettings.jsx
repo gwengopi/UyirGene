@@ -245,7 +245,7 @@ export default function CertSettings() {
       )}
 
       {/* Reset confirmation dialog */}
-      <Dialog open={resetDialogOpen} onClose={() => setResetDialogOpen(false)}>
+      <Dialog open={resetDialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') setResetDialogOpen(false); }} disableEscapeKeyDown>
         <DialogTitle>Reset Sequence Counter</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>

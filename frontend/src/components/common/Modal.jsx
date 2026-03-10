@@ -21,8 +21,8 @@ function Modal({
   maxWidth = 'sm',
   fullWidth = true,
   showCloseButton = true,
-  disableEscapeKeyDown = false,
-  disableBackdropClick = false,
+  disableEscapeKeyDown = true,
+  disableBackdropClick = true,
   'aria-describedby': ariaDescribedBy,
   ...props
 }) {

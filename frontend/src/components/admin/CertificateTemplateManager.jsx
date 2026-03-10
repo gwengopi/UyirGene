@@ -643,7 +643,7 @@ function CertificateTemplateManager() {
       </TableContainer>
 
       {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="lg" fullWidth>
+      <Dialog open={dialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') handleCloseDialog(); }} disableEscapeKeyDown maxWidth="lg" fullWidth>
         <DialogTitle>
           {selectedTemplate ? 'Edit Certificate Template' : 'Create Certificate Template'}
         </DialogTitle>
@@ -926,7 +926,7 @@ function CertificateTemplateManager() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+      <Dialog open={deleteDialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') setDeleteDialogOpen(false); }} disableEscapeKeyDown>
         <DialogTitle>Delete Template</DialogTitle>
         <DialogContent>
           <Typography>

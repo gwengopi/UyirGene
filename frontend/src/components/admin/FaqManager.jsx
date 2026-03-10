@@ -312,7 +312,7 @@ function FaqManager() {
       )}
 
       {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog open={dialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') handleCloseDialog(); }} disableEscapeKeyDown maxWidth="md" fullWidth>
         <DialogTitle>
           {selectedFaq ? 'Edit FAQ' : 'Add New FAQ'}
         </DialogTitle>
@@ -391,7 +391,7 @@ function FaqManager() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+      <Dialog open={deleteDialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') setDeleteDialogOpen(false); }} disableEscapeKeyDown>
         <DialogTitle>Delete FAQ?</DialogTitle>
         <DialogContent>
           <Typography>

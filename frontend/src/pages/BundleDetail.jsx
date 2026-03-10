@@ -462,7 +462,7 @@ function BundleDetail() {
       </Grid>
 
       {/* Dialog: All courses already owned */}
-      <Dialog open={allOwnedDialog.open} onClose={() => setAllOwnedDialog({ open: false, message: '' })}>
+      <Dialog open={allOwnedDialog.open} onClose={(e, reason) => { if (reason !== 'backdropClick') setAllOwnedDialog({ open: false, message: '' }); }} disableEscapeKeyDown>
         <DialogTitle>Already Enrolled in All Courses</DialogTitle>
         <DialogContent>
           <DialogContentText>{allOwnedDialog.message}</DialogContentText>
@@ -474,7 +474,7 @@ function BundleDetail() {
       </Dialog>
 
       {/* Warning Dialog for already-owned courses */}
-      <Dialog open={warningDialog.open} onClose={() => setWarningDialog({ open: false, message: '', order: null })}>
+      <Dialog open={warningDialog.open} onClose={(e, reason) => { if (reason !== 'backdropClick') setWarningDialog({ open: false, message: '', order: null }); }} disableEscapeKeyDown>
         <DialogTitle>Some Courses Already Owned</DialogTitle>
         <DialogContent>
           <DialogContentText>{warningDialog.message}</DialogContentText>

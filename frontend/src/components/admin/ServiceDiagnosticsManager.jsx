@@ -294,7 +294,7 @@ function ServiceDiagnosticsManager() {
       </TableContainer>
 
       {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog open={dialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') handleCloseDialog(); }} disableEscapeKeyDown maxWidth="md" fullWidth>
         <DialogTitle>{selectedDiag ? 'Edit Clinical Research Entry' : 'Add New Clinical Research Entry'}</DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={3}>
@@ -529,7 +529,7 @@ function ServiceDiagnosticsManager() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+      <Dialog open={deleteDialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') setDeleteDialogOpen(false); }} disableEscapeKeyDown>
         <DialogTitle>Delete Clinical Research Entry?</DialogTitle>
         <DialogContent>
           <Typography>

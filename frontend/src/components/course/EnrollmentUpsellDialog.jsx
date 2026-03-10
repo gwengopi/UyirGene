@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Box, Typography, Checkbox, Divider, Chip,
+  Box, Typography, Checkbox, Divider, Chip, IconButton,
 } from '@mui/material';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import CloseIcon from '@mui/icons-material/Close';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import SchoolIcon from '@mui/icons-material/School';
@@ -138,11 +139,19 @@ function EnrollmentUpsellDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth scroll="paper">
+    <Dialog open={open} onClose={(e, reason) => { if (reason !== 'backdropClick') onClose(e, reason); }} disableEscapeKeyDown maxWidth="sm" fullWidth scroll="paper">
       <DialogTitle sx={{ pb: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <LocalOfferIcon color="primary" />
           <Typography variant="h6" fontWeight={700}>Bundle Deals Available</Typography>
+          <IconButton
+            aria-label="Close dialog"
+            onClick={onClose}
+            sx={{ ml: 'auto', color: 'text.secondary' }}
+            size="small"
+          >
+            <CloseIcon />
+          </IconButton>
         </Box>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
           Save more by enrolling in a bundle that includes <strong>{course?.title}</strong>
@@ -375,6 +384,14 @@ function EnrollmentUpsellDialog({
           disabled={nothingSelected}
         >
           {confirmLabel}
+        </Button>
+        <Button
+          variant="text"
+          fullWidth
+          onClick={onClose}
+          sx={{ color: 'text.secondary' }}
+        >
+          Cancel
         </Button>
       </DialogActions>
     </Dialog>

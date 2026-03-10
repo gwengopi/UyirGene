@@ -277,7 +277,7 @@ function CareerManager() {
       </TableContainer>
 
       {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog open={dialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') handleCloseDialog(); }} disableEscapeKeyDown maxWidth="md" fullWidth>
         <DialogTitle>{selectedCareer ? 'Edit Career Entry' : 'Add New Career Entry'}</DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={3}>
@@ -487,7 +487,7 @@ function CareerManager() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+      <Dialog open={deleteDialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') setDeleteDialogOpen(false); }} disableEscapeKeyDown>
         <DialogTitle>Delete Career Entry?</DialogTitle>
         <DialogContent>
           <Typography>

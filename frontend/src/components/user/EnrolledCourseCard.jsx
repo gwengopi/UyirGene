@@ -169,7 +169,8 @@ function EnrolledCourseCard({
       {/* Unenroll Confirmation Dialog */}
       <Dialog
         open={unenrollDialogOpen}
-        onClose={() => setUnenrollDialogOpen(false)}
+        onClose={(e, reason) => { if (reason !== 'backdropClick') setUnenrollDialogOpen(false); }}
+        disableEscapeKeyDown
         onClick={(e) => e.stopPropagation()}
         aria-labelledby="unenroll-dialog-title"
       >

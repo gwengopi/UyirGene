@@ -158,7 +158,7 @@ export default function AdminStandards() {
       </Box>
 
       {/* Create / Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
+      <Dialog open={dialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') closeDialog(); }} disableEscapeKeyDown maxWidth="sm" fullWidth>
         <DialogTitle fontWeight={700}>{editTarget ? 'Edit Standard' : 'Add Standard'}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 2 }}>
           <TextField
@@ -225,7 +225,7 @@ export default function AdminStandards() {
       </Dialog>
 
       {/* Delete confirm */}
-      <Dialog open={!!deleteId} onClose={() => setDeleteId(null)} maxWidth="xs" fullWidth>
+      <Dialog open={!!deleteId} onClose={(e, reason) => { if (reason !== 'backdropClick') setDeleteId(null); }} disableEscapeKeyDown maxWidth="xs" fullWidth>
         <DialogTitle>Delete Standard?</DialogTitle>
         <DialogContent>
           <Typography>This will permanently delete the standard and its uploaded file. This cannot be undone.</Typography>

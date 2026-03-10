@@ -280,7 +280,7 @@ function UserManager({
       </Menu>
 
       {/* Role Change Dialog */}
-      <Dialog open={roleDialogOpen} onClose={handleCloseRoleDialog} maxWidth="xs" fullWidth>
+      <Dialog open={roleDialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') handleCloseRoleDialog(); }} disableEscapeKeyDown maxWidth="xs" fullWidth>
         <DialogTitle>Change User Role</DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 2 }}>
@@ -310,7 +310,7 @@ function UserManager({
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteConfirmOpen} onClose={handleCloseDeleteConfirm} maxWidth="xs" fullWidth>
+      <Dialog open={deleteConfirmOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') handleCloseDeleteConfirm(); }} disableEscapeKeyDown maxWidth="xs" fullWidth>
         <DialogTitle>Delete User</DialogTitle>
         <DialogContent>
           <Typography>

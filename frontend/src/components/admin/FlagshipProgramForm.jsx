@@ -322,7 +322,7 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth
+    <Dialog open={open} onClose={(e, reason) => { if (reason !== 'backdropClick') onClose(e, reason); }} disableEscapeKeyDown maxWidth="md" fullWidth
       PaperProps={{ sx: { maxHeight: '95vh' } }}>
       <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h6" fontWeight={700}>

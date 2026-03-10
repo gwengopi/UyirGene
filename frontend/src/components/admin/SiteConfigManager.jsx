@@ -286,7 +286,7 @@ function SiteConfigManager() {
       )}
 
       {/* Add/Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog open={dialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') handleCloseDialog(); }} disableEscapeKeyDown maxWidth="md" fullWidth>
         <DialogTitle>
           {editingConfig ? 'Edit Configuration' : 'Add Configuration'}
         </DialogTitle>

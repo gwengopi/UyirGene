@@ -389,7 +389,7 @@ function GoogleReviewManager() {
       )}
 
       {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog open={dialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') handleCloseDialog(); }} disableEscapeKeyDown maxWidth="md" fullWidth>
         <DialogTitle>
           {selectedReview ? 'Edit Review' : 'Add Review Manually'}
         </DialogTitle>
@@ -472,7 +472,7 @@ function GoogleReviewManager() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+      <Dialog open={deleteDialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') setDeleteDialogOpen(false); }} disableEscapeKeyDown>
         <DialogTitle>Delete Review?</DialogTitle>
         <DialogContent>
           <Typography>

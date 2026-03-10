@@ -977,7 +977,7 @@ function CourseDetail() {
         />
 
         {/* Unenroll Dialog */}
-        <Dialog open={unenrollDialogOpen} onClose={() => setUnenrollDialogOpen(false)} aria-labelledby="unenroll-dialog-title">
+        <Dialog open={unenrollDialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') setUnenrollDialogOpen(false); }} disableEscapeKeyDown aria-labelledby="unenroll-dialog-title">
           <DialogTitle id="unenroll-dialog-title">Unenroll from Course?</DialogTitle>
           <DialogContent>
             <DialogContentText>
@@ -991,7 +991,7 @@ function CourseDetail() {
         </Dialog>
 
         {/* Certificate Error Dialog */}
-        <Dialog open={certificateErrorOpen} onClose={() => setCertificateErrorOpen(false)} aria-labelledby="certificate-error-title">
+        <Dialog open={certificateErrorOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') setCertificateErrorOpen(false); }} disableEscapeKeyDown aria-labelledby="certificate-error-title">
           <DialogTitle id="certificate-error-title">Certificate Not Yet Available</DialogTitle>
           <DialogContent>
             <DialogContentText>{certificateError}</DialogContentText>
@@ -1002,7 +1002,7 @@ function CourseDetail() {
         </Dialog>
 
         {/* Enrollment Error Dialog */}
-        <Dialog open={enrollmentErrorOpen} onClose={() => setEnrollmentErrorOpen(false)} aria-labelledby="enrollment-error-title">
+        <Dialog open={enrollmentErrorOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') setEnrollmentErrorOpen(false); }} disableEscapeKeyDown aria-labelledby="enrollment-error-title">
           <DialogTitle id="enrollment-error-title">Enrollment Error</DialogTitle>
           <DialogContent>
             <DialogContentText>{enrollmentError}</DialogContentText>

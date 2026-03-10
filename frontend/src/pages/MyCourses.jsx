@@ -333,7 +333,8 @@ function MyCourses() {
       {/* Flagship unenroll confirmation dialog */}
       <Dialog
         open={!!unenrollFlagshipTarget}
-        onClose={() => setUnenrollFlagshipTarget(null)}
+        onClose={(e, reason) => { if (reason !== 'backdropClick') setUnenrollFlagshipTarget(null); }}
+        disableEscapeKeyDown
         aria-labelledby="flagship-unenroll-dialog-title"
       >
         <DialogTitle id="flagship-unenroll-dialog-title">Unenroll from Program?</DialogTitle>

@@ -265,7 +265,7 @@ function UserEnrollmentsDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+    <Dialog open={open} onClose={(e, reason) => { if (reason !== 'backdropClick') onClose(e, reason); }} disableEscapeKeyDown maxWidth="lg" fullWidth>
       <DialogTitle>
         <Box>
           <Typography variant="h6">User Enrollments</Typography>
@@ -660,7 +660,7 @@ function UserEnrollmentsDialog({
       />
 
       {/* Publish Result Confirmation Dialog */}
-      <Dialog open={publishDialogOpen} onClose={handlePublishCancel} maxWidth="xs" fullWidth>
+      <Dialog open={publishDialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') handlePublishCancel(); }} disableEscapeKeyDown maxWidth="xs" fullWidth>
         <DialogTitle>Publish Result</DialogTitle>
         <DialogContent>
           <Alert severity="info" sx={{ mb: 2 }}>
@@ -683,7 +683,7 @@ function UserEnrollmentsDialog({
       </Dialog>
 
       {/* Upload Certificate Type Dialog */}
-      <Dialog open={uploadDialogOpen} onClose={handleUploadDialogCancel} maxWidth="xs" fullWidth>
+      <Dialog open={uploadDialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') handleUploadDialogCancel(); }} disableEscapeKeyDown maxWidth="xs" fullWidth>
         <DialogTitle>Upload Certificate</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
