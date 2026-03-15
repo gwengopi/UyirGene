@@ -12,9 +12,16 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  InputAdornment,
+  CircularProgress,
+  Collapse,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import PublicIcon from '@mui/icons-material/Public';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import SearchIcon from '@mui/icons-material/Search';
 import { Button } from '../common';
 import { formatCurrency } from '../../utils/formatters';
 import { SUPPORTED_COUNTRIES } from '../../utils/constants';
@@ -122,6 +129,55 @@ function BundleForm({ bundle, courses = [], onSave, onCancel, loading }) {
     setCountryPrices(updated);
   };
 
+  // ── Currency conversion ─────────────────────────────────────────────────────
+  const [convertingPrices, setConvertingPrices] = useState(false);
+  const [showCountries, setShowCountries] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
+
+  const usdAmount = countryPrices.find((cp) => cp.countryCode === 'US')?.amount || '';
+
+  const roundForCurrency = (amount, currency) => {
+    if (['JPY', 'KRW', 'IDR', 'VND', 'CLP', 'ISK', 'HUF', 'TWD', 'COP', 'IQD', 'IRR'].includes(currency))
+      return Math.round(amount).toString();
+    if (['BHD', 'KWD', 'JOD', 'OMR'].includes(currency))
+      return (Math.round(amount * 1000) / 1000).toString();
+    return (Math.round(amount * 100) / 100).toString();
+  };
+
+  const handleUsdAmountChange = (val) => {
+    setCountryPrices((prev) => {
+      const without = prev.filter((cp) => cp.countryCode !== 'US');
+      if (!val) return without;
+      return [...without, { countryCode: 'US', currencyCode: 'USD', amount: val }];
+    });
+  };
+
+  const handleConvertAll = async () => {
+    const usd = parseFloat(usdAmount);
+    if (!usd || usd <= 0) return;
+    setConvertingPrices(true);
+    try {
+      const res = await fetch('https://open.er-api.com/v6/latest/USD');
+      const data = await res.json();
+      const rates = data.rates;
+      const newPrices = SUPPORTED_COUNTRIES
+        .filter((c) => c.code !== 'IN')
+        .map((c) => {
+          const rate = rates[c.currency];
+          if (!rate) return null;
+          return { countryCode: c.code, currencyCode: c.currency, amount: roundForCurrency(usd * rate, c.currency) };
+        })
+        .filter(Boolean);
+      setCountryPrices(newPrices);
+      const inrRate = rates['INR'];
+      if (inrRate) setFormData((prev) => ({ ...prev, price: Math.round(usd * inrRate).toString() }));
+    } catch {
+      alert('Failed to fetch exchange rates. Please check your connection and try again.');
+    } finally {
+      setConvertingPrices(false);
+    }
+  };
+
   // Image handlers
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -168,7 +224,7 @@ function BundleForm({ bundle, courses = [], onSave, onCancel, loading }) {
   };
 
   return (
-    <Box component="form" onSubmit={handleSubmit}>
+    <Box component="form" onSubmit={handleSubmit} noValidate>
       <Grid container spacing={2}>
         {/* Basic Info */}
         <Grid item xs={12} sm={6}>
@@ -280,11 +336,11 @@ function BundleForm({ bundle, courses = [], onSave, onCancel, loading }) {
         <Grid item xs={12} sm={4}>
           <TextField
             fullWidth
-            label="Original Price"
+            label="Courses Total (INR)"
             value={formatCurrency(originalPrice, 'INR')}
             size="small"
             disabled
-            helperText="Auto-calculated from courses"
+            helperText="Sum of individual course prices"
           />
         </Grid>
         <Grid item xs={12} sm={4}>
@@ -341,60 +397,143 @@ function BundleForm({ bundle, courses = [], onSave, onCancel, loading }) {
         {/* Country Prices */}
         <Grid item xs={12}>
           <Divider sx={{ my: 1 }} />
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-            <Typography variant="subtitle2">Country-Specific Prices</Typography>
-            <Button size="small" startIcon={<AddIcon />} onClick={addCountryPrice}>
-              Add Price
+          <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Country-Specific Prices</Typography>
+
+          {/* USD + convert row */}
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end', mb: 2, flexWrap: 'wrap' }}>
+            <TextField
+              label="US Price (USD)"
+              type="number"
+              value={usdAmount}
+              onChange={(e) => handleUsdAmountChange(e.target.value)}
+              size="small"
+              sx={{ width: 160 }}
+              placeholder="e.g. 99"
+              inputProps={{ min: 0, step: 0.01 }}
+              InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
+            />
+            {(() => {
+              const usdTotal = getCoursesTotalForCountry('US');
+              return usdTotal ? (
+                <TextField
+                  label="Courses Total (USD)"
+                  value={formatCurrency(usdTotal.amount, usdTotal.currency)}
+                  size="small"
+                  sx={{ width: 160 }}
+                  disabled
+                  helperText="Sum of individual course prices"
+                />
+              ) : null;
+            })()}
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={convertingPrices ? <CircularProgress size={14} color="inherit" /> : <PublicIcon />}
+              onClick={handleConvertAll}
+              disabled={!usdAmount || convertingPrices}
+              sx={{ alignSelf: 'center', mt: 1 }}
+            >
+              {convertingPrices ? 'Converting…' : 'Convert to all countries'}
             </Button>
           </Box>
-          {countryPrices.map((cp, index) => {
-            const coursesTotal = getCoursesTotalForCountry(cp.countryCode);
-            return (
-              <Grid container spacing={1} key={index} sx={{ mb: 1 }}>
-                <Grid item xs={3}>
-                  <Autocomplete
-                    size="small"
-                    options={SUPPORTED_COUNTRIES}
-                    getOptionLabel={(option) => `${option.name} (${option.code})`}
-                    value={SUPPORTED_COUNTRIES.find((c) => c.code === cp.countryCode) || null}
-                    onChange={(_, newVal) =>
-                      handleCountryPriceChange(index, 'countryCode', newVal?.code || '')
-                    }
-                    renderInput={(params) => <TextField {...params} label="Country" />}
-                  />
-                </Grid>
-                <Grid item xs={2}>
-                  <TextField fullWidth size="small" label="Currency" value={cp.currencyCode} disabled />
-                </Grid>
-                <Grid item xs={3}>
+          {countryPrices.filter((cp) => cp.countryCode !== 'US').length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              No country prices set. Enter a USD price and click "Convert to all countries".
+            </Typography>
+          ) : (
+            <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
+              {/* Panel header */}
+              <Box
+                sx={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  px: 2, py: 1.5, bgcolor: 'background.default', cursor: 'pointer',
+                  '&:hover': { bgcolor: 'action.hover' },
+                }}
+                onClick={() => setShowCountries((v) => !v)}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <PublicIcon fontSize="small" color="action" />
+                  <Typography variant="body2" fontWeight={600}>
+                    {countryPrices.filter((cp) => cp.countryCode !== 'US').length} countries configured
+                  </Typography>
+                </Box>
+                <IconButton size="small">
+                  {showCountries ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                </IconButton>
+              </Box>
+
+              <Collapse in={showCountries}>
+                {/* Search + Add row */}
+                <Box sx={{ display: 'flex', gap: 1, px: 2, pt: 1.5, pb: 1 }}>
                   <TextField
-                    fullWidth
+                    placeholder="Search country..."
+                    value={countrySearch}
+                    onChange={(e) => setCountrySearch(e.target.value)}
                     size="small"
-                    type="number"
-                    label="Bundle Price"
-                    value={cp.amount}
-                    onChange={(e) => handleCountryPriceChange(index, 'amount', e.target.value)}
-                    inputProps={{ min: 0 }}
-                  />
-                </Grid>
-                <Grid item xs={3}>
-                  <TextField
                     fullWidth
-                    size="small"
-                    label="Courses Total"
-                    value={coursesTotal ? formatCurrency(coursesTotal.amount, coursesTotal.currency) : '—'}
-                    disabled
-                    helperText="Sum of individual course prices"
+                    InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
                   />
-                </Grid>
-                <Grid item xs={1} sx={{ display: 'flex', alignItems: 'center' }}>
-                  <IconButton size="small" color="error" onClick={() => removeCountryPrice(index)}>
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Grid>
-              </Grid>
-            );
-          })}
+                  <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={addCountryPrice} sx={{ whiteSpace: 'nowrap' }}>
+                    Add
+                  </Button>
+                </Box>
+
+                {/* Scrollable list */}
+                <Box sx={{ maxHeight: 360, overflowY: 'auto', px: 2, pb: 1.5 }}>
+                  {countryPrices
+                    .filter((cp) => cp.countryCode !== 'US')
+                    .filter((cp) => {
+                      if (!countrySearch.trim()) return true;
+                      const q = countrySearch.toLowerCase();
+                      const country = SUPPORTED_COUNTRIES.find((c) => c.code === cp.countryCode);
+                      return (
+                        country?.name.toLowerCase().includes(q) ||
+                        cp.countryCode.toLowerCase().includes(q) ||
+                        cp.currencyCode.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((cp) => {
+                      const index = countryPrices.indexOf(cp);
+                      const country = SUPPORTED_COUNTRIES.find((c) => c.code === cp.countryCode);
+                      const coursesTotal = getCoursesTotalForCountry(cp.countryCode);
+                      return (
+                        <Box
+                          key={index}
+                          sx={{
+                            display: 'flex', alignItems: 'center', gap: 1.5,
+                            py: 0.75, borderBottom: '1px solid', borderColor: 'divider',
+                            '&:last-child': { borderBottom: 'none' },
+                          }}
+                        >
+                          <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }} noWrap>
+                            {country?.name || cp.countryCode}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ width: 36, flexShrink: 0 }}>
+                            {cp.currencyCode}
+                          </Typography>
+                          <TextField
+                            type="number"
+                            value={cp.amount}
+                            onChange={(e) => handleCountryPriceChange(index, 'amount', e.target.value)}
+                            size="small"
+                            sx={{ width: 110, flexShrink: 0 }}
+                            inputProps={{ min: 0, step: 0.01, style: { textAlign: 'right' } }}
+                          />
+                          {coursesTotal && (
+                            <Typography variant="caption" color="text.secondary" sx={{ width: 90, textAlign: 'right', flexShrink: 0 }} noWrap>
+                              {formatCurrency(coursesTotal.amount, coursesTotal.currency)}
+                            </Typography>
+                          )}
+                          <IconButton size="small" color="error" onClick={() => removeCountryPrice(index)}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      );
+                    })}
+                </Box>
+              </Collapse>
+            </Box>
+          )}
         </Grid>
 
         {/* Actions */}

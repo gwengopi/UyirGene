@@ -66,6 +66,9 @@ public class FlagshipProgramDto {
     // Videos (title/meta for display; URLs served encrypted via /api/flagship/{id}/videos)
     private List<VideoItem> videos;
 
+    // Linked course IDs (for bundle-style enrollment)
+    private List<Long> courseIds;
+
     // Enrollment/certificate info (only populated by /enrolled endpoint, null in public responses)
     private String enrollmentStatus;
     private Boolean resultPublished;
@@ -119,6 +122,10 @@ public class FlagshipProgramDto {
                     .collect(Collectors.toList());
         }
 
+        List<Long> courseIds = program.getCourses() != null
+                ? program.getCourses().stream().map(c -> c.getId()).collect(Collectors.toList())
+                : Collections.emptyList();
+
         return FlagshipProgramDto.builder()
                 .id(program.getId())
                 .title(program.getTitle())
@@ -148,6 +155,7 @@ public class FlagshipProgramDto {
                 .outcome(program.getOutcome())
                 .examDetails(program.getExamDetails())
                 .videos(videoItems)
+                .courseIds(courseIds)
                 .build();
     }
 }

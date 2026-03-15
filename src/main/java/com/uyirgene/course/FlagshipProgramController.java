@@ -228,7 +228,8 @@ public class FlagshipProgramController {
             @RequestParam(value = "assessmentLinks", required = false) String assessmentLinksJson,
             @RequestParam(value = "preAssessmentLinks", required = false) String preAssessmentLinksJson,
             @RequestParam(value = "preAssessmentInstructions", required = false) String preAssessmentInstructions,
-            @RequestParam(value = "trainingDuration", required = false) String trainingDuration
+            @RequestParam(value = "trainingDuration", required = false) String trainingDuration,
+            @RequestParam(value = "courseIds", required = false) String courseIdsJson
     ) throws IOException {
         byte[] imageBytes = null;
         String imageContentType = null;
@@ -245,7 +246,7 @@ public class FlagshipProgramController {
                 price, trainerName, testLink, testDescription,
                 targetAudience, assessment, outcome, examDetails,
                 countryPricesJson, videosJson, programCode, reminderDays, assessmentLinksJson,
-                preAssessmentLinksJson, preAssessmentInstructions, trainingDuration);
+                preAssessmentLinksJson, preAssessmentInstructions, trainingDuration, courseIdsJson);
 
         return ResponseEntity.created(URI.create("/api/flagship/" + result.getId())).body(result);
     }
@@ -278,7 +279,8 @@ public class FlagshipProgramController {
             @RequestParam(value = "assessmentLinks", required = false) String assessmentLinksJson,
             @RequestParam(value = "preAssessmentLinks", required = false) String preAssessmentLinksJson,
             @RequestParam(value = "preAssessmentInstructions", required = false) String preAssessmentInstructions,
-            @RequestParam(value = "trainingDuration", required = false) String trainingDuration
+            @RequestParam(value = "trainingDuration", required = false) String trainingDuration,
+            @RequestParam(value = "courseIds", required = false) String courseIdsJson
     ) throws IOException {
         byte[] imageBytes = null;
         String imageContentType = null;
@@ -295,7 +297,7 @@ public class FlagshipProgramController {
                 price, trainerName, testLink, testDescription,
                 targetAudience, assessment, outcome, examDetails,
                 countryPricesJson, videosJson, programCode, reminderDays, assessmentLinksJson,
-                preAssessmentLinksJson, preAssessmentInstructions, trainingDuration);
+                preAssessmentLinksJson, preAssessmentInstructions, trainingDuration, courseIdsJson);
 
         return ResponseEntity.ok(result);
     }

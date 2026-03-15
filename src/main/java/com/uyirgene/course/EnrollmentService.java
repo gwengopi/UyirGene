@@ -250,7 +250,7 @@ public class EnrollmentService {
                     .status(Enrollment.Status.ENROLLED)
                     .build();
             Enrollment saved = enrollmentRepo.save(e);
-            mailService.sendEnrollmentSuccess(u, program);
+            enrollInFlagshipCourses(u, program);
             return new EnrollmentResult(saved, null, false, null);
         }
 
@@ -297,8 +297,42 @@ public class EnrollmentService {
 
         e.setStatus(Enrollment.Status.ENROLLED);
         Enrollment saved = enrollmentRepo.save(e);
-        mailService.sendEnrollmentSuccess(u, program);
+        enrollInFlagshipCourses(u, program);
         return saved;
+    }
+
+    private void enrollInFlagshipCourses(User u, FlagshipProgram program) {
+        List<Course> linkedCourses = program.getCourses();
+        if (linkedCourses == null || linkedCourses.isEmpty()) {
+            // No linked courses — fall back to flagship-only enrollment email
+            mailService.sendEnrollmentSuccess(u, program);
+            return;
+        }
+        List<String> courseTitles = new java.util.ArrayList<>();
+        for (Course course : linkedCourses) {
+            Optional<Enrollment> existing = enrollmentRepo.findByUserAndCourse(u, course);
+            if (existing.isPresent()) {
+                Enrollment e = existing.get();
+                if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) {
+                    courseTitles.add(course.getTitle());
+                    continue;
+                }
+                e.setStatus(Enrollment.Status.ENROLLED);
+                e.setEnrolledAt(java.time.LocalDateTime.now());
+                enrollmentRepo.save(e);
+            } else {
+                enrollmentRepo.save(Enrollment.builder()
+                        .user(u)
+                        .course(course)
+                        .enrolledAt(java.time.LocalDateTime.now())
+                        .status(Enrollment.Status.ENROLLED)
+                        .build());
+            }
+            courseTitles.add(course.getTitle());
+        }
+        mailService.sendBundleEnrollmentSuccess(u.getEmail(),
+                u.getName() != null ? u.getName() : u.getEmail(),
+                program.getTitle(), courseTitles);
     }
 
     public boolean isFlagshipEnrolled(User u, FlagshipProgram program) {

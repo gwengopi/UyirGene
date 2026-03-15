@@ -15,12 +15,11 @@ import SearchIcon from '@mui/icons-material/Search';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import ImageIcon from '@mui/icons-material/Image';
-import OndemandVideoIcon from '@mui/icons-material/OndemandVideo';
 import CloseIcon from '@mui/icons-material/Close';
 import { flagshipService } from '../../services/flagshipService';
 import { SUPPORTED_COUNTRIES } from '../../utils/constants';
 import { useToast } from '../../store';
-import ManualSection from '../course/ManualSection';
+import { formatCurrency } from '../../utils/formatters';
 
 const SECTION_TYPES = [
   { value: 'overview', label: 'Overview / Info Grid' },
@@ -37,8 +36,6 @@ const SECTION_COLORS = {
 };
 
 const emptyPrice = () => ({ countryCode: '', currencyCode: '', amount: '' });
-const emptyVideo = () => ({ title: '', url: '', durationSeconds: '' });
-const emptyAssessmentLink = () => ({ title: '', url: '' });
 
 const empty = () => ({
   title: '',
@@ -55,9 +52,6 @@ const empty = () => ({
   removeBackgroundImage: false,
   price: '',
   countryPrices: [],
-  assessmentLinks: [],
-  preAssessmentLinks: [],
-  preAssessmentInstructions: 'Complete the pre-assessment before starting your learning journey. This helps us understand your baseline knowledge and customize your learning experience.',
   reminderDays: '',
   trainingDuration: '',
   // Course detail fields
@@ -65,11 +59,11 @@ const empty = () => ({
   assessment: '',
   outcome: '',
   examDetails: [],
-  // Videos
-  videos: [],
+  // Linked courses
+  courseIds: [],
 });
 
-function FlagshipProgramForm({ open, program, onClose, onSaved }) {
+function FlagshipProgramForm({ open, program, onClose, onSaved, courses = [] }) {
   const { showError } = useToast();
   const [form, setForm] = useState(empty());
   const [saving, setSaving] = useState(false);
@@ -84,9 +78,6 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
       try { if (program.sections) sections = JSON.parse(program.sections); } catch {}
       let examDetails = [];
       try { if (program.examDetails) examDetails = JSON.parse(program.examDetails); } catch {}
-
-      let assessmentLinks = [];
-      try { if (program.assessmentLinks) assessmentLinks = JSON.parse(program.assessmentLinks); } catch {}
 
       setForm({
         title: program.title || '',
@@ -107,22 +98,13 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
           currencyCode: cp.currencyCode,
           amount: cp.amount.toString(),
         })),
-        assessmentLinks: assessmentLinks.map((l) => ({ title: l.title || '', url: l.url || '' })),
-        preAssessmentLinks: (() => {
-          try { return program.preAssessmentLinks ? JSON.parse(program.preAssessmentLinks).map(l => ({ title: l.title || '', url: l.url || '' })) : []; } catch { return []; }
-        })(),
-        preAssessmentInstructions: program.preAssessmentInstructions || '',
         reminderDays: program.reminderDays != null ? program.reminderDays.toString() : '',
         trainingDuration: program.trainingDuration || '',
         targetAudience: program.targetAudience || '',
         assessment: program.assessment || '',
         outcome: program.outcome || '',
         examDetails,
-        videos: (program.videos || []).map((v) => ({
-          title: v.title || '',
-          url: v.url || '',
-          durationSeconds: v.durationSeconds != null ? v.durationSeconds.toString() : '',
-        })),
+        courseIds: program.courseIds || [],
       });
     } else {
       setForm(empty());
@@ -145,34 +127,6 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
   };
   const removeExamDetail = (i) => set('examDetails', form.examDetails.filter((_, j) => j !== i));
 
-  // ── Videos ──────────────────────────────────────────────────────────────────
-  const addVideo = () => set('videos', [...form.videos, emptyVideo()]);
-  const updateVideo = (i, field, value) => {
-    const arr = [...form.videos]; arr[i] = { ...arr[i], [field]: value }; set('videos', arr);
-  };
-  const removeVideo = (i) => set('videos', form.videos.filter((_, j) => j !== i));
-  const moveVideo = (i, dir) => {
-    const arr = [...form.videos];
-    const t = i + dir;
-    if (t < 0 || t >= arr.length) return;
-    [arr[i], arr[t]] = [arr[t], arr[i]];
-    set('videos', arr);
-  };
-
-  // ── Assessment Links ─────────────────────────────────────────────────────────
-  const addAssessmentLink = () => set('assessmentLinks', [...form.assessmentLinks, emptyAssessmentLink()]);
-  const updateAssessmentLink = (i, field, value) => {
-    const arr = [...form.assessmentLinks]; arr[i] = { ...arr[i], [field]: value }; set('assessmentLinks', arr);
-  };
-  const removeAssessmentLink = (i) => set('assessmentLinks', form.assessmentLinks.filter((_, j) => j !== i));
-
-  // ── Pre-Assessment Links ──────────────────────────────────────────────────────
-  const addPreAssessmentLink = () => set('preAssessmentLinks', [...form.preAssessmentLinks, emptyAssessmentLink()]);
-  const updatePreAssessmentLink = (i, field, value) => {
-    const arr = [...form.preAssessmentLinks]; arr[i] = { ...arr[i], [field]: value }; set('preAssessmentLinks', arr);
-  };
-  const removePreAssessmentLink = (i) => set('preAssessmentLinks', form.preAssessmentLinks.filter((_, j) => j !== i));
-
   // ── Country prices ──────────────────────────────────────────────────────────
   const addCountryPrice = () => {
     const usedCodes = form.countryPrices.map(cp => cp.countryCode);
@@ -191,6 +145,25 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
     set('countryPrices', arr);
   };
   const removeCountryPrice = (i) => set('countryPrices', form.countryPrices.filter((_, j) => j !== i));
+
+  // ── Courses total helpers ─────────────────────────────────────────────────────
+  const originalPriceINR = form.courseIds.reduce((sum, id) => {
+    const c = courses.find((cc) => cc.id === id);
+    return sum + (c?.price || 0);
+  }, 0);
+
+  const getCoursesTotalForCountry = (countryCode) => {
+    if (!countryCode || form.courseIds.length === 0) return null;
+    let total = 0;
+    let currency = '';
+    for (const courseId of form.courseIds) {
+      const c = courses.find((cc) => cc.id === courseId);
+      if (!c) continue;
+      const cp = c.countryPrices?.find((p) => p.countryCode === countryCode);
+      if (cp) { total += cp.amount; currency = cp.currencyCode; }
+    }
+    return total > 0 ? { amount: Math.round(total * 100) / 100, currency } : null;
+  };
 
   // ── USD price helpers ────────────────────────────────────────────────────────
   const [convertingPrices, setConvertingPrices] = useState(false);
@@ -329,15 +302,6 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
       if (form.backgroundImage) fd.append('backgroundImage', form.backgroundImage);
       if (program) fd.append('removeBackgroundImage', form.removeBackgroundImage);
       if (form.price) fd.append('price', parseFloat(form.price));
-      const validLinks = form.assessmentLinks.filter((l) => l.url.trim());
-      fd.append('assessmentLinks', JSON.stringify(
-        validLinks.map((l) => ({ title: l.title.trim(), url: l.url.trim() }))
-      ));
-      const validPreLinks = form.preAssessmentLinks.filter((l) => l.url.trim());
-      fd.append('preAssessmentLinks', JSON.stringify(
-        validPreLinks.map((l) => ({ title: l.title.trim(), url: l.url.trim() }))
-      ));
-      if (form.preAssessmentInstructions.trim()) fd.append('preAssessmentInstructions', form.preAssessmentInstructions.trim());
       if (form.reminderDays) fd.append('reminderDays', parseInt(form.reminderDays, 10));
       if (form.trainingDuration.trim()) fd.append('trainingDuration', form.trainingDuration.trim());
 
@@ -360,16 +324,8 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
         }))
       ));
 
-      // Videos
-      const validVideos = form.videos
-        .filter((v) => v.url.trim())
-        .map((v, i) => ({
-          title: v.title.trim() || `Video ${i + 1}`,
-          url: v.url.trim(),
-          orderIndex: i,
-          durationSeconds: v.durationSeconds ? parseInt(v.durationSeconds) : null,
-        }));
-      fd.append('videos', JSON.stringify(validVideos));
+      // Linked courses
+      fd.append('courseIds', JSON.stringify(form.courseIds));
 
       const saved = program
         ? await flagshipService.updateProgram(program.id, fd)
@@ -433,6 +389,32 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
 
         <Divider />
 
+        {/* ── Linked Courses ── */}
+        <Box>
+          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Linked Courses</Typography>
+          <Autocomplete
+            multiple
+            options={courses}
+            getOptionLabel={(c) => c.title + (c.category ? ` (${c.category})` : '')}
+            value={courses.filter((c) => form.courseIds.includes(c.id))}
+            onChange={(_, newValue) => set('courseIds', newValue.map((c) => c.id))}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            renderInput={(params) => (
+              <TextField {...params} label="Select courses for this program" placeholder="Search courses..." size="small" />
+            )}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip key={option.id} label={option.title} size="small" {...getTagProps({ index })} />
+              ))
+            }
+          />
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+            Users who enroll in this flagship program will be automatically enrolled in all selected courses.
+          </Typography>
+        </Box>
+
+        <Divider />
+
         {/* ── Pricing ── */}
         <Box>
           <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Pricing</Typography>
@@ -450,6 +432,19 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
                 inputProps={{ min: 0, step: 0.01 }}
                 InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
               />
+              {(() => {
+                const usdTotal = getCoursesTotalForCountry('US');
+                return usdTotal ? (
+                  <TextField
+                    label="Courses Total (USD)"
+                    value={formatCurrency(usdTotal.amount, usdTotal.currency)}
+                    size="small"
+                    sx={{ width: 180 }}
+                    disabled
+                    helperText="Sum of individual course prices"
+                  />
+                ) : null;
+              })()}
               <TextField
                 label="India Price (INR)"
                 type="number"
@@ -461,6 +456,17 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
                 inputProps={{ min: 0, step: 1 }}
                 InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }}
               />
+              {originalPriceINR > 0 && (
+                <TextField
+                  label="Courses Total (INR)"
+                  value={formatCurrency(originalPriceINR, 'INR')}
+                  size="small"
+                  sx={{ width: 180 }}
+                  disabled
+                  helperText="Sum of individual course prices"
+                  InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }}
+                />
+              )}
               <Button
                 variant="contained"
                 color="secondary"
@@ -556,6 +562,14 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
                               sx={{ width: 110, flexShrink: 0 }}
                               inputProps={{ min: 0, step: 0.01, style: { textAlign: 'right' } }}
                             />
+                            {(() => {
+                              const total = getCoursesTotalForCountry(cp.countryCode);
+                              return total ? (
+                                <Typography variant="caption" color="text.secondary" sx={{ width: 90, textAlign: 'right', flexShrink: 0 }} noWrap>
+                                  {formatCurrency(total.amount, total.currency)}
+                                </Typography>
+                              ) : null;
+                            })()}
                             <IconButton size="small" color="error" onClick={() => removeCountryPrice(i)}>
                               <DeleteIcon fontSize="small" />
                             </IconButton>
@@ -571,45 +585,10 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
 
         <Divider />
 
-        {/* ── Links / Assessment ── */}
+        {/* ── Links / Reminder ── */}
         <Box>
-          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Assessment & Links</Typography>
+          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Settings</Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                <Typography variant="body2" fontWeight={600}>Assessment Links</Typography>
-                <Button size="small" startIcon={<AddIcon />} onClick={addAssessmentLink}>Add Link</Button>
-              </Box>
-              <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: 'block' }}>
-                Each link appears as an "Take Assessment" button on the program page.
-              </Typography>
-              {form.assessmentLinks.map((link, i) => (
-                <Box key={i} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
-                  <TextField
-                    label="Button Label"
-                    value={link.title}
-                    onChange={(e) => updateAssessmentLink(i, 'title', e.target.value)}
-                    size="small"
-                    sx={{ width: 180 }}
-                    placeholder="e.g. Pre-Assessment"
-                  />
-                  <TextField
-                    label="URL *"
-                    value={link.url}
-                    onChange={(e) => updateAssessmentLink(i, 'url', e.target.value)}
-                    size="small"
-                    sx={{ flex: 1 }}
-                    placeholder="https://forms.google.com/..."
-                  />
-                  <IconButton size="small" color="error" onClick={() => removeAssessmentLink(i)}>
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-              ))}
-              {form.assessmentLinks.length === 0 && (
-                <Typography variant="body2" color="text.secondary">No assessment links yet.</Typography>
-              )}
-            </Box>
             <TextField
               label="Completion Reminder (days after enrollment)"
               type="number"
@@ -620,55 +599,6 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
               helperText="Send a reminder email if the user hasn't completed the program after this many days. Leave empty to disable."
               inputProps={{ min: 1, step: 1 }}
             />
-          </Box>
-        </Box>
-
-        <Divider />
-
-        {/* ── Pre-Assessment (Practice) ── */}
-        <Box>
-          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Pre-Assessment (Practice)</Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              label="Instructions (shown above pre-assessment buttons)"
-              value={form.preAssessmentInstructions}
-              onChange={(e) => set('preAssessmentInstructions', e.target.value)}
-              fullWidth size="small" multiline rows={2}
-              placeholder="e.g. Complete the pre-assessment before starting your learning journey. This helps us understand your baseline knowledge."
-              helperText="Leave blank to use the default instruction text"
-            />
-            <Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                <Typography variant="body2" fontWeight={600}>Pre-Assessment Links</Typography>
-                <Button size="small" startIcon={<AddIcon />} onClick={addPreAssessmentLink}>Add Link</Button>
-              </Box>
-              {form.preAssessmentLinks.map((link, i) => (
-                <Box key={i} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
-                  <TextField
-                    label="Button Label"
-                    value={link.title}
-                    onChange={(e) => updatePreAssessmentLink(i, 'title', e.target.value)}
-                    size="small"
-                    sx={{ width: 180 }}
-                    placeholder="e.g. Pre-Assessment"
-                  />
-                  <TextField
-                    label="URL *"
-                    value={link.url}
-                    onChange={(e) => updatePreAssessmentLink(i, 'url', e.target.value)}
-                    size="small"
-                    sx={{ flex: 1 }}
-                    placeholder="https://forms.google.com/..."
-                  />
-                  <IconButton size="small" color="error" onClick={() => removePreAssessmentLink(i)}>
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-              ))}
-              {form.preAssessmentLinks.length === 0 && (
-                <Typography variant="body2" color="text.secondary">No pre-assessment links yet.</Typography>
-              )}
-            </Box>
           </Box>
         </Box>
 
@@ -727,63 +657,6 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
               )}
             </Box>
           </Box>
-        </Box>
-
-        <Divider />
-
-        {/* ── Videos ── */}
-        <Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <OndemandVideoIcon color="primary" fontSize="small" />
-              <Typography variant="subtitle1" fontWeight={700}>Videos</Typography>
-            </Box>
-            <Button size="small" startIcon={<AddIcon />} onClick={addVideo}>Add Video</Button>
-          </Box>
-          <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: 'block' }}>
-            Videos are only accessible to enrolled participants. URLs are encrypted for playback.
-          </Typography>
-
-          {form.videos.length === 0 && (
-            <Typography variant="body2" color="text.secondary">No videos added yet.</Typography>
-          )}
-
-          {form.videos.map((video, i) => (
-            <Paper key={i} variant="outlined" sx={{ mb: 1.5, p: 1.5, borderRadius: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <Typography variant="body2" fontWeight={600} sx={{ minWidth: 60 }}>
-                  Video {i + 1}
-                </Typography>
-                <Box sx={{ flex: 1 }} />
-                <Tooltip title="Move Up"><span>
-                  <IconButton size="small" onClick={() => moveVideo(i, -1)} disabled={i === 0}>
-                    <ArrowUpwardIcon fontSize="small" />
-                  </IconButton>
-                </span></Tooltip>
-                <Tooltip title="Move Down"><span>
-                  <IconButton size="small" onClick={() => moveVideo(i, 1)} disabled={i === form.videos.length - 1}>
-                    <ArrowDownwardIcon fontSize="small" />
-                  </IconButton>
-                </span></Tooltip>
-                <Tooltip title="Remove Video">
-                  <IconButton size="small" color="error" onClick={() => removeVideo(i)}>
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-                <TextField label="Title" value={video.title}
-                  onChange={(e) => updateVideo(i, 'title', e.target.value)}
-                  size="small" sx={{ flex: 2, minWidth: 160 }} placeholder={`Video ${i + 1}`} />
-                <TextField label="Duration (seconds)" type="number" value={video.durationSeconds}
-                  onChange={(e) => updateVideo(i, 'durationSeconds', e.target.value)}
-                  size="small" sx={{ width: 160 }} />
-                <TextField label="Video URL *" value={video.url}
-                  onChange={(e) => updateVideo(i, 'url', e.target.value)}
-                  size="small" fullWidth placeholder="https://vimeo.com/... or https://youtu.be/..." />
-              </Box>
-            </Paper>
-          ))}
         </Box>
 
         <Divider />
@@ -961,12 +834,6 @@ function FlagshipProgramForm({ open, program, onClose, onSaved }) {
           ))}
         </Box>
 
-        {/* Manuals — only shown when editing an existing program */}
-        {program?.id && (
-          <Box sx={{ mt: 3 }}>
-            <ManualSection flagshipProgramId={program.id} isAdmin title="Manuals & Documents" />
-          </Box>
-        )}
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>

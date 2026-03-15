@@ -7,21 +7,16 @@ import {
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import StarIcon from '@mui/icons-material/Star';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import PeopleIcon from '@mui/icons-material/People';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import QuizIcon from '@mui/icons-material/Quiz';
-import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import DownloadIcon from '@mui/icons-material/Download';
 import CardMembershipIcon from '@mui/icons-material/CardMembership';
 import { SEO, Breadcrumb } from '../components/common';
-import { VideoPlayer, VideoList, ManualSection } from '../components/course';
-import { ProgressTracker } from '../components/user';
 import { flagshipService } from '../services/flagshipService';
-import { videoService } from '../services';
 import { useAuth, useToast } from '../store';
 import { formatCurrency } from '../utils/formatters';
 import { ROUTES, SUPPORTED_COUNTRIES } from '../utils/constants';
@@ -90,7 +85,7 @@ function OverviewSection({ section }) {
         {(section.items || []).map((item, i) => (
           <Grid item xs={12} sm={6} md={4} key={i}>
             <Paper variant="outlined" sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1.5, borderRadius: 2 }}>
-              <InfoOutlinedIcon color="primary" />
+              <CheckCircleOutlineIcon color="primary" />
               <Typography variant="body2">{item}</Typography>
             </Paper>
           </Grid>
@@ -206,9 +201,6 @@ function FlagshipDetail() {
   const location = useLocation();
   const { isAuthenticated, user } = useAuth();
   const { showError, showSuccess } = useToast();
-  const isAdmin = user?.role === 'ADMIN';
-
-  const [learnMode, setLearnMode] = useState(location.state?.mode === 'learn');
 
   const [program, setProgram] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -218,11 +210,6 @@ function FlagshipDetail() {
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [enrollmentStatus, setEnrollmentStatus] = useState(null);
   const [enrolledProgramData, setEnrolledProgramData] = useState(null); // includes canDownloadCertificate
-
-  const [videos, setVideos] = useState([]);
-  const [progressMap, setProgressMap] = useState({});
-  const [currentVideo, setCurrentVideo] = useState(null);
-  const [currentVideoUrl, setCurrentVideoUrl] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -245,19 +232,6 @@ function FlagshipDetail() {
                 setEnrolledProgramData(enrolledProgram);
               }
             }
-
-            if (isUserEnrolled && !cancelled) {
-              const videosData = await flagshipService.getVideos(id);
-              if (!cancelled) {
-                setVideos(videosData);
-                const progress = await flagshipService.getMultipleVideoProgress(videosData.map((v) => v.id));
-                if (!cancelled) {
-                  setProgressMap(progress);
-                  const incompleteVideo = videosData.find((v) => !progress[v.id]?.completed);
-                  setCurrentVideo(incompleteVideo || videosData[0]);
-                }
-              }
-            }
           } catch { /* non-critical */ }
         }
 
@@ -271,42 +245,13 @@ function FlagshipDetail() {
     return () => { cancelled = true; };
   }, [id, isAuthenticated]);
 
-  // Decrypt video URL when current video changes
-  useEffect(() => {
-    const decrypt = async () => {
-      if (!currentVideo?.encryptedUrl) { setCurrentVideoUrl(null); return; }
-      try {
-        const url = await videoService.decryptUrl(currentVideo.encryptedUrl);
-        setCurrentVideoUrl(url);
-      } catch {
-        setCurrentVideoUrl(null);
-      }
-    };
-    decrypt();
-  }, [currentVideo]);
-
-  // Load videos for admin — runs once isAdmin resolves (user hydrates from auth context)
-  useEffect(() => {
-    if (!isAdmin) return;
-    const loadAdminVideos = async () => {
-      try {
-        const videosData = await flagshipService.getVideos(id);
-        setVideos(videosData);
-        const progress = await flagshipService.getMultipleVideoProgress(videosData.map((v) => v.id));
-        setProgressMap(progress);
-        setCurrentVideo(videosData.find((v) => !progress[v.id]?.completed) || videosData[0]);
-      } catch {}
-    };
-    loadAdminVideos();
-  }, [id, isAdmin]); // eslint-disable-line
-
   const handleEnroll = useCallback(async () => {
     if (!isAuthenticated()) {
       navigate(ROUTES.LOGIN, { state: { from: { pathname: `/flagship/${id}` } } });
       return;
     }
     if (isEnrolled) {
-      setLearnMode(true);
+      navigate(ROUTES.MY_COURSES);
       return;
     }
     setEnrolling(true);
@@ -332,7 +277,8 @@ function FlagshipDetail() {
       // Free: enrolled directly
       setIsEnrolled(true);
       setEnrollmentStatus('ENROLLED');
-      showSuccess('Successfully enrolled!');
+      showSuccess('Successfully enrolled! Your courses are ready in My Courses.');
+      navigate(ROUTES.MY_COURSES);
     } catch (err) {
       if (err.message === 'Payment cancelled') return;
       showError(err.response?.data?.message || err.message || 'Failed to start enrollment');
@@ -340,66 +286,6 @@ function FlagshipDetail() {
       setEnrolling(false);
     }
   }, [isAuthenticated, program, selectedCountry, isEnrolled, navigate, showError, showSuccess, id]);
-
-
-  // Mark video as completed when user clicks play in the video player
-  const handleVideoPlay = useCallback(async () => {
-    if (!currentVideo) return;
-    try {
-      await flagshipService.updateVideoProgress(currentVideo.id, currentVideo.durationSeconds || 0, true);
-      setProgressMap((prev) => {
-        if (prev[currentVideo.id]?.completed) return prev; // already marked
-        const updated = {
-          ...prev,
-          [currentVideo.id]: { ...(prev[currentVideo.id] || {}), completed: true },
-        };
-        const allDone = videos.length > 0 && videos.every((v) => updated[v.id]?.completed);
-        if (allDone) {
-          setEnrollmentStatus('COMPLETED');
-          showSuccess('All videos completed!');
-        }
-        return updated;
-      });
-    } catch (err) {
-      console.error('Failed to mark flagship video complete:', err);
-      showError('Could not save video progress. Please check your connection.');
-    }
-  }, [currentVideo, videos, showSuccess, showError]);
-
-  const handleVideoProgress = useCallback(async (positionSeconds) => {
-    if (!currentVideo) return;
-    try {
-      const progress = await flagshipService.updateVideoProgress(currentVideo.id, positionSeconds);
-      const wasCompleted = !!progressMap[currentVideo.id]?.completed;
-      const isNowCompleted = !!progress?.completed;
-      setProgressMap((prev) => ({ ...prev, [currentVideo.id]: progress }));
-      if (isNowCompleted && !wasCompleted) {
-        const newProgressMap = { ...progressMap, [currentVideo.id]: progress };
-        const allDone = videos.every((v) => !!newProgressMap[v.id]?.completed);
-        if (allDone) { setEnrollmentStatus('COMPLETED'); showSuccess('All videos completed!'); }
-        else { showSuccess('Video completed!'); }
-        const currentIndex = videos.findIndex((v) => v.id === currentVideo.id);
-        if (currentIndex < videos.length - 1) setCurrentVideo(videos[currentIndex + 1]);
-      }
-    } catch {}
-  }, [currentVideo, progressMap, videos, showSuccess]);
-
-  const handleVideoComplete = useCallback(async () => {
-    if (!currentVideo) return;
-    try {
-      await flagshipService.updateVideoProgress(currentVideo.id, currentVideo.durationSeconds || 0, true);
-      const newProgressMap = {
-        ...progressMap,
-        [currentVideo.id]: { ...progressMap[currentVideo.id], completed: true },
-      };
-      setProgressMap(newProgressMap);
-      const allDone = videos.every((v) => newProgressMap[v.id]?.completed);
-      if (allDone) { setEnrollmentStatus('COMPLETED'); showSuccess('All videos completed!'); }
-      else { showSuccess('Video completed!'); }
-      const currentIndex = videos.findIndex((v) => v.id === currentVideo.id);
-      if (currentIndex < videos.length - 1) setCurrentVideo(videos[currentIndex + 1]);
-    } catch {}
-  }, [currentVideo, videos, progressMap, showSuccess]);
 
   const handleDownloadCertificate = useCallback(async () => {
     try {
@@ -415,23 +301,6 @@ function FlagshipDetail() {
       }
     }
   }, [id, program, showSuccess, showError]);
-
-  const completedVideos = Object.values(progressMap).filter((p) => p?.completed).length;
-  const totalVideos = videos.length;
-
-  // Each video contributes 0–1: completed=1, in-progress with duration=proportional,
-  // in-progress without duration=0.3 (so the tracker moves as soon as anything is watched)
-  const totalProgressScore = totalVideos === 0 ? 0 : videos.reduce((sum, v) => {
-    const p = progressMap[v.id];
-    if (p?.completed) return sum + 1;
-    const pos = p?.lastPositionSeconds || 0;
-    if (pos > 0 && v.durationSeconds > 0) return sum + Math.min(pos / v.durationSeconds, 0.99);
-    if (pos > 0) return sum + 0.3;
-    return sum;
-  }, 0);
-
-  const progressPercent = totalVideos > 0 ? Math.round((totalProgressScore / totalVideos) * 100) : 0;
-  const isCompleted = completedVideos >= totalVideos && totalVideos > 0 || enrollmentStatus === 'COMPLETED';
 
   if (loading) {
     return (
@@ -462,16 +331,6 @@ function FlagshipDetail() {
 
   let examDetails = [];
   try { if (program.examDetails) examDetails = JSON.parse(program.examDetails); } catch {}
-
-  let assessmentLinks = [];
-  try { if (program.assessmentLinks) assessmentLinks = JSON.parse(program.assessmentLinks); } catch {}
-
-  const hasVideos = videos.length > 0;
-
-  const isValidUrl = (url) => {
-    try { const u = new URL(url); return u.protocol === 'http:' || u.protocol === 'https:'; }
-    catch { return false; }
-  };
 
   const breadcrumbItems = [
     { label: 'Courses', path: ROUTES.COURSES },
@@ -537,7 +396,7 @@ function FlagshipDetail() {
         <Breadcrumb items={breadcrumbItems} />
 
         {/* ── Mobile-only quick enroll bar ─────────────────────────────────── */}
-        {!isEnrolled && !learnMode && (
+        {!isEnrolled && (
           <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 3 }}>
             <Paper
               elevation={0}
@@ -585,265 +444,132 @@ function FlagshipDetail() {
         )}
 
         <Grid container spacing={4} sx={{ mt: 0.5 }}>
-          {/* Left: video player (learn mode) OR content sections */}
+          {/* Left: content sections */}
           <Grid item xs={12} md={8}>
-            {(isEnrolled || isAdmin) && learnMode && hasVideos ? (
-              <>
-                {currentVideo && currentVideoUrl ? (
-                  <VideoPlayer
-                    src={currentVideoUrl}
-                    title={currentVideo.title}
-                    initialPosition={progressMap[currentVideo.id]?.lastPositionSeconds || 0}
-                    onProgress={handleVideoProgress}
-                    onComplete={handleVideoComplete}
-                    onPlay={handleVideoPlay}
-                    userEmail={user?.email}
-                  />
-                ) : (
-                  <Paper sx={{ p: 4, textAlign: 'center' }}>
-                    <Typography color="text.secondary">Loading video...</Typography>
+            <Box>
+              {/* Card Highlights */}
+              {program.cardHighlights && (() => {
+                let highlights = [];
+                try { highlights = JSON.parse(program.cardHighlights); } catch {}
+                if (highlights.length === 0) return null;
+                return (
+                  <Paper
+                    elevation={0}
+                    variant="outlined"
+                    sx={{ p: 3, mb: 3, borderRadius: 2, background: 'linear-gradient(135deg, rgba(123,45,139,0.04) 0%, rgba(123,45,139,0.01) 100%)' }}
+                  >
+                    <Typography variant="h6" fontWeight={700} color="primary" gutterBottom>Program Highlights</Typography>
+                    <Divider sx={{ mb: 2 }} />
+                    <Grid container spacing={1.5}>
+                      {highlights.map((h, i) => (
+                        <Grid item xs={12} sm={6} key={i}>
+                          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                            <CheckCircleOutlineIcon sx={{ fontSize: 18, color: 'success.main', mt: 0.3, flexShrink: 0 }} />
+                            <Typography variant="body2">{h}</Typography>
+                          </Box>
+                        </Grid>
+                      ))}
+                    </Grid>
                   </Paper>
-                )}
-                {currentVideo && (
-                  <Box sx={{ mt: 2, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="h5" fontWeight={600} sx={{ flex: 1 }}>
-                      {currentVideo.title}
-                    </Typography>
-                    {progressMap[currentVideo.id]?.completed && (
-                      <Chip
-                        icon={<CheckCircleOutlineIcon />}
-                        label="Completed"
-                        color="success"
-                        variant="outlined"
-                        size="small"
-                      />
-                    )}
-                  </Box>
-                )}
+                );
+              })()}
 
-                {/* Pre-Assessment Section — shown below video player */}
-                {(() => {
-                  const isValidUrl = (url) => { try { const u = new URL(url); return u.protocol === 'http:' || u.protocol === 'https:'; } catch { return false; } };
-                  let preLinks = [];
-                  try { if (program.preAssessmentLinks) preLinks = JSON.parse(program.preAssessmentLinks); } catch {}
-                  const validPreLinks = preLinks.filter(l => l.url && isValidUrl(l.url));
-                  if (validPreLinks.length === 0) return null;
-                  const instructions = program.preAssessmentInstructions?.trim()
-                    || 'Complete the pre-assessment before starting your learning journey. This helps us understand your baseline knowledge.';
-                  return (
-                    <Paper variant="outlined" sx={{ p: 3, mt: 3, borderRadius: 2, borderColor: 'primary.light' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                        <AssignmentIcon color="primary" />
-                        <Typography variant="h6" fontWeight={700} color="primary">Pre-Assessment</Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 2 }}>
-                        <InfoOutlinedIcon sx={{ fontSize: 17, color: 'primary.main', mt: 0.2, flexShrink: 0 }} />
-                        <Typography variant="body2" color="text.secondary">{instructions}</Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        {validPreLinks.map((link, i) => (
-                          <Button
-                            key={i}
-                            variant="outlined"
-                            color="primary"
-                            href={link.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            startIcon={<AssignmentIcon />}
-                          >
-                            {link.title || 'Take Pre-Assessment'}
-                          </Button>
-                        ))}
-                      </Box>
+              {/* Content sections from JSON — each in its own card */}
+              {sections.length > 0 && (
+                <Box sx={{ mb: 2 }}>
+                  {sections.map((section, i) => (
+                    <Paper key={i} elevation={0} variant="outlined" sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                      {renderSection(section, i)}
                     </Paper>
-                  );
-                })()}
-              </>
-            ) : (
-              <Box>
-                {/* Card Highlights */}
-                {program.cardHighlights && (() => {
-                  let highlights = [];
-                  try { highlights = JSON.parse(program.cardHighlights); } catch {}
-                  if (highlights.length === 0) return null;
-                  return (
-                    <Paper
-                      elevation={0}
-                      variant="outlined"
-                      sx={{ p: 3, mb: 3, borderRadius: 2, background: 'linear-gradient(135deg, rgba(123,45,139,0.04) 0%, rgba(123,45,139,0.01) 100%)' }}
-                    >
-                      <Typography variant="h6" fontWeight={700} color="primary" gutterBottom>Program Highlights</Typography>
-                      <Divider sx={{ mb: 2 }} />
-                      <Grid container spacing={1.5}>
-                        {highlights.map((h, i) => (
-                          <Grid item xs={12} sm={6} key={i}>
-                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                              <CheckCircleOutlineIcon sx={{ fontSize: 18, color: 'success.main', mt: 0.3, flexShrink: 0 }} />
-                              <Typography variant="body2">{h}</Typography>
-                            </Box>
-                          </Grid>
-                        ))}
-                      </Grid>
-                    </Paper>
-                  );
-                })()}
+                  ))}
+                </Box>
+              )}
 
-                {/* Content sections from JSON — each in its own card */}
-                {sections.length > 0 && (
-                  <Box sx={{ mb: 2 }}>
-                    {sections.map((section, i) => (
-                      <Paper key={i} elevation={0} variant="outlined" sx={{ p: 3, mb: 3, borderRadius: 2 }}>
-                        {renderSection(section, i)}
-                      </Paper>
+              {/* Course-style fields */}
+              {program.targetAudience && (
+                <CourseStyleField icon={<PeopleIcon color="primary" />} label="Target Audience">
+                  <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>
+                    {program.targetAudience}
+                  </Typography>
+                </CourseStyleField>
+              )}
+
+              {program.assessment && (
+                <CourseStyleField icon={<AssignmentIcon color="primary" />} label="Assessment">
+                  <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>
+                    {program.assessment}
+                  </Typography>
+                </CourseStyleField>
+              )}
+
+              {program.outcome && (
+                <CourseStyleField icon={<EmojiEventsIcon color="primary" />} label="Outcome">
+                  <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>
+                    {program.outcome}
+                  </Typography>
+                </CourseStyleField>
+              )}
+
+              {program.trainingDuration && (
+                <CourseStyleField icon={<ScheduleIcon color="primary" />} label="Duration of Training">
+                  <Typography color="text.secondary">
+                    {program.trainingDuration}
+                  </Typography>
+                </CourseStyleField>
+              )}
+
+              {examDetails.length > 0 && (
+                <CourseStyleField icon={<QuizIcon color="primary" />} label="Exam Details">
+                  <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0 }}>
+                    {examDetails.map((detail, i) => (
+                      <Box key={i} component="li" sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 0.75 }}>
+                        <CheckCircleOutlineIcon sx={{ fontSize: 18, color: 'success.main', mt: 0.2, flexShrink: 0 }} />
+                        <Typography variant="body2">{detail}</Typography>
+                      </Box>
                     ))}
                   </Box>
-                )}
+                </CourseStyleField>
+              )}
 
-                {/* Course-style fields */}
-                {program.targetAudience && (
-                  <CourseStyleField icon={<PeopleIcon color="primary" />} label="Target Audience">
-                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>
-                      {program.targetAudience}
-                    </Typography>
-                  </CourseStyleField>
-                )}
+              {sections.length === 0 && !program.cardHighlights && !program.targetAudience && !program.assessment && !program.outcome && examDetails.length === 0 && (
+                <Box sx={{ textAlign: 'center', py: 6 }}>
+                  <Typography color="text.secondary">Program details will be available soon.</Typography>
+                </Box>
+              )}
 
-                {program.assessment && (
-                  <CourseStyleField icon={<AssignmentIcon color="primary" />} label="Assessment">
-                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>
-                      {program.assessment}
-                    </Typography>
-                  </CourseStyleField>
-                )}
-
-                {program.outcome && (
-                  <CourseStyleField icon={<EmojiEventsIcon color="primary" />} label="Outcome">
-                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>
-                      {program.outcome}
-                    </Typography>
-                  </CourseStyleField>
-                )}
-
-                {program.trainingDuration && (
-                  <CourseStyleField icon={<ScheduleIcon color="primary" />} label="Duration of Training">
-                    <Typography color="text.secondary">
-                      {program.trainingDuration}
-                    </Typography>
-                  </CourseStyleField>
-                )}
-
-                {examDetails.length > 0 && (
-                  <CourseStyleField icon={<QuizIcon color="primary" />} label="Exam Details">
-                    <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0 }}>
-                      {examDetails.map((detail, i) => (
-                        <Box key={i} component="li" sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 0.75 }}>
-                          <CheckCircleOutlineIcon sx={{ fontSize: 18, color: 'success.main', mt: 0.2, flexShrink: 0 }} />
-                          <Typography variant="body2">{detail}</Typography>
-                        </Box>
-                      ))}
-                    </Box>
-                  </CourseStyleField>
-                )}
-
-                {sections.length === 0 && !program.cardHighlights && !program.targetAudience && !program.assessment && !program.outcome && examDetails.length === 0 && (
-                  <Box sx={{ textAlign: 'center', py: 6 }}>
-                    <Typography color="text.secondary">Program details will be available soon.</Typography>
-                  </Box>
-                )}
-
-                {/* CTA at bottom of content — hidden on mobile (top bar + sidebar card cover it) */}
-                {!isEnrolled && (
-                  <Box sx={{ textAlign: 'center', mt: 2, mb: 2, display: { xs: 'none', md: 'block' } }}>
-                    <Button
-                      variant="contained"
-                      size="large"
-                      onClick={handleEnroll}
-                      disabled={enrolling}
-                      sx={{ bgcolor: '#7B2D8B', '&:hover': { bgcolor: '#6A1B7A' }, fontWeight: 700, px: 4 }}
-                    >
-                      {enrolling
-                        ? <CircularProgress size={22} color="inherit" />
-                        : (displayPrice.amount ? `Enroll for ${formatCurrency(displayPrice.amount, displayPrice.currency)}` : 'Enroll Free')}
-                    </Button>
-                  </Box>
-                )}
-                {isEnrolled && !learnMode && hasVideos && (
-                  <Box sx={{ textAlign: 'center', mt: 2, mb: 2 }}>
-                    <Button
-                      variant="contained"
-                      size="large"
-                      onClick={() => setLearnMode(true)}
-                      sx={{ bgcolor: '#4CAF50', '&:hover': { bgcolor: '#388E3C' }, fontWeight: 700, px: 4 }}
-                    >
-                      Continue Learning
-                    </Button>
-                  </Box>
-                )}
-              </Box>
-            )}
+              {/* CTA at bottom of content — hidden on mobile (top bar + sidebar card cover it) */}
+              {!isEnrolled && (
+                <Box sx={{ textAlign: 'center', mt: 2, mb: 2, display: { xs: 'none', md: 'block' } }}>
+                  <Button
+                    variant="contained"
+                    size="large"
+                    onClick={handleEnroll}
+                    disabled={enrolling}
+                    sx={{ bgcolor: '#7B2D8B', '&:hover': { bgcolor: '#6A1B7A' }, fontWeight: 700, px: 4 }}
+                  >
+                    {enrolling
+                      ? <CircularProgress size={22} color="inherit" />
+                      : (displayPrice.amount ? `Enroll for ${formatCurrency(displayPrice.amount, displayPrice.currency)}` : 'Enroll Free')}
+                  </Button>
+                </Box>
+              )}
+              {isEnrolled && (
+                <Box sx={{ textAlign: 'center', mt: 2, mb: 2 }}>
+                  <Button
+                    variant="contained"
+                    size="large"
+                    onClick={() => navigate(ROUTES.MY_COURSES)}
+                    sx={{ bgcolor: '#4CAF50', '&:hover': { bgcolor: '#388E3C' }, fontWeight: 700, px: 4 }}
+                  >
+                    Continue Learning
+                  </Button>
+                </Box>
+              )}
+            </Box>
           </Grid>
 
           {/* Right: sidebar */}
           <Grid item xs={12} md={4}>
-            {/* Manuals & Documents — above enrollment card */}
-            {program?.id && (
-              <Box sx={{ mb: 3 }}>
-                <ManualSection flagshipProgramId={program.id} title="Manuals & Documents" />
-              </Box>
-            )}
-
-            {/* Learn mode: video list + progress */}
-            {(isEnrolled || isAdmin) && learnMode && hasVideos && (
-              <>
-                <Paper sx={{ mb: 3, borderRadius: 2, overflow: 'hidden' }}>
-                  <Box
-                    sx={{
-                      p: 2,
-                      pb: 1.5,
-                      background: (theme) =>
-                        `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
-                    }}
-                  >
-                    <Typography variant="h6" sx={{ color: '#fff', fontWeight: 600 }}>Course Content</Typography>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.85)' }}>
-                      {completedVideos} of {totalVideos} completed
-                    </Typography>
-                  </Box>
-                  <Divider />
-                  <VideoList
-                    videos={videos}
-                    currentVideoId={currentVideo?.id}
-                    progressMap={progressMap}
-                    onVideoSelect={setCurrentVideo}
-                  />
-                </Paper>
-
-                <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
-                  <Typography variant="h6" gutterBottom fontWeight={600}>Your Progress</Typography>
-                  <ProgressTracker
-                    value={totalProgressScore}
-                    max={totalVideos}
-                    label={`${completedVideos} of ${totalVideos} videos completed`}
-                    variant="circular"
-                    size="medium"
-                    color={isCompleted ? 'success' : 'primary'}
-                  />
-                  {enrolledProgramData?.canDownloadCertificate && (
-                    <Button
-                      variant="contained"
-                      color="success"
-                      fullWidth
-                      startIcon={<CardMembershipIcon />}
-                      onClick={handleDownloadCertificate}
-                      sx={{ mt: 2 }}
-                    >
-                      Download Certificate
-                    </Button>
-                  )}
-                </Paper>
-              </>
-            )}
-
             {/* Enrollment sidebar */}
             <Paper sx={{ p: 3, borderRadius: 2, position: { md: 'sticky' }, top: { md: 80 } }}>
               <Typography variant="h6" gutterBottom fontWeight={700}>
@@ -881,36 +607,14 @@ function FlagshipDetail() {
                 )}
 
                 {isEnrolled ? (
-                  learnMode ? (
-                    <Button
-                      variant="outlined"
-                      fullWidth
-                      startIcon={<ExitToAppIcon sx={{ transform: 'rotate(180deg)' }} />}
-                      onClick={() => setLearnMode(false)}
-                    >
-                      Back to Program Info
-                    </Button>
-                  ) : (
-                    hasVideos ? (
-                      <Button
-                        variant="contained"
-                        fullWidth
-                        onClick={() => setLearnMode(true)}
-                        sx={{ bgcolor: '#4CAF50', '&:hover': { bgcolor: '#388E3C' }, fontWeight: 700 }}
-                      >
-                        Continue Learning
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="contained"
-                        fullWidth
-                        onClick={() => navigate(ROUTES.MY_COURSES)}
-                        sx={{ bgcolor: '#4CAF50', '&:hover': { bgcolor: '#388E3C' }, fontWeight: 700 }}
-                      >
-                        Go to My Courses
-                      </Button>
-                    )
-                  )
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={() => navigate(ROUTES.MY_COURSES)}
+                    sx={{ bgcolor: '#4CAF50', '&:hover': { bgcolor: '#388E3C' }, fontWeight: 700 }}
+                  >
+                    Continue Learning
+                  </Button>
                 ) : (
                   <Button
                     variant="contained"
@@ -925,44 +629,8 @@ function FlagshipDetail() {
                   </Button>
                 )}
 
-                {/* Assessment links */}
-                {assessmentLinks.length > 0 && (
-                  <>
-                    <Divider />
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <AssignmentIcon fontSize="small" color="primary" />
-                        <Typography variant="body2" fontWeight={600} color="primary">Assessments</Typography>
-                      </Box>
-                      {assessmentLinks.map((link, i) => {
-                        const isValid = (() => { try { const u = new URL(link.url); return u.protocol === 'http:' || u.protocol === 'https:'; } catch { return false; } })();
-                        if (!isValid) return null;
-                        return (
-                          <Button
-                            key={i}
-                            variant="outlined"
-                            fullWidth
-                            href={link.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            startIcon={<AssignmentIcon />}
-                          >
-                            {link.title || 'Take Assessment'}
-                          </Button>
-                        );
-                      })}
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                        <InfoOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary', mt: 0.2, flexShrink: 0 }} />
-                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-                          Please complete both the Pre-Assessment and Assessment. Your result will be reviewed and the certificate will be issued within 24–48 hours after completion of both.
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </>
-                )}
-
-                {/* Certificate download — shown in sidebar when not in learn mode */}
-                {isEnrolled && !learnMode && enrolledProgramData?.canDownloadCertificate && (
+                {/* Certificate download — shown in sidebar when enrolled */}
+                {isEnrolled && enrolledProgramData?.canDownloadCertificate && (
                   <>
                     <Divider />
                     <Button

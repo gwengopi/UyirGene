@@ -13,11 +13,13 @@ import StarIcon from '@mui/icons-material/Star';
 import { AdminLayout } from '../../components/admin';
 import FlagshipProgramForm from '../../components/admin/FlagshipProgramForm';
 import { flagshipService } from '../../services/flagshipService';
+import { courseService } from '../../services';
 import { useToast } from '../../store';
 
 function FlagshipPrograms() {
   const { showSuccess, showError } = useToast();
   const [programs, setPrograms] = useState([]);
+  const [allCourses, setAllCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -27,8 +29,12 @@ function FlagshipPrograms() {
 
   const load = async () => {
     try {
-      const data = await flagshipService.getAllPrograms();
+      const [data, coursesData] = await Promise.all([
+        flagshipService.getAllPrograms(),
+        courseService.getAdminCourses(),
+      ]);
       setPrograms(data);
+      setAllCourses(coursesData);
     } catch {
       setError('Failed to load flagship programs.');
     } finally {
@@ -192,6 +198,7 @@ function FlagshipPrograms() {
         program={editProgram}
         onClose={() => setFormOpen(false)}
         onSaved={handleSaved}
+        courses={allCourses}
       />
     </AdminLayout>
   );

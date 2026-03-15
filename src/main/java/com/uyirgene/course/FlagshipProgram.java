@@ -104,6 +104,15 @@ public class FlagshipProgram {
     @Builder.Default
     private List<FlagshipVideo> videos = new ArrayList<>();
 
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "flagship_program_course",
+        joinColumns = @JoinColumn(name = "flagship_program_id"),
+        inverseJoinColumns = @JoinColumn(name = "course_id")
+    )
+    @Builder.Default
+    private List<Course> courses = new ArrayList<>();
+
     /**
      * JSON array of section objects.
      * Example: [{"type":"overview","title":"...","items":[...]}, ...]

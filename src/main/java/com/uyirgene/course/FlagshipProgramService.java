@@ -35,6 +35,7 @@ public class FlagshipProgramService {
     private final FlagshipProgramPriceRepository priceRepository;
     private final FlagshipVideoRepository videoRepository;
     private final EnrollmentRepository enrollmentRepo;
+    private final CourseRepository courseRepo;
     private final CurrentUserService currentUserService;
     private final VideoUrlEncryptionService encryptionService;
     private final ObjectMapper objectMapper;
@@ -128,7 +129,8 @@ public class FlagshipProgramService {
                                             String examDetails, String countryPricesJson,
                                             String videosJson, String programCode, Integer reminderDays,
                                             String assessmentLinksJson, String preAssessmentLinksJson,
-                                            String preAssessmentInstructions, String trainingDuration) {
+                                            String preAssessmentInstructions, String trainingDuration,
+                                            String courseIdsJson) {
         String slug = generateSlug(title);
         String code = (programCode != null && !programCode.isBlank())
                 ? programCode.trim().toUpperCase()
@@ -164,8 +166,9 @@ public class FlagshipProgramService {
         FlagshipProgram saved = repository.save(program);
         saveCountryPrices(saved, countryPricesJson);
         saveVideos(saved, videosJson);
+        saveCourses(saved, courseIdsJson);
         // Flush pending inserts/deletes then evict the entity so that the lazy
-        // collections (videos, countryPrices) are re-read fresh from the DB.
+        // collections (videos, countryPrices, courses) are re-read fresh from the DB.
         entityManager.flush();
         entityManager.refresh(saved);
         return FlagshipProgramDto.fromEntity(saved);
@@ -183,7 +186,8 @@ public class FlagshipProgramService {
                                             String examDetails, String countryPricesJson,
                                             String videosJson, String programCode, Integer reminderDays,
                                             String assessmentLinksJson, String preAssessmentLinksJson,
-                                            String preAssessmentInstructions, String trainingDuration) {
+                                            String preAssessmentInstructions, String trainingDuration,
+                                            String courseIdsJson) {
         FlagshipProgram program = repository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Flagship program not found"));
 
@@ -234,6 +238,7 @@ public class FlagshipProgramService {
         FlagshipProgram saved = repository.save(program);
         saveCountryPrices(saved, countryPricesJson);
         saveVideos(saved, videosJson);
+        saveCourses(saved, courseIdsJson);
         entityManager.flush();
         entityManager.refresh(saved);
         return FlagshipProgramDto.fromEntity(saved);
@@ -313,6 +318,19 @@ public class FlagshipProgramService {
             }
         } catch (Exception e) {
             log.warn("Could not parse videos JSON for flagship {}: {}", program.getId(), e.getMessage());
+        }
+    }
+
+    private void saveCourses(FlagshipProgram program, String courseIdsJson) {
+        program.getCourses().clear();
+        entityManager.flush();
+        if (courseIdsJson == null || courseIdsJson.isBlank()) return;
+        try {
+            List<Long> ids = objectMapper.readValue(courseIdsJson, new TypeReference<List<Long>>() {});
+            List<Course> courses = courseRepo.findAllById(ids);
+            program.getCourses().addAll(courses);
+        } catch (Exception e) {
+            log.warn("Could not parse courseIds JSON for flagship {}: {}", program.getId(), e.getMessage());
         }
     }
 
