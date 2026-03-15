@@ -115,9 +115,14 @@ function Register() {
       showSuccess('Account created successfully! Please login.');
       navigate(ROUTES.LOGIN);
     } catch (error) {
-      const message = error.response?.data?.message || error.message || 'Registration failed';
-      setRegisterError(message);
-      showError(message);
+      const data = error.response?.data;
+      const message = data?.message || error.message || 'Registration failed';
+      if (data?.field === 'email') {
+        setErrors((prev) => ({ ...prev, email: message }));
+      } else {
+        setRegisterError(message);
+        showError(message);
+      }
     } finally {
       setLoading(false);
     }

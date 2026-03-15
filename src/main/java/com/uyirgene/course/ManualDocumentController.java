@@ -22,6 +22,7 @@ public class ManualDocumentController {
     // ── Course manuals ────────────────────────────────────────────────────────
 
     @GetMapping("/api/courses/{courseId}/manuals")
+    @PreAuthorize("isAuthenticated()")
     public List<ManualDto> getCourseManuals(@PathVariable Long courseId) {
         return manualRepo.findByCourse_IdOrderByDisplayOrderAscCreatedAtAsc(courseId)
                 .stream().map(ManualDto::from).toList();
@@ -59,6 +60,7 @@ public class ManualDocumentController {
     }
 
     @GetMapping("/api/courses/{courseId}/manuals/{manualId}/download")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<byte[]> downloadCourseManual(
             @PathVariable Long courseId,
             @PathVariable Long manualId) {
@@ -70,6 +72,7 @@ public class ManualDocumentController {
     // ── Flagship manuals ──────────────────────────────────────────────────────
 
     @GetMapping("/api/flagship/{programId}/manuals")
+    @PreAuthorize("isAuthenticated()")
     public List<ManualDto> getFlagshipManuals(@PathVariable Long programId) {
         return manualRepo.findByFlagshipProgram_IdOrderByDisplayOrderAscCreatedAtAsc(programId)
                 .stream().map(ManualDto::from).toList();
@@ -107,6 +110,7 @@ public class ManualDocumentController {
     }
 
     @GetMapping("/api/flagship/{programId}/manuals/{manualId}/download")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<byte[]> downloadFlagshipManual(
             @PathVariable Long programId,
             @PathVariable Long manualId) {

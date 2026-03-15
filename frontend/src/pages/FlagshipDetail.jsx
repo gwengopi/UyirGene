@@ -17,7 +17,6 @@ import QuizIcon from '@mui/icons-material/Quiz';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import DownloadIcon from '@mui/icons-material/Download';
 import CardMembershipIcon from '@mui/icons-material/CardMembership';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { SEO, Breadcrumb } from '../components/common';
 import { VideoPlayer, VideoList, ManualSection } from '../components/course';
 import { ProgressTracker } from '../components/user';
@@ -207,6 +206,7 @@ function FlagshipDetail() {
   const location = useLocation();
   const { isAuthenticated, user } = useAuth();
   const { showError, showSuccess } = useToast();
+  const isAdmin = user?.role === 'ADMIN';
 
   const [learnMode, setLearnMode] = useState(location.state?.mode === 'learn');
 
@@ -260,6 +260,7 @@ function FlagshipDetail() {
             }
           } catch { /* non-critical */ }
         }
+
       } catch {
         if (!cancelled) setError('Failed to load program details.');
       } finally {
@@ -283,6 +284,21 @@ function FlagshipDetail() {
     };
     decrypt();
   }, [currentVideo]);
+
+  // Load videos for admin — runs once isAdmin resolves (user hydrates from auth context)
+  useEffect(() => {
+    if (!isAdmin) return;
+    const loadAdminVideos = async () => {
+      try {
+        const videosData = await flagshipService.getVideos(id);
+        setVideos(videosData);
+        const progress = await flagshipService.getMultipleVideoProgress(videosData.map((v) => v.id));
+        setProgressMap(progress);
+        setCurrentVideo(videosData.find((v) => !progress[v.id]?.completed) || videosData[0]);
+      } catch {}
+    };
+    loadAdminVideos();
+  }, [id, isAdmin]); // eslint-disable-line
 
   const handleEnroll = useCallback(async () => {
     if (!isAuthenticated()) {
@@ -571,7 +587,7 @@ function FlagshipDetail() {
         <Grid container spacing={4} sx={{ mt: 0.5 }}>
           {/* Left: video player (learn mode) OR content sections */}
           <Grid item xs={12} md={8}>
-            {isEnrolled && learnMode && hasVideos ? (
+            {(isEnrolled || isAdmin) && learnMode && hasVideos ? (
               <>
                 {currentVideo && currentVideoUrl ? (
                   <VideoPlayer
@@ -595,7 +611,7 @@ function FlagshipDetail() {
                     </Typography>
                     {progressMap[currentVideo.id]?.completed && (
                       <Chip
-                        icon={<CheckCircleIcon />}
+                        icon={<CheckCircleOutlineIcon />}
                         label="Completed"
                         color="success"
                         variant="outlined"
@@ -777,14 +793,15 @@ function FlagshipDetail() {
             )}
 
             {/* Learn mode: video list + progress */}
-            {isEnrolled && learnMode && hasVideos && (
+            {(isEnrolled || isAdmin) && learnMode && hasVideos && (
               <>
                 <Paper sx={{ mb: 3, borderRadius: 2, overflow: 'hidden' }}>
                   <Box
                     sx={{
                       p: 2,
                       pb: 1.5,
-                      background: 'linear-gradient(135deg, #7B2D8B, #5C1D6B)',
+                      background: (theme) =>
+                        `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
                     }}
                   >
                     <Typography variant="h6" sx={{ color: '#fff', fontWeight: 600 }}>Course Content</Typography>

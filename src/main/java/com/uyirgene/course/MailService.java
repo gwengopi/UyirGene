@@ -476,7 +476,7 @@ public class MailService {
                 (course.getDescription() == null ? "" : truncate(course.getDescription(), 200)));
         tpl = tpl.replace("{{courseCode}}", course.getCourseCode() != null ? course.getCourseCode() : "");
         tpl = tpl.replace("{{trainerName}}", course.getTrainerName() != null ? course.getTrainerName() : "");
-        tpl = tpl.replace("{{courseUrl}}", baseUrl + "/courses/" + course.getId());
+        tpl = tpl.replace("{{courseUrl}}", baseUrl + "/my-courses");
         tpl = tpl.replace("{{appName}}", appName);
         tpl = tpl.replace("{{content}}", content != null ? content : "");
         return tpl;
@@ -599,7 +599,7 @@ public class MailService {
             </body>
             </html>
             """, appName, user.getName() != null ? user.getName() : user.getEmail(),
-            course.getTitle(), baseUrl + "/courses/" + course.getId(), appName);
+            course.getTitle(), baseUrl + "/my-courses", appName);
     }
 
     private String buildFallbackCompletionHtml(User user, Course course, Double marks, String certificateType) {
@@ -697,7 +697,7 @@ public class MailService {
                 <p>Happy learning!<br>The %s Team</p>
                 </body></html>
                 """, appName, user.getName() != null ? user.getName() : user.getEmail(),
-                program.getTitle(), baseUrl + "/flagship/" + program.getId(), appName);
+                program.getTitle(), baseUrl + "/my-courses", appName);
         }
         tpl = tpl.replace("{{name}}", user.getName() == null ? user.getEmail() : user.getName());
         tpl = tpl.replace("{{courseTitle}}", safe(program.getTitle()));
@@ -705,7 +705,7 @@ public class MailService {
                 (program.getCardDescription() != null ? program.getCardDescription() : ""));
         tpl = tpl.replace("{{courseCode}}", safe(program.getProgramCode()));
         tpl = tpl.replace("{{trainerName}}", program.getTrainerName() != null ? program.getTrainerName() : "");
-        tpl = tpl.replace("{{courseUrl}}", baseUrl + "/flagship/" + program.getId());
+        tpl = tpl.replace("{{courseUrl}}", baseUrl + "/my-courses");
         tpl = tpl.replace("{{appName}}", appName);
         tpl = tpl.replace("{{content}}", content != null ? content : "");
         return tpl;
@@ -770,14 +770,14 @@ public class MailService {
             tpl = tpl.replace("{{name}}", user.getName() == null ? user.getEmail() : user.getName());
             tpl = tpl.replace("{{courseTitle}}", safe(course.getTitle()));
             tpl = tpl.replace("{{courseCode}}", safe(course.getCourseCode()));
-            tpl = tpl.replace("{{courseUrl}}", baseUrl + "/courses/" + course.getId());
+            tpl = tpl.replace("{{courseUrl}}", baseUrl + "/my-courses");
             tpl = tpl.replace("{{dashboardUrl}}", baseUrl + "/my-courses");
             tpl = tpl.replace("{{appName}}", appName);
             tpl = tpl.replace("{{content}}", content != null ? content : "");
             return tpl;
         }
         String name = user.getName() != null ? user.getName() : user.getEmail();
-        String courseUrl = baseUrl + "/courses/" + course.getId();
+        String courseUrl = baseUrl + "/my-courses";
         return String.format("""
             <html>
             <body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
@@ -824,14 +824,14 @@ public class MailService {
             tpl = tpl.replace("{{name}}", user.getName() == null ? user.getEmail() : user.getName());
             tpl = tpl.replace("{{courseTitle}}", safe(program.getTitle()));
             tpl = tpl.replace("{{courseCode}}", safe(program.getProgramCode()));
-            tpl = tpl.replace("{{courseUrl}}", baseUrl + "/flagship/" + program.getId());
+            tpl = tpl.replace("{{courseUrl}}", baseUrl + "/my-courses");
             tpl = tpl.replace("{{dashboardUrl}}", baseUrl + "/my-courses");
             tpl = tpl.replace("{{appName}}", appName);
             tpl = tpl.replace("{{content}}", content != null ? content : "");
             return tpl;
         }
         String name = user.getName() != null ? user.getName() : user.getEmail();
-        String programUrl = baseUrl + "/flagship/" + program.getId();
+        String programUrl = baseUrl + "/my-courses";
         return String.format("""
             <html>
             <body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">

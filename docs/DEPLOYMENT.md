@@ -151,6 +151,157 @@ curl http://localhost:80
 
 ---
 
+## AWS EC2 Deployment (Step-by-Step)
+
+> This section covers the full deployment workflow for the live server at `ubuntu@ip-172-31-38-116`.
+
+### Swap Management
+
+#### One-time swap setup (first time only)
+```bash
+# Check if swap exists
+free -h
+swapon --show
+
+# If no swap or swap < 2GB, create 2GB swap
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+# Make it persistent across reboots
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+# Verify
+free -h
+```
+
+#### Increase existing swap (e.g. 1GB → 2GB)
+```bash
+# Step 1: Create new 2GB swapfile
+sudo fallocate -l 2G /swapfile2
+sudo chmod 600 /swapfile2
+sudo mkswap /swapfile2
+sudo swapon /swapfile2
+
+# Step 2: Turn off old swapfile (now safe — new swap absorbs pages)
+sudo swapoff /swapfile
+
+# Step 3: Delete old swapfile
+sudo rm /swapfile
+
+# Step 4: Turn off new swap, rename, re-enable
+sudo swapoff /swapfile2
+sudo mv /swapfile2 /swapfile
+sudo swapon /swapfile
+
+# Step 5: Update fstab
+sudo sed -i 's|/swapfile2|/swapfile|g' /etc/fstab
+# If no entry exists yet:
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+# Verify
+free -h
+```
+
+> **Note:** If `swapoff` gets **Killed**, the server is too low on RAM to absorb swap pages.
+> In that case, create the new swapfile first (steps 1–2), then retry `swapoff` on the old one.
+
+---
+
+### Deploy Latest Code
+
+#### Step 1: SSH into server
+```bash
+ssh ubuntu@ip-172-31-38-116
+cd ~/UyirGene
+```
+
+#### Step 2: Pull latest code
+```bash
+git pull origin main
+```
+
+#### Step 3: Check resources before building
+```bash
+free -h           # RAM + swap
+df -h /           # disk space
+docker system df  # docker disk usage
+```
+
+#### Step 4: Free up space/memory (if needed)
+```bash
+# Remove unused docker images, containers, networks
+docker system prune -f
+
+# Remove old build cache (aggressive — frees most space)
+docker builder prune -f
+```
+
+#### Step 5: Rebuild and restart backend + frontend
+```bash
+docker compose -f docker-compose.prod.yml up -d --build backend frontend
+```
+> Leaves `db` and `certbot` containers untouched.
+
+#### Step 6: Watch logs to confirm startup
+```bash
+# Both services
+docker compose -f docker-compose.prod.yml logs -f backend frontend
+
+# Backend only (watch for "Started UyirgeneApplication" message)
+docker compose -f docker-compose.prod.yml logs -f backend
+```
+> Backend takes ~60–90 seconds to start (Spring Boot + Flyway migrations).
+
+#### Step 7: Verify all containers are running
+```bash
+docker compose -f docker-compose.prod.yml ps
+```
+All containers should show `healthy` or `Up`.
+
+#### Step 8: Health check
+```bash
+curl -s http://localhost:8080/actuator/health | python3 -m json.tool
+```
+Expected: `{"status": "UP"}`
+
+---
+
+### Rollback (if something breaks)
+```bash
+# Check recent commits
+git log --oneline -5
+
+# Roll back to a previous commit
+git checkout <previous-commit-hash>
+
+# Rebuild with old code
+docker compose -f docker-compose.prod.yml up -d --build backend frontend
+```
+
+---
+
+### Useful Commands
+```bash
+# Restart a single service without rebuild
+docker compose -f docker-compose.prod.yml restart backend
+
+# Stop everything
+docker compose -f docker-compose.prod.yml down
+
+# View backend logs (last 100 lines)
+docker compose -f docker-compose.prod.yml logs --tail=100 backend
+
+# Get a shell inside the backend container
+docker exec -it uyirgene-backend sh
+
+# Connect to the database
+docker exec -it uyirgene-db psql -U $DB_USERNAME -d UyirGene
+```
+
+---
+
 ## Cloud Platform Specific Instructions
 
 ### AWS Deployment

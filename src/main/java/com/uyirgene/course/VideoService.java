@@ -2,6 +2,7 @@ package com.uyirgene.course;
 
 import com.uyirgene.course.dto.VideoDto;
 import com.uyirgene.user.CurrentUserService;
+import com.uyirgene.user.Role;
 import com.uyirgene.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,12 +27,14 @@ public class VideoService {
                 .orElseThrow(() -> new IllegalArgumentException("Course not found"));
         User user = currentUserService.getCurrentUser();
 
-        // Check enrollment
-        Enrollment enrollment = enrollmentRepo.findByUserAndCourse(user, course).orElse(null);
-        if (enrollment == null ||
-            (enrollment.getStatus() != Enrollment.Status.ENROLLED &&
-             enrollment.getStatus() != Enrollment.Status.COMPLETED)) {
-            throw new SecurityException("User not enrolled in course");
+        // Admin bypasses enrollment check
+        if (user.getRole() != Role.ADMIN) {
+            Enrollment enrollment = enrollmentRepo.findByUserAndCourse(user, course).orElse(null);
+            if (enrollment == null ||
+                (enrollment.getStatus() != Enrollment.Status.ENROLLED &&
+                 enrollment.getStatus() != Enrollment.Status.COMPLETED)) {
+                throw new SecurityException("User not enrolled in course");
+            }
         }
 
         return videoRepo.findByCourseOrderByOrderIndex(course).stream()

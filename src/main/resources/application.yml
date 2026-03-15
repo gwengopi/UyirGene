@@ -6,7 +6,7 @@ spring:
   servlet:
     multipart:
       max-file-size: 25MB
-      max-request-size: 30MB
+      max-request-size: 50MB
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/UyirGene}
     username: ${DB_USERNAME:postgres}

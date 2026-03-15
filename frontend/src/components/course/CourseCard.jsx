@@ -184,7 +184,12 @@ const CourseCard = memo(function CourseCard({
       {/* Actions */}
       <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
         <Typography variant="h6" color="primary" fontWeight={600}>
-          {formatCurrency(course.price)}
+          {(() => {
+            const usCp = course.countryPrices?.find((p) => p.countryCode === 'US');
+            const amt = usCp ? usCp.amount : course.price;
+            const cur = usCp ? usCp.currencyCode : 'INR';
+            return formatCurrency(amt, cur);
+          })()}
         </Typography>
         <Button
           variant="contained"

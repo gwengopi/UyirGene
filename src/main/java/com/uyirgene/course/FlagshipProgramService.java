@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uyirgene.course.dto.VideoDto;
 import com.uyirgene.exception.EntityNotFoundException;
 import com.uyirgene.user.CurrentUserService;
+import com.uyirgene.user.Role;
 import com.uyirgene.user.User;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -86,11 +87,14 @@ public class FlagshipProgramService {
                 .orElseThrow(() -> new EntityNotFoundException("Flagship program not found"));
 
         User user = currentUserService.getCurrentUser();
-        Optional<Enrollment> enrollment = enrollmentRepo.findByUserAndFlagshipProgram(user, program);
-        if (enrollment.isEmpty() ||
-                (enrollment.get().getStatus() != Enrollment.Status.ENROLLED &&
-                 enrollment.get().getStatus() != Enrollment.Status.COMPLETED)) {
-            throw new SecurityException("User not enrolled in this flagship program");
+        // Admin bypasses enrollment check
+        if (user.getRole() != Role.ADMIN) {
+            Optional<Enrollment> enrollment = enrollmentRepo.findByUserAndFlagshipProgram(user, program);
+            if (enrollment.isEmpty() ||
+                    (enrollment.get().getStatus() != Enrollment.Status.ENROLLED &&
+                     enrollment.get().getStatus() != Enrollment.Status.COMPLETED)) {
+                throw new SecurityException("User not enrolled in this flagship program");
+            }
         }
 
         return videoRepository.findByProgramIdOrderByOrderIndexAsc(programId).stream()

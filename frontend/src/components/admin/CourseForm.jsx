@@ -1,9 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Typography, Grid, Card, CardMedia, IconButton, Divider, Alert, Autocomplete, TextField } from '@mui/material';
+import { Box, Typography, Grid, Card, CardMedia, IconButton, Divider, Alert, Autocomplete, TextField, CircularProgress, InputAdornment, Collapse } from '@mui/material';
+import PublicIcon from '@mui/icons-material/Public';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import SearchIcon from '@mui/icons-material/Search';
 import ImageIcon from '@mui/icons-material/Image';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import DescriptionIcon from '@mui/icons-material/Description';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import { FormField, Select, Checkbox, Button } from '../common';
 import ManualSection from '../course/ManualSection';
 import { validateForm, hasErrors } from '../../utils/validators';
@@ -51,6 +60,9 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
 
   // Country pricing state - array of { countryCode, currencyCode, amount }
   const [countryPrices, setCountryPrices] = useState([]);
+  const [convertingPrices, setConvertingPrices] = useState(false);
+  const [showCountries, setShowCountries] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
   const [errors, setErrors] = useState({});
 
   // Videos state - array of video objects
@@ -64,6 +76,12 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
   const [descriptionImageFile, setDescriptionImageFile] = useState(null);
   const [descriptionImagePreview, setDescriptionImagePreview] = useState(null);
   const [removeDescriptionImage, setRemoveDescriptionImage] = useState(false);
+
+  // Pending manuals (for new course — uploaded after course is created)
+  const [pendingManuals, setPendingManuals] = useState([]);
+  const [newManualLabel, setNewManualLabel] = useState('');
+  const [newManualFile, setNewManualFile] = useState(null);
+  const newManualFileRef = useRef(null);
 
   useEffect(() => {
     if (course) {
@@ -182,19 +200,24 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
 
   const removeVideo = (index) => {
     if (videos.length === 1) {
-      // Keep at least one empty video field
       setVideos([{ title: '', url: '', durationSeconds: '' }]);
     } else {
-      const newVideos = videos.filter((_, i) => i !== index);
-      setVideos(newVideos);
+      setVideos(videos.filter((_, i) => i !== index));
     }
+  };
+
+  const moveVideo = (index, direction) => {
+    const next = index + direction;
+    if (next < 0 || next >= videos.length) return;
+    const reordered = [...videos];
+    [reordered[index], reordered[next]] = [reordered[next], reordered[index]];
+    setVideos(reordered);
   };
 
   // Country price handlers
   const addCountryPrice = () => {
-    // Find first country not yet added (excluding India)
     const usedCodes = countryPrices.map(cp => cp.countryCode);
-    const available = SUPPORTED_COUNTRIES.filter(c => c.code !== 'IN' && !usedCodes.includes(c.code));
+    const available = SUPPORTED_COUNTRIES.filter(c => c.code !== 'IN' && c.code !== 'US' && !usedCodes.includes(c.code));
     if (available.length === 0) return;
     const next = available[0];
     setCountryPrices([...countryPrices, { countryCode: next.code, currencyCode: next.currency, amount: '' }]);
@@ -213,6 +236,49 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
       updated[index] = { ...updated[index], [field]: value };
     }
     setCountryPrices(updated);
+  };
+
+  // USD price helpers
+  const usdAmount = countryPrices.find(cp => cp.countryCode === 'US')?.amount || '';
+  const handleUsdPriceChange = (val) => {
+    const entry = { countryCode: 'US', currencyCode: 'USD', amount: val };
+    setCountryPrices(prev => [...prev.filter(cp => cp.countryCode !== 'US'), entry]);
+  };
+
+  const roundForCurrency = (amount, currency) => {
+    if (['JPY', 'KRW', 'IDR', 'VND', 'CLP', 'ISK', 'HUF', 'TWD', 'COP', 'IQD', 'IRR'].includes(currency))
+      return Math.round(amount).toString();
+    if (['BHD', 'KWD', 'JOD', 'OMR'].includes(currency))
+      return (Math.round(amount * 1000) / 1000).toString();
+    return (Math.round(amount * 100) / 100).toString();
+  };
+
+  const handleConvertAll = async () => {
+    const usd = parseFloat(usdAmount);
+    if (!usd || usd <= 0) return;
+    setConvertingPrices(true);
+    try {
+      const res = await fetch('https://open.er-api.com/v6/latest/USD');
+      const data = await res.json();
+      const rates = data.rates;
+      const newPrices = SUPPORTED_COUNTRIES
+        .filter(c => c.code !== 'IN')
+        .map(c => {
+          const rate = rates[c.currency];
+          if (!rate) return null;
+          return { countryCode: c.code, currencyCode: c.currency, amount: roundForCurrency(usd * rate, c.currency) };
+        })
+        .filter(Boolean);
+      setCountryPrices(newPrices);
+      const inrRate = rates['INR'];
+      if (inrRate) setFormData(prev => ({ ...prev, price: Math.round(usd * inrRate).toString() }));
+      setShowCountries(true);
+      setCountrySearch('');
+    } catch {
+      alert('Failed to fetch exchange rates. Please check your connection and try again.');
+    } finally {
+      setConvertingPrices(false);
+    }
   };
 
   // Key Component handlers
@@ -300,23 +366,26 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
     setPreAssessmentLinks(updated);
   };
 
-  const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+  const MAX_THUMBNAIL_SIZE = 5 * 1024 * 1024;  // 5MB
+  const MAX_DETAIL_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 
   // Image handlers
   const handleImageSelect = (e, type) => {
     const file = e.target.files?.[0];
     if (file) {
       const errorKey = type === 'thumbnail' ? 'thumbnailImage' : 'descriptionImage';
+      const maxSize = type === 'thumbnail' ? MAX_THUMBNAIL_SIZE : MAX_DETAIL_IMAGE_SIZE;
+      const maxSizeMBLabel = type === 'thumbnail' ? '5MB' : '10MB';
 
       // Validate file type
       if (!file.type.startsWith('image/')) {
         setErrors((prev) => ({ ...prev, [errorKey]: 'Please select a valid image file (JPG, PNG, etc.)' }));
         return;
       }
-      // Validate file size (max 5MB)
-      if (file.size > MAX_IMAGE_SIZE) {
+      // Validate file size
+      if (file.size > maxSize) {
         const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-        setErrors((prev) => ({ ...prev, [errorKey]: `Image size (${sizeMB}MB) exceeds the 5MB limit. Please compress or resize the image.` }));
+        setErrors((prev) => ({ ...prev, [errorKey]: `Image size (${sizeMB}MB) exceeds the ${maxSizeMBLabel} limit. Please compress or resize the image.` }));
         return;
       }
 
@@ -370,6 +439,18 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
         return next;
       });
     }
+  };
+
+  const addPendingManual = () => {
+    if (!newManualFile || !newManualLabel.trim()) return;
+    setPendingManuals((prev) => [...prev, { label: newManualLabel.trim(), file: newManualFile }]);
+    setNewManualLabel('');
+    setNewManualFile(null);
+    if (newManualFileRef.current) newManualFileRef.current.value = '';
+  };
+
+  const removePendingManual = (idx) => {
+    setPendingManuals((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const handleSubmit = (e) => {
@@ -466,6 +547,7 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
       descriptionImage: descriptionImageFile,
       removeThumbnailImage: removeThumbnail,
       removeDescriptionImage: removeDescriptionImage,
+      pendingManuals,
     });
   };
 
@@ -666,7 +748,7 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
                 </Typography>
               ) : (
                 <Typography variant="body2" color="text.secondary" sx={{ display: 'block' }}>
-                  Recommended: 1200x675 pixels (16:9 ratio). Max size: 5MB.
+                  Recommended: 1200x675 pixels (16:9 ratio). Max size: 10MB.
                 </Typography>
               )}
             </Grid>
@@ -953,20 +1035,6 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
 
         <Grid item xs={12} sm={6}>
           <FormField
-            name="price"
-            label="Price (INR)"
-            type="number"
-            value={formData.price}
-            onChange={handleChange}
-            error={errors.price}
-            placeholder="Leave empty for free"
-            helperText="Leave empty or 0 for free courses"
-            inputProps={{ min: 0, step: 0.01 }}
-          />
-        </Grid>
-
-        <Grid item xs={12} sm={6}>
-          <FormField
             name="displayOrder"
             label="Display Order"
             type="number"
@@ -990,90 +1058,163 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
         {/* Country Pricing Section */}
         <Grid item xs={12}>
           <Divider sx={{ my: 2 }} />
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Box>
-              <Typography variant="subtitle1" fontWeight={600}>
-                Country Pricing (Optional)
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Set prices for different countries. India (INR) uses the default price above.
-              </Typography>
-            </Box>
+          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>Pricing</Typography>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end', flexWrap: 'wrap', mb: 2 }}>
+            <TextField
+              label="US Price (USD)"
+              type="number"
+              value={usdAmount}
+              onChange={(e) => handleUsdPriceChange(e.target.value)}
+              size="small"
+              sx={{ width: 180 }}
+              placeholder="e.g. 99"
+              inputProps={{ min: 0, step: 0.01 }}
+              InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
+            />
+            <TextField
+              label="India Price (INR)"
+              type="number"
+              value={formData.price}
+              onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+              size="small"
+              sx={{ width: 180 }}
+              placeholder="e.g. 8299"
+              inputProps={{ min: 0, step: 1 }}
+              InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }}
+            />
+            <Button
+              variant="contained"
+              color="secondary"
+              size="medium"
+              startIcon={convertingPrices ? <CircularProgress size={14} color="inherit" /> : <PublicIcon />}
+              onClick={handleConvertAll}
+              disabled={!usdAmount || convertingPrices}
+            >
+              {convertingPrices ? 'Converting…' : 'Convert to all countries'}
+            </Button>
             <Button
               variant="outlined"
               startIcon={<AddIcon />}
               onClick={addCountryPrice}
-              size="small"
-              disabled={countryPrices.length >= SUPPORTED_COUNTRIES.filter(c => c.code !== 'IN').length}
+              size="medium"
+              disabled={countryPrices.filter(cp => cp.countryCode !== 'US').length >= SUPPORTED_COUNTRIES.filter(c => c.code !== 'IN').length - 1}
             >
               Add Country
             </Button>
           </Box>
         </Grid>
 
-        {countryPrices.map((cp, index) => {
-          const usedCodes = countryPrices.map(p => p.countryCode);
-          const availableCountries = SUPPORTED_COUNTRIES.filter(
-            c => c.code !== 'IN' && (c.code === cp.countryCode || !usedCodes.includes(c.code))
-          );
-          const selectedCountry = SUPPORTED_COUNTRIES.find(c => c.code === cp.countryCode) || null;
-
-          return (
-            <Grid item xs={12} key={index}>
+        {/* Country prices collapsible panel */}
+        {countryPrices.filter(cp => cp.countryCode !== 'US').length > 0 && (
+          <Grid item xs={12}>
+            <Box
+              sx={{
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 2,
+                overflow: 'hidden',
+              }}
+            >
+              {/* Panel header */}
               <Box
                 sx={{
-                  p: 2,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 1,
-                  bgcolor: 'background.default',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  px: 2, py: 1.5, bgcolor: 'background.default', cursor: 'pointer',
+                  '&:hover': { bgcolor: 'action.hover' },
                 }}
+                onClick={() => setShowCountries(v => !v)}
               >
-                <Grid container spacing={2} alignItems="center">
-                  <Grid item xs={12} sm={5}>
-                    <Autocomplete
-                      options={availableCountries}
-                      getOptionLabel={(option) => {
-                        if (!option || typeof option === 'string') return option || '';
-                        return `${option.name} (${option.currency})`;
-                      }}
-                      value={selectedCountry}
-                      onChange={(_, newValue) => {
-                        if (newValue) handleCountryPriceChange(index, 'countryCode', newValue.code);
-                      }}
-                      renderInput={(params) => (
-                        <TextField {...params} label="Country" size="small" />
-                      )}
-                      isOptionEqualToValue={(option, value) => option?.code === value?.code}
-                      disableClearable
-                      size="small"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={5}>
-                    <FormField
-                      name={`countryAmount-${index}`}
-                      label={`Price (${selectedCountry?.currency || ''})`}
-                      type="number"
-                      value={cp.amount}
-                      onChange={(e) => handleCountryPriceChange(index, 'amount', e.target.value)}
-                      placeholder="Enter price"
-                      size="small"
-                      inputProps={{ min: 0, step: 0.01 }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={2}>
-                    <IconButton
-                      color="error"
-                      onClick={() => removeCountryPrice(index)}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </Grid>
-                </Grid>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <PublicIcon fontSize="small" color="action" />
+                  <Typography variant="body2" fontWeight={600}>
+                    {countryPrices.filter(cp => cp.countryCode !== 'US').length} countries configured
+                  </Typography>
+                </Box>
+                <IconButton size="small">
+                  {showCountries ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                </IconButton>
               </Box>
-            </Grid>
-          );
-        })}
+
+              <Collapse in={showCountries}>
+                {/* Search bar */}
+                <Box sx={{ px: 2, pt: 1.5, pb: 1 }}>
+                  <TextField
+                    placeholder="Search country..."
+                    value={countrySearch}
+                    onChange={(e) => setCountrySearch(e.target.value)}
+                    size="small"
+                    fullWidth
+                    InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+                  />
+                </Box>
+
+                {/* Scrollable list */}
+                <Box sx={{ maxHeight: 360, overflowY: 'auto', px: 2, pb: 1.5 }}>
+                  {countryPrices
+                    .filter(cp => cp.countryCode !== 'US')
+                    .filter(cp => {
+                      if (!countrySearch.trim()) return true;
+                      const q = countrySearch.toLowerCase();
+                      const country = SUPPORTED_COUNTRIES.find(c => c.code === cp.countryCode);
+                      return (
+                        country?.name.toLowerCase().includes(q) ||
+                        cp.countryCode.toLowerCase().includes(q) ||
+                        cp.currencyCode.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((cp) => {
+                      const realIndex = countryPrices.findIndex(p => p === cp);
+                      const country = SUPPORTED_COUNTRIES.find(c => c.code === cp.countryCode);
+                      return (
+                        <Box
+                          key={realIndex}
+                          sx={{
+                            display: 'flex', alignItems: 'center', gap: 1.5,
+                            py: 0.75, borderBottom: '1px solid', borderColor: 'divider',
+                            '&:last-child': { borderBottom: 'none' },
+                          }}
+                        >
+                          <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }} noWrap>
+                            {country?.name || cp.countryCode}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ width: 36, flexShrink: 0 }}>
+                            {cp.currencyCode}
+                          </Typography>
+                          <TextField
+                            type="number"
+                            value={cp.amount}
+                            onChange={(e) => handleCountryPriceChange(realIndex, 'amount', e.target.value)}
+                            size="small"
+                            sx={{ width: 110, flexShrink: 0 }}
+                            inputProps={{ min: 0, step: 0.01, style: { textAlign: 'right' } }}
+                          />
+                          <IconButton size="small" color="error" onClick={() => removeCountryPrice(realIndex)}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      );
+                    })}
+                  {countryPrices
+                    .filter(cp => cp.countryCode !== 'US')
+                    .filter(cp => {
+                      if (!countrySearch.trim()) return false;
+                      const q = countrySearch.toLowerCase();
+                      const country = SUPPORTED_COUNTRIES.find(c => c.code === cp.countryCode);
+                      return !(
+                        country?.name.toLowerCase().includes(q) ||
+                        cp.countryCode.toLowerCase().includes(q) ||
+                        cp.currencyCode.toLowerCase().includes(q)
+                      );
+                    }).length === countryPrices.filter(cp => cp.countryCode !== 'US').length && countrySearch.trim() && (
+                    <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+                      No countries match "{countrySearch}"
+                    </Typography>
+                  )}
+                </Box>
+              </Collapse>
+            </Box>
+          </Grid>
+        )}
 
         {/* Assessment Links Section */}
         <Grid item xs={12}>
@@ -1217,75 +1358,195 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
             <Grid item xs={12}>
               <Box
                 sx={{
-                  p: 2,
+                  display: 'flex',
+                  gap: 0,
                   border: '1px solid',
                   borderColor: 'divider',
-                  borderRadius: 1,
-                  bgcolor: 'background.default',
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  bgcolor: 'background.paper',
+                  transition: 'box-shadow 0.15s',
+                  '&:hover': { boxShadow: '0 2px 8px rgba(0,0,0,0.08)' },
                 }}
               >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Video {index + 1}
-                  </Typography>
+                {/* Order strip */}
+                <Box
+                  sx={{
+                    width: 42,
+                    flexShrink: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 0.5,
+                    bgcolor: (theme) =>
+                      theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'grey.100',
+                    borderRight: '1px solid',
+                    borderColor: 'divider',
+                    py: 1,
+                  }}
+                >
                   <IconButton
                     size="small"
-                    color="error"
-                    onClick={() => removeVideo(index)}
-                    disabled={videos.length === 1 && !video.url}
+                    onClick={() => moveVideo(index, -1)}
+                    disabled={index === 0}
+                    sx={{ p: 0.3, color: index === 0 ? 'action.disabled' : 'text.secondary' }}
                   >
-                    <DeleteIcon fontSize="small" />
+                    <ArrowUpwardIcon sx={{ fontSize: 15 }} />
+                  </IconButton>
+
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <DragIndicatorIcon sx={{ fontSize: 16, color: 'action.disabled' }} />
+                    <Typography
+                      variant="caption"
+                      sx={{ fontSize: '0.65rem', fontWeight: 700, color: 'text.disabled', lineHeight: 1 }}
+                    >
+                      {index + 1}
+                    </Typography>
+                  </Box>
+
+                  <IconButton
+                    size="small"
+                    onClick={() => moveVideo(index, 1)}
+                    disabled={index === videos.length - 1}
+                    sx={{ p: 0.3, color: index === videos.length - 1 ? 'action.disabled' : 'text.secondary' }}
+                  >
+                    <ArrowDownwardIcon sx={{ fontSize: 15 }} />
                   </IconButton>
                 </Box>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={5}>
-                    <FormField
-                      name={`videoTitle-${index}`}
-                      label="Video Title"
-                      value={video.title}
-                      onChange={(e) => handleVideoChange(index, 'title', e.target.value)}
-                      placeholder="e.g., Introduction to the Course"
+
+                {/* Fields */}
+                <Box sx={{ flex: 1, p: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                    <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Video {index + 1}
+                    </Typography>
+                    <IconButton
                       size="small"
-                    />
+                      color="error"
+                      onClick={() => removeVideo(index)}
+                      disabled={videos.length === 1 && !video.url}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={5}>
+                      <FormField
+                        name={`videoTitle-${index}`}
+                        label="Video Title"
+                        value={video.title}
+                        onChange={(e) => handleVideoChange(index, 'title', e.target.value)}
+                        placeholder="e.g., Introduction to the Course"
+                        size="small"
+                      />
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <FormField
+                        name={`videoDuration-${index}`}
+                        label="Duration (seconds)"
+                        type="number"
+                        value={video.durationSeconds}
+                        onChange={(e) => handleVideoChange(index, 'durationSeconds', e.target.value)}
+                        placeholder="e.g. 3600"
+                        size="small"
+                        helperText="For 80% completion tracking"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <FormField
+                        name={`videoUrl-${index}`}
+                        label="Video URL"
+                        value={video.url}
+                        onChange={(e) => handleVideoChange(index, 'url', e.target.value)}
+                        placeholder="YouTube / Google Drive / direct URL"
+                        size="small"
+                      />
+                    </Grid>
                   </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <FormField
-                      name={`videoDuration-${index}`}
-                      label="Duration (seconds)"
-                      type="number"
-                      value={video.durationSeconds}
-                      onChange={(e) => handleVideoChange(index, 'durationSeconds', e.target.value)}
-                      placeholder="e.g. 3600"
-                      size="small"
-                      helperText="For 80% completion tracking on Drive/Vimeo"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <FormField
-                      name={`videoUrl-${index}`}
-                      label="Video URL"
-                      value={video.url}
-                      onChange={(e) => handleVideoChange(index, 'url', e.target.value)}
-                      placeholder="https://www.youtube.com/watch?v=... or Google Drive link"
-                      size="small"
-                    />
-                  </Grid>
-                </Grid>
+                </Box>
               </Box>
             </Grid>
           </React.Fragment>
         ))}
       </Grid>
 
-      {/* Manuals — only available when editing an existing course */}
-      {course?.id && (
-        <Box sx={{ mt: 4 }}>
-          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>
-            Manuals &amp; Documents
-          </Typography>
+      {/* Manuals & Documents */}
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>
+          Manuals &amp; Documents
+        </Typography>
+
+        {course?.id ? (
+          /* Editing: live upload / delete via ManualSection */
           <ManualSection courseId={course.id} isAdmin title="Manuals &amp; Documents" />
-        </Box>
-      )}
+        ) : (
+          /* Creating: queue files locally — uploaded after course is saved */
+          <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Add manuals below. They will be uploaded once the course is created.
+            </Typography>
+
+            {/* Queued list */}
+            {pendingManuals.map((m, idx) => (
+              <Box
+                key={idx}
+                sx={{
+                  display: 'flex', alignItems: 'center', gap: 1,
+                  py: 1, borderBottom: '1px solid', borderColor: 'divider',
+                }}
+              >
+                {m.file.type?.includes('pdf')
+                  ? <PictureAsPdfIcon color="error" sx={{ fontSize: 20, flexShrink: 0 }} />
+                  : <DescriptionIcon color="action" sx={{ fontSize: 20, flexShrink: 0 }} />}
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="body2" fontWeight={500} noWrap>{m.label}</Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap>{m.file.name}</Typography>
+                </Box>
+                <IconButton size="small" color="error" onClick={() => removePendingManual(idx)}>
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            ))}
+
+            {/* Add row */}
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center', mt: 2 }}>
+              <TextField
+                size="small"
+                label="Document label"
+                value={newManualLabel}
+                onChange={(e) => setNewManualLabel(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPendingManual(); } }}
+                sx={{ minWidth: 180, flex: 1 }}
+              />
+              <Button
+                size="small"
+                variant="outlined"
+                component="label"
+                sx={{ whiteSpace: 'nowrap' }}
+              >
+                {newManualFile ? newManualFile.name : 'Choose file'}
+                <input
+                  ref={newManualFileRef}
+                  type="file"
+                  hidden
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                  onChange={(e) => setNewManualFile(e.target.files[0] || null)}
+                />
+              </Button>
+              <Button
+                size="small"
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={addPendingManual}
+                disabled={!newManualFile || !newManualLabel.trim()}
+              >
+                Add
+              </Button>
+            </Box>
+          </Box>
+        )}
+      </Box>
 
       {hasErrors(errors) && (
         <Alert severity="error" sx={{ mt: 3 }}>

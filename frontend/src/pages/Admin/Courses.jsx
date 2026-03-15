@@ -4,6 +4,7 @@ import AddIcon from '@mui/icons-material/Add';
 import { AdminLayout, CourseManager, CourseForm } from '../../components/admin';
 import { Button, Modal, LoadingSpinner } from '../../components/common';
 import { courseService } from '../../services';
+import manualService from '../../services/manualService';
 import { useToast } from '../../store';
 
 function AdminCourses() {
@@ -88,14 +89,26 @@ function AdminCourses() {
         await courseService.updateCourse(editingCourse.id, courseData, imageOptions);
         showSuccess('Course updated successfully');
       } else {
-        await courseService.createCourse(courseData, imageOptions);
+        const created = await courseService.createCourse(courseData, imageOptions);
+        // Upload any pending manuals that were queued in the form
+        const pending = imageOptions.pendingManuals || [];
+        for (let i = 0; i < pending.length; i++) {
+          try {
+            await manualService.uploadCourseManual(created.id, pending[i].label, pending[i].file, i);
+          } catch {
+            // non-fatal: course was created, just log the failure
+            showError(`Failed to upload manual: ${pending[i].label}`);
+          }
+        }
         showSuccess('Course created successfully');
       }
       setIsFormOpen(false);
       setEditingCourse(null);
       loadCourses();
     } catch (error) {
-      showError(editingCourse ? 'Failed to update course' : 'Failed to create course');
+      const message = error.response?.data?.message
+        || (editingCourse ? 'Failed to update course' : 'Failed to create course');
+      showError(message);
     } finally {
       setSaving(false);
     }

@@ -2,7 +2,6 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Box, Paper, IconButton } from '@mui/material';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
-import Watermark from './Watermark';
 import { PROGRESS_SAVE_INTERVAL } from '../utils/constants';
 
 /**
@@ -286,8 +285,6 @@ function EmbeddedPlayer({ src, title, onProgress, onComplete, onPlay, initialPos
           onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
         />
 
-        {/* Watermark */}
-        <Watermark userEmail={userEmail} />
       </Box>
 
       {/* Fullscreen button */}

@@ -122,7 +122,7 @@ public class CourseController {
             @ApiResponse(responseCode = "201", description = "Course created"),
             @ApiResponse(responseCode = "400", description = "Invalid request")
     })
-    public ResponseEntity<CourseDto> create(
+    public ResponseEntity<?> create(
             @RequestParam(value = "courseCode", required = false) String courseCode,
             @RequestParam("title") String title,
             @RequestParam(value = "tagline", required = false) String tagline,
@@ -161,7 +161,7 @@ public class CourseController {
         // Validate uploaded images
         for (MultipartFile img : new MultipartFile[]{image, thumbnailImage, descriptionImage}) {
             String err = validateImage(img);
-            if (err != null) return ResponseEntity.badRequest().body(null);
+            if (err != null) return ResponseEntity.badRequest().body(Map.of("message", err));
         }
 
         Course course = Course.builder()
@@ -276,7 +276,7 @@ public class CourseController {
             @ApiResponse(responseCode = "200", description = "Course updated"),
             @ApiResponse(responseCode = "404", description = "Course not found")
     })
-    public ResponseEntity<CourseDto> update(
+    public ResponseEntity<?> update(
             @PathVariable("id") Long id,
             @RequestParam(value = "courseCode", required = false) String courseCode,
             @RequestParam("title") String title,
@@ -311,6 +311,11 @@ public class CourseController {
             @RequestParam(value = "examDetails", required = false) String examDetails,
             @RequestParam(value = "reminderDays", required = false) Integer reminderDays
     ) throws IOException {
+        // Validate uploaded images before hitting the DB
+        for (MultipartFile img : new MultipartFile[]{image, thumbnailImage, descriptionImage}) {
+            String err = validateImage(img);
+            if (err != null) return ResponseEntity.badRequest().body(Map.of("message", err));
+        }
         return repo.findById(id).map(existing -> {
             existing.setCourseCode(courseCode != null && !courseCode.isBlank() ? courseCode : null);
             existing.setTitle(title);
@@ -638,7 +643,7 @@ public class CourseController {
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of("image/jpeg", "image/png", "image/gif", "image/webp");
+    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of("image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp");
 
     /**
      * Parse country prices JSON and set on course entity.

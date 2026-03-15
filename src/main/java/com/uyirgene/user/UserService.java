@@ -13,6 +13,9 @@ public class UserService {
     private final PasswordEncoder encoder;
 
     public User register(String name, String email, String password, Role role) {
+        if (repo.findByEmail(email).isPresent()) {
+            throw new IllegalArgumentException("An account with this email already exists");
+        }
         User u = User.builder()
                 .name(name)
                 .email(email)

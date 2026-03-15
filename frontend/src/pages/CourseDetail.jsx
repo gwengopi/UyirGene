@@ -52,6 +52,7 @@ function CourseDetail() {
   const location = useLocation();
   const { isAuthenticated, user } = useAuth();
   const { showSuccess, showError } = useToast();
+  const isAdmin = user?.role === 'ADMIN';
 
   // Learn mode: only show video player when navigated from My Courses page
   const [learnMode, setLearnMode] = useState(location.state?.mode === 'learn');
@@ -145,6 +146,7 @@ function CourseDetail() {
             setCurrentVideo(incompleteVideo || videosData[0]);
           }
         }
+
       } catch (error) {
         if (error.response?.status === 401) {
           console.warn('Session expired while loading course data');
@@ -158,6 +160,21 @@ function CourseDetail() {
 
     loadCourse();
   }, [id, isAuthenticated, showError]);
+
+  // Load videos for admin — runs once isAdmin resolves (user hydrates from auth context)
+  useEffect(() => {
+    if (!isAdmin) return;
+    const loadAdminVideos = async () => {
+      try {
+        const videosData = await courseService.getCourseVideos(id);
+        setVideos(videosData);
+        const progress = await videoService.getMultipleProgress(videosData.map((v) => v.id));
+        setProgressMap(progress);
+        setCurrentVideo(videosData.find((v) => !progress[v.id]?.completed) || videosData[0]);
+      } catch {}
+    };
+    loadAdminVideos();
+  }, [id, isAdmin]); // eslint-disable-line
 
   // Decrypt video URL when current video changes
   useEffect(() => {
@@ -262,8 +279,8 @@ function CourseDetail() {
       return;
     }
 
-    // Show bundle upsell dialog if bundles are available
-    if (availableBundles.length > 0) {
+    // Show bundle upsell dialog only for paid courses (free courses enroll directly)
+    if (availableBundles.length > 0 && displayPrice.amount) {
       setUpsellOpen(true);
       return;
     }
@@ -596,7 +613,7 @@ function CourseDetail() {
         <Grid container spacing={4} sx={{ mt: 0.5 }}>
           {/* ── Main content ── */}
           <Grid item xs={12} md={8}>
-            {isEnrolled && learnMode && currentVideo && currentVideoUrl ? (
+            {(isEnrolled || isAdmin) && learnMode && currentVideo && currentVideoUrl ? (
               <>
                 <VideoPlayer
                   src={currentVideoUrl}
@@ -642,8 +659,15 @@ function CourseDetail() {
                     </Paper>
                   );
                 })()}
+
+                {/* Manuals & Documents — below pre-assessment */}
+                {course?.id && (
+                  <Box sx={{ mt: 3 }}>
+                    <ManualSection courseId={course.id} title="Course Materials" />
+                  </Box>
+                )}
               </>
-            ) : isEnrolled && learnMode && currentVideo && !currentVideoUrl ? (
+            ) : (isEnrolled || isAdmin) && learnMode && currentVideo && !currentVideoUrl ? (
               <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 3 }}>
                 <CircularProgress size={36} sx={{ display: 'block', mx: 'auto', mb: 2 }} />
                 <Typography color="text.secondary">Loading video...</Typography>
@@ -787,7 +811,7 @@ function CourseDetail() {
 
           {/* ── Sidebar ── */}
           <Grid item xs={12} md={4}>
-            {isEnrolled && learnMode ? (
+            {(isEnrolled || isAdmin) && learnMode ? (
               <>
                 {/* Course Content */}
                 <Paper sx={{ mb: 3, borderRadius: 2, overflow: 'hidden' }}>
@@ -884,15 +908,9 @@ function CourseDetail() {
                     </Paper>
                   );
                 })()}
+
               </>
             ) : null}
-
-            {/* Manuals & Documents — above enrollment card */}
-            {course?.id && (
-              <Box sx={{ mb: 3 }}>
-                <ManualSection courseId={course.id} title="Manuals & Documents" />
-              </Box>
-            )}
 
             {/* Enrollment Card — always shown */}
             <Paper sx={{ p: 3, mb: 3, borderRadius: 2, position: { md: 'sticky' }, top: { md: 80 } }}>
@@ -948,16 +966,28 @@ function CourseDetail() {
                 <Typography variant="h5" color="primary" fontWeight={700}>
                   {formatCurrency(displayPrice.amount, displayPrice.currency)}
                 </Typography>
-                <Button
-                  variant="contained"
-                  fullWidth
-                  size="large"
-                  onClick={handleEnroll}
-                  loading={enrolling}
-                  disabled={isEnrolled || loading}
-                >
-                  {isEnrolled ? 'Already Enrolled' : (displayPrice.amount ? 'Enroll & Get Certified' : 'Enroll Free')}
-                </Button>
+                {isAdmin ? (
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    size="large"
+                    startIcon={<ExitToAppIcon sx={{ transform: 'rotate(180deg)' }} />}
+                    onClick={() => setLearnMode(true)}
+                  >
+                    Preview Course Content
+                  </Button>
+                ) : (
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    size="large"
+                    onClick={handleEnroll}
+                    loading={enrolling}
+                    disabled={isEnrolled || loading}
+                  >
+                    {isEnrolled ? 'Already Enrolled' : (displayPrice.amount ? 'Enroll & Get Certified' : 'Enroll Free')}
+                  </Button>
+                )}
               </Box>
             </Paper>
           </Grid>

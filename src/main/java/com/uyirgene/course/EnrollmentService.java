@@ -85,6 +85,9 @@ public class EnrollmentService {
             resolvedCurrency = "INR";
         }
 
+        // Free course check — do this early so PENDING upgrades to ENROLLED immediately
+        boolean isFree = (resolvedPrice == null || resolvedPrice == 0);
+
         Optional<Enrollment> existingOpt = enrollmentRepo.findByUserAndCourse(u, c);
         if (existingOpt.isPresent()) {
             Enrollment existing = existingOpt.get();
@@ -93,14 +96,21 @@ public class EnrollmentService {
                 return new EnrollmentResult(existing, null, true, "You are already enrolled in this course");
             }
             if (existing.getStatus() == Enrollment.Status.PENDING && existing.getPaymentOrderId() != null) {
-                long amount = Math.round((resolvedPrice == null ? 0.0 : resolvedPrice) * 100);
+                // Price may have changed to free after the pending order was created — complete for free
+                if (isFree) {
+                    existing.setStatus(Enrollment.Status.ENROLLED);
+                    existing.setEnrolledAt(java.time.LocalDateTime.now());
+                    enrollmentRepo.save(existing);
+                    return new EnrollmentResult(existing, null, false, null);
+                }
+                long amount = Math.round(resolvedPrice * 100);
                 EnrollmentResult.RazorpayOrder order = new EnrollmentResult.RazorpayOrder(
                         existing.getPaymentOrderId(), amount, resolvedCurrency, paymentProvider.getKeyId());
                 return new EnrollmentResult(null, order, false, null);
             }
         }
 
-        if (resolvedPrice == null || resolvedPrice == 0) {
+        if (isFree) {
             Enrollment e = enroll(courseId);
             return new EnrollmentResult(e, null, false, null);
         }

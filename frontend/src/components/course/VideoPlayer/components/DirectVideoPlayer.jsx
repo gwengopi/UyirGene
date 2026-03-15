@@ -6,7 +6,6 @@ import { useFullscreen } from '../hooks/useFullscreen';
 import { usePictureInPicture } from '../hooks/usePictureInPicture';
 import VideoControls from './VideoControls';
 import BrandedPlayButton from './BrandedPlayButton';
-import Watermark from './Watermark';
 import KeyboardShortcutsHelp from './KeyboardShortcutsHelp';
 import ResumePrompt from './ResumePrompt';
 import { CONTROLS_HIDE_TIMEOUT, SEEK_AMOUNT, VOLUME_CHANGE_AMOUNT, RESUME_PROMPT_THRESHOLD } from '../utils/constants';
@@ -315,8 +314,6 @@ function DirectVideoPlayer({
         }} />
       )}
 
-      {/* Watermark */}
-      <Watermark userEmail={userEmail} />
 
       {/* Controls */}
       <VideoControls

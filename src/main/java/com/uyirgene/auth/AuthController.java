@@ -48,13 +48,17 @@ public class AuthController {
         if (!req.getPassword().matches(".*[A-Z].*") || !req.getPassword().matches(".*[a-z].*") || !req.getPassword().matches(".*[0-9].*")) {
             return ResponseEntity.badRequest().body(Map.of("message", "Password must contain at least one uppercase letter, one lowercase letter, and one number"));
         }
-        User u = userService.register(req.getName(), req.getEmail(), req.getPassword(), req.getRole());
-        return ResponseEntity.status(201).body(Map.of(
-                "id", u.getId(),
-                "email", u.getEmail(),
-                "name", u.getName() != null ? u.getName() : "",
-                "role", u.getRole().name()
-        ));
+        try {
+            User u = userService.register(req.getName(), req.getEmail(), req.getPassword(), req.getRole());
+            return ResponseEntity.status(201).body(Map.of(
+                    "id", u.getId(),
+                    "email", u.getEmail(),
+                    "name", u.getName() != null ? u.getName() : "",
+                    "role", u.getRole().name()
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(409).body(Map.of("message", e.getMessage(), "field", "email"));
+        }
     }
 
     @PostMapping("/login")
