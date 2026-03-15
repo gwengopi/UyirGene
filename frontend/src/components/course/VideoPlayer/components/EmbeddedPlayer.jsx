@@ -184,6 +184,7 @@ function EmbeddedPlayer({ src, title, onProgress, onComplete, onPlay, initialPos
           }}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
           allowFullScreen
+          sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"
         />
 
         {/* ── Transparent first-click interceptor ── */}
@@ -249,19 +250,10 @@ function EmbeddedPlayer({ src, title, onProgress, onComplete, onPlay, initialPos
           onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
         />
 
-        {/* RIGHT EDGE: Block YouTube watermark */}
+        {/* RIGHT EDGE: Block YouTube watermark (stops above control bar so settings gear is accessible) */}
         <Box sx={{
-          position: 'absolute', top: 0, right: 0, bottom: 0, width: '80px',
+          position: 'absolute', top: 0, right: 0, bottom: '50px', width: '80px',
           zIndex: 10, pointerEvents: 'auto', cursor: 'default',
-        }}
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-        />
-
-        {/* BOTTOM-RIGHT: Block YouTube logo */}
-        <Box sx={{
-          position: 'absolute', bottom: 0, right: 0, width: '200px', height: '50px',
-          zIndex: 11, pointerEvents: 'auto', cursor: 'default',
         }}
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
           onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
