@@ -14,6 +14,7 @@ import {
   TableRow,
   Paper,
   Chip,
+  CircularProgress,
   IconButton,
   Tooltip,
   TextField,
@@ -35,10 +36,11 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import StarIcon from '@mui/icons-material/Star';
-
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { Button, LoadingSpinner, EmptyState } from '../common';
 import { adminService } from '../../services';
+import api from '../../services/api';
 import { formatCurrency } from '../../utils/formatters';
 import { useToast } from '../../store';
 
@@ -68,6 +70,14 @@ function UserEnrollmentsDialog({
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [publishEnrollmentId, setPublishEnrollmentId] = useState(null);
   const fileInputRef = useRef(null);
+
+  // Grant Access dialog state
+  const [grantDialogOpen, setGrantDialogOpen] = useState(false);
+  const [grantType, setGrantType] = useState('course'); // 'course' | 'flagship' | 'bundle'
+  const [grantItemId, setGrantItemId] = useState('');
+  const [grantLoading, setGrantLoading] = useState(false);
+  const [grantLists, setGrantLists] = useState({ courses: [], flagship: [], bundles: [] });
+  const [grantListsLoading, setGrantListsLoading] = useState(false);
 
   useEffect(() => {
     if (open && user?.id) {
@@ -242,6 +252,50 @@ function UserEnrollmentsDialog({
     setExpandedRow(expandedRow === enrollmentId ? null : enrollmentId);
   };
 
+  const openGrantDialog = async () => {
+    setGrantItemId('');
+    setGrantType('course');
+    setGrantDialogOpen(true);
+    setGrantListsLoading(true);
+    try {
+      const [courses, flagship, bundles] = await Promise.all([
+        api.get('/api/courses/admin').then((r) => r.data),
+        api.get('/api/flagship/admin').then((r) => r.data),
+        api.get('/api/bundles/admin').then((r) => r.data),
+      ]);
+      setGrantLists({ courses, flagship, bundles });
+    } catch {
+      showError('Failed to load available items');
+    } finally {
+      setGrantListsLoading(false);
+    }
+  };
+
+  const handleGrantAccess = async () => {
+    if (!grantItemId) return;
+    setGrantLoading(true);
+    try {
+      const payload =
+        grantType === 'course'
+          ? { courseId: Number(grantItemId) }
+          : grantType === 'flagship'
+          ? { flagshipProgramId: Number(grantItemId) }
+          : { bundleId: Number(grantItemId) };
+
+      const result = await adminService.grantAccess(user.id, payload);
+      const count = result.enrollmentCount ?? 1;
+      showSuccess(`Access granted successfully (${count} enrollment${count !== 1 ? 's' : ''} created)`);
+      setGrantDialogOpen(false);
+      setGrantItemId('');
+      loadEnrollments();
+      onRefresh?.();
+    } catch (err) {
+      showError(err?.response?.data?.message || err.message || 'Failed to grant access');
+    } finally {
+      setGrantLoading(false);
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'COMPLETED':
@@ -267,11 +321,22 @@ function UserEnrollmentsDialog({
   return (
     <Dialog open={open} onClose={(e, reason) => { if (reason !== 'backdropClick') onClose(e, reason); }} disableEscapeKeyDown maxWidth="lg" fullWidth>
       <DialogTitle>
-        <Box>
-          <Typography variant="h6">User Enrollments</Typography>
-          <Typography variant="body2" color="text.secondary">
-            {user?.name} ({user?.email})
-          </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box>
+            <Typography variant="h6">User Enrollments</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {user?.name} ({user?.email})
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<AddCircleOutlineIcon />}
+            onClick={openGrantDialog}
+            sx={{ ml: 2, flexShrink: 0 }}
+          >
+            Grant Access
+          </Button>
         </Box>
       </DialogTitle>
       <DialogContent dividers>
@@ -678,6 +743,79 @@ function UserEnrollmentsDialog({
           <Button onClick={handlePublishCancel}>Cancel</Button>
           <Button onClick={handlePublishConfirm} variant="contained" color="warning">
             Publish
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Grant Access Dialog */}
+      <Dialog open={grantDialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') { setGrantDialogOpen(false); setGrantItemId(''); } }} disableEscapeKeyDown maxWidth="sm" fullWidth>
+        <DialogTitle>Grant Enrollment Access</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Grant <strong>{user?.name}</strong> access to a course, flagship program, or bundle — same as a completed payment. An enrollment confirmation email will be sent.
+          </Typography>
+
+          {/* Type selector */}
+          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+            <InputLabel>Access Type</InputLabel>
+            <Select
+              value={grantType}
+              onChange={(e) => { setGrantType(e.target.value); setGrantItemId(''); }}
+              label="Access Type"
+            >
+              <MenuItem value="course">Course</MenuItem>
+              <MenuItem value="flagship">Flagship Program</MenuItem>
+              <MenuItem value="bundle">Bundle</MenuItem>
+            </Select>
+          </FormControl>
+
+          {/* Item picker */}
+          {grantListsLoading ? (
+            <Box sx={{ textAlign: 'center', py: 2 }}><CircularProgress size={24} /></Box>
+          ) : (
+            <FormControl fullWidth size="small">
+              <InputLabel>
+                {grantType === 'course' ? 'Select Course' : grantType === 'flagship' ? 'Select Flagship Program' : 'Select Bundle'}
+              </InputLabel>
+              <Select
+                value={grantItemId}
+                onChange={(e) => setGrantItemId(e.target.value)}
+                label={grantType === 'course' ? 'Select Course' : grantType === 'flagship' ? 'Select Flagship Program' : 'Select Bundle'}
+              >
+                {grantType === 'course' && grantLists.courses.map((c) => (
+                  <MenuItem key={c.id} value={c.id}>{c.title}</MenuItem>
+                ))}
+                {grantType === 'flagship' && grantLists.flagship.map((f) => (
+                  <MenuItem key={f.id} value={f.id}>{f.title}</MenuItem>
+                ))}
+                {grantType === 'bundle' && grantLists.bundles.map((b) => (
+                  <MenuItem key={b.id} value={b.id}>{b.title}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+
+          {grantType === 'bundle' && grantItemId && (
+            <Alert severity="info" sx={{ mt: 1.5 }}>
+              The user will be enrolled in all courses within this bundle.
+            </Alert>
+          )}
+          {grantType === 'flagship' && grantItemId && (
+            <Alert severity="info" sx={{ mt: 1.5 }}>
+              The user will be enrolled in the flagship program and all its linked courses.
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setGrantDialogOpen(false); setGrantItemId(''); }} disabled={grantLoading}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={handleGrantAccess}
+            disabled={!grantItemId || grantLoading || grantListsLoading}
+            startIcon={grantLoading ? <CircularProgress size={14} color="inherit" /> : <AddCircleOutlineIcon />}
+          >
+            {grantLoading ? 'Granting…' : 'Grant Access'}
           </Button>
         </DialogActions>
       </Dialog>

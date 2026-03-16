@@ -43,6 +43,10 @@ public class AdminController {
     private final SiteConfigService siteConfigService;
     private final MailService mailService;
     private final com.uyirgene.course.CourseReminderScheduler courseReminderScheduler;
+    private final EnrollmentService enrollmentService;
+    private final CourseBundleService courseBundleService;
+    private final FlagshipProgramRepository flagshipProgramRepository;
+    private final CourseBundleRepository courseBundleRepository;
 
     @Value("${app.certificate.folder:uploads/certificates}")
     private String certFolder;
@@ -910,5 +914,50 @@ public class AdminController {
     public ResponseEntity<Map<String, String>> triggerReminders() {
         courseReminderScheduler.sendCourseReminders();
         return ResponseEntity.ok(Map.of("message", "Reminder job triggered. Check server logs for details."));
+    }
+
+    @PostMapping("/users/{userId}/grant-access")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    @Operation(summary = "Admin grant enrollment access to a user for a course, flagship, or bundle")
+    public ResponseEntity<Map<String, Object>> grantAccess(
+            @PathVariable Long userId,
+            @RequestBody GrantAccessRequest req) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new com.uyirgene.exception.EntityNotFoundException("User not found"));
+
+        int count = 0;
+
+        if (req.getCourseId() != null) {
+            com.uyirgene.course.Course course = courseRepository.findById(req.getCourseId())
+                    .orElseThrow(() -> new com.uyirgene.exception.EntityNotFoundException("Course not found"));
+            enrollmentService.grantCourseEnrollment(user, course);
+            count = 1;
+
+        } else if (req.getFlagshipProgramId() != null) {
+            com.uyirgene.course.FlagshipProgram program = flagshipProgramRepository.findById(req.getFlagshipProgramId())
+                    .orElseThrow(() -> new com.uyirgene.exception.EntityNotFoundException("Flagship program not found"));
+            enrollmentService.grantFlagshipEnrollment(user, program);
+            count = 1;
+
+        } else if (req.getBundleId() != null) {
+            List<com.uyirgene.course.Enrollment> enrollments =
+                    courseBundleService.grantBundleEnrollment(user, req.getBundleId());
+            count = enrollments.size();
+
+        } else {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "One of courseId, flagshipProgramId, or bundleId must be provided"));
+        }
+
+        return ResponseEntity.ok(Map.of("message", "Access granted successfully", "enrollmentCount", count));
+    }
+
+    @Data
+    static class GrantAccessRequest {
+        private Long courseId;
+        private Long flagshipProgramId;
+        private Long bundleId;
     }
 }

@@ -572,6 +572,47 @@ public class CourseBundleService {
         return allEnrollments;
     }
 
+    // ==================== Admin Grant Bundle Access ====================
+
+    @Transactional
+    public List<Enrollment> grantBundleEnrollment(User user, Long bundleId) {
+        CourseBundle bundle = bundleRepo.findById(bundleId)
+                .orElseThrow(() -> new EntityNotFoundException("Bundle not found"));
+
+        List<Enrollment> newEnrollments = new ArrayList<>();
+        for (Course course : bundle.getCourses()) {
+            Optional<Enrollment> existing = enrollmentRepo.findByUserAndCourse(user, course);
+            if (existing.isPresent()) {
+                Enrollment e = existing.get();
+                if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) {
+                    continue; // already enrolled, skip
+                }
+                e.setStatus(Enrollment.Status.ENROLLED);
+                e.setBundle(bundle);
+                e.setEnrolledAt(LocalDateTime.now());
+                newEnrollments.add(enrollmentRepo.save(e));
+            } else {
+                Enrollment enrollment = Enrollment.builder()
+                        .user(user)
+                        .course(course)
+                        .bundle(bundle)
+                        .enrolledAt(LocalDateTime.now())
+                        .status(Enrollment.Status.ENROLLED)
+                        .build();
+                newEnrollments.add(enrollmentRepo.save(enrollment));
+            }
+        }
+
+        if (!newEnrollments.isEmpty()) {
+            List<String> courseTitles = bundle.getCourses().stream().map(Course::getTitle).toList();
+            mailService.sendBundleEnrollmentSuccess(user.getEmail(),
+                    user.getName() != null ? user.getName() : user.getEmail(),
+                    bundle.getTitle(), courseTitles);
+        }
+
+        return newEnrollments;
+    }
+
     // ==================== Result DTOs ====================
 
     public record BundleEnrollmentResult(

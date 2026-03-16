@@ -6,6 +6,7 @@ const ADMIN_ENDPOINTS = {
   USER_ROLE: (id) => `/api/admin/users/${id}/role`,
   USER_STATUS: (id) => `/api/admin/users/${id}/status`,
   USER_ENROLLMENTS: (id) => `/api/admin/users/${id}/enrollments`,
+  USER_GRANT_ACCESS: (id) => `/api/admin/users/${id}/grant-access`,
   ANALYTICS: '/api/admin/analytics',
   ENROLLMENTS: '/api/admin/enrollments',
   ENROLLMENT_DETAIL: (id) => `/api/admin/enrollments/${id}`,
@@ -174,6 +175,17 @@ export async function getEnrollment(enrollmentId) {
 }
 
 /**
+ * Grant enrollment access to a user (Admin only)
+ * @param {number|string} userId - User ID
+ * @param {{ courseId?: number, flagshipProgramId?: number, bundleId?: number }} payload
+ * @returns {Promise<{ message: string, enrollmentCount: number }>}
+ */
+export async function grantAccess(userId, payload) {
+  const response = await api.post(ADMIN_ENDPOINTS.USER_GRANT_ACCESS(userId), payload);
+  return response.data;
+}
+
+/**
  * Get analytics dashboard data (Admin only)
  * @param {Object} [params] - Optional query params (from, to) for date filtering
  * @returns {Promise<Object>} Analytics data
@@ -233,4 +245,5 @@ export default {
   getAnalytics,
   getAllEnrollments,
   calculateEnrollmentStats,
+  grantAccess,
 };

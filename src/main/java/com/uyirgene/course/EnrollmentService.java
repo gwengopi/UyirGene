@@ -374,6 +374,59 @@ public class EnrollmentService {
                 .collect(Collectors.toList());
     }
 
+    // ==================== Admin Grant Access ====================
+
+    @Transactional
+    public Enrollment grantCourseEnrollment(User user, Course course) {
+        Optional<Enrollment> existingOpt = enrollmentRepo.findByUserAndCourse(user, course);
+        if (existingOpt.isPresent()) {
+            Enrollment existing = existingOpt.get();
+            if (existing.getStatus() == Enrollment.Status.ENROLLED || existing.getStatus() == Enrollment.Status.COMPLETED) {
+                return existing; // already enrolled — idempotent, no email
+            }
+            // Upgrade PENDING to ENROLLED
+            existing.setStatus(Enrollment.Status.ENROLLED);
+            existing.setEnrolledAt(LocalDateTime.now());
+            Enrollment saved = enrollmentRepo.save(existing);
+            mailService.sendEnrollmentSuccess(user, course);
+            return saved;
+        }
+        Enrollment e = Enrollment.builder()
+                .user(user)
+                .course(course)
+                .enrolledAt(LocalDateTime.now())
+                .status(Enrollment.Status.ENROLLED)
+                .build();
+        Enrollment saved = enrollmentRepo.save(e);
+        mailService.sendEnrollmentSuccess(user, course);
+        return saved;
+    }
+
+    @Transactional
+    public Enrollment grantFlagshipEnrollment(User user, FlagshipProgram program) {
+        Optional<Enrollment> existingOpt = enrollmentRepo.findByUserAndFlagshipProgram(user, program);
+        if (existingOpt.isPresent()) {
+            Enrollment existing = existingOpt.get();
+            if (existing.getStatus() == Enrollment.Status.ENROLLED || existing.getStatus() == Enrollment.Status.COMPLETED) {
+                return existing; // already enrolled — idempotent, no email
+            }
+            existing.setStatus(Enrollment.Status.ENROLLED);
+            existing.setEnrolledAt(LocalDateTime.now());
+            Enrollment saved = enrollmentRepo.save(existing);
+            enrollInFlagshipCourses(user, program); // also sends email
+            return saved;
+        }
+        Enrollment e = Enrollment.builder()
+                .user(user)
+                .flagshipProgram(program)
+                .enrolledAt(LocalDateTime.now())
+                .status(Enrollment.Status.ENROLLED)
+                .build();
+        Enrollment saved = enrollmentRepo.save(e);
+        enrollInFlagshipCourses(user, program); // also sends email
+        return saved;
+    }
+
     // ==================== Shared ====================
 
     public double getPassMarkPercentage() {
