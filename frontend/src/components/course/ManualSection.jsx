@@ -131,6 +131,18 @@ function ManualSection({
     }
   };
 
+  const MAX_MANUAL_SIZE = 20 * 1024 * 1024; // 20 MB
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0] || null;
+    if (file && file.size > MAX_MANUAL_SIZE) {
+      showError(`File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the 20 MB limit. Please compress the file and try again.`);
+      e.target.value = '';
+      return;
+    }
+    setNewFile(file);
+  };
+
   const handleUpload = async () => {
     if (!newFile || !newLabel.trim()) return;
     setUploading(true);
@@ -144,8 +156,8 @@ function ManualSection({
       setNewFile(null);
       await load();
       showSuccess('Document uploaded successfully');
-    } catch {
-      showError('Failed to upload document');
+    } catch (err) {
+      showError(err?.response?.data?.message || 'Failed to upload document');
     } finally {
       setUploading(false);
     }
@@ -334,7 +346,7 @@ function ManualSection({
                 <Typography variant="body2" fontWeight={600} sx={{ mb: 1.5 }}>
                   Upload new document
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center', mb: 0.5 }}>
                   <TextField
                     size="small"
                     label="Document label"
@@ -355,7 +367,7 @@ function ManualSection({
                         type="file"
                         hidden
                         accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-                        onChange={(e) => setNewFile(e.target.files[0] || null)}
+                        onChange={handleFileSelect}
                       />
                     </Button>
                   </Tooltip>
@@ -370,6 +382,9 @@ function ManualSection({
                     Upload
                   </Button>
                 </Box>
+                <Typography variant="caption" color="text.disabled">
+                  Accepted: PDF, Word, Excel, PowerPoint · Max 20 MB
+                </Typography>
               </Box>
             )}
           </>

@@ -103,9 +103,16 @@ public class EnrollmentService {
                     enrollmentRepo.save(existing);
                     return new EnrollmentResult(existing, null, false, null);
                 }
-                long amount = Math.round(resolvedPrice * 100);
+                // Always create a fresh order so currency/amount changes (e.g. switching country) are reflected
+                long amountSmallestUnit = Math.round(resolvedPrice * 100);
+                PaymentOrder po = paymentProvider.createOrder(amountSmallestUnit, resolvedCurrency,
+                        "enroll-" + existing.getId());
+                existing.setPaymentOrderId(po.getId());
+                existing.setPaymentCurrency(resolvedCurrency);
+                existing.setPaymentAmount(resolvedPrice);
+                enrollmentRepo.save(existing);
                 EnrollmentResult.RazorpayOrder order = new EnrollmentResult.RazorpayOrder(
-                        existing.getPaymentOrderId(), amount, resolvedCurrency, paymentProvider.getKeyId());
+                        po.getId(), po.getAmount(), po.getCurrency(), paymentProvider.getKeyId());
                 return new EnrollmentResult(null, order, false, null);
             }
         }
@@ -234,9 +241,16 @@ public class EnrollmentService {
                 return new EnrollmentResult(existing, null, true, "You are already enrolled in this program");
             }
             if (existing.getStatus() == Enrollment.Status.PENDING && existing.getPaymentOrderId() != null) {
-                long amount = Math.round((resolvedPrice == null ? 0.0 : resolvedPrice) * 100);
+                // Always create a fresh order so currency/amount changes (e.g. switching country) are reflected
+                long amountSmallestUnit = Math.round((resolvedPrice == null ? 0.0 : resolvedPrice) * 100);
+                PaymentOrder po = paymentProvider.createOrder(amountSmallestUnit, resolvedCurrency,
+                        "flagship-" + existing.getId());
+                existing.setPaymentOrderId(po.getId());
+                existing.setPaymentCurrency(resolvedCurrency);
+                existing.setPaymentAmount(resolvedPrice);
+                enrollmentRepo.save(existing);
                 EnrollmentResult.RazorpayOrder order = new EnrollmentResult.RazorpayOrder(
-                        existing.getPaymentOrderId(), amount, resolvedCurrency, paymentProvider.getKeyId());
+                        po.getId(), po.getAmount(), po.getCurrency(), paymentProvider.getKeyId());
                 return new EnrollmentResult(null, order, false, null);
             }
         }

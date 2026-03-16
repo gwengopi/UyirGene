@@ -7,6 +7,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,6 +38,7 @@ public class ManualDocumentController {
             @RequestParam String label,
             @RequestParam(defaultValue = "0") int displayOrder,
             @RequestParam MultipartFile file) throws IOException {
+        validateManualFile(file);
         Course course = courseRepo.findById(courseId)
                 .orElseThrow(() -> new RuntimeException("Course not found"));
         ManualDocument manual = ManualDocument.builder()
@@ -85,6 +89,7 @@ public class ManualDocumentController {
             @RequestParam String label,
             @RequestParam(defaultValue = "0") int displayOrder,
             @RequestParam MultipartFile file) throws IOException {
+        validateManualFile(file);
         FlagshipProgram program = flagshipRepo.findById(programId)
                 .orElseThrow(() -> new RuntimeException("Flagship program not found"));
         ManualDocument manual = ManualDocument.builder()
@@ -117,6 +122,15 @@ public class ManualDocumentController {
         ManualDocument manual = manualRepo.findByIdAndFlagshipProgram_Id(manualId, programId)
                 .orElseThrow(() -> new RuntimeException("Manual not found"));
         return buildDownloadResponse(manual);
+    }
+
+    private static final long MAX_MANUAL_SIZE = 20L * 1024 * 1024; // 20 MB
+
+    private void validateManualFile(MultipartFile file) {
+        if (file.getSize() > MAX_MANUAL_SIZE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "File size (" + String.format("%.1f", file.getSize() / (1024.0 * 1024.0)) + " MB) exceeds the 20 MB limit. Please compress the file and try again.");
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

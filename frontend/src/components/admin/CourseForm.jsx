@@ -16,7 +16,7 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import { FormField, Select, Checkbox, Button } from '../common';
 import ManualSection from '../course/ManualSection';
 import { validateForm, hasErrors } from '../../utils/validators';
-import { useConfig } from '../../store';
+import { useConfig, useToast } from '../../store';
 import { COURSE_CATEGORIES, SUPPORTED_COUNTRIES } from '../../utils/constants';
 import { getApiBaseUrl } from '../../services/api';
 
@@ -25,6 +25,7 @@ import { getApiBaseUrl } from '../../services/api';
  */
 function CourseForm({ course, onSave, onCancel, loading = false }) {
   const { getCategoryOptions } = useConfig();
+  const { showError } = useToast();
   const thumbnailInputRef = useRef(null);
   const descriptionImageInputRef = useRef(null);
 
@@ -441,8 +442,14 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
     }
   };
 
+  const MAX_MANUAL_SIZE = 20 * 1024 * 1024; // 20 MB
+
   const addPendingManual = () => {
     if (!newManualFile || !newManualLabel.trim()) return;
+    if (newManualFile.size > MAX_MANUAL_SIZE) {
+      showError(`File size (${(newManualFile.size / (1024 * 1024)).toFixed(1)} MB) exceeds the 20 MB limit. Please compress the file and try again.`);
+      return;
+    }
     setPendingManuals((prev) => [...prev, { label: newManualLabel.trim(), file: newManualFile }]);
     setNewManualLabel('');
     setNewManualFile(null);
@@ -1531,7 +1538,15 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
                   type="file"
                   hidden
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-                  onChange={(e) => setNewManualFile(e.target.files[0] || null)}
+                  onChange={(e) => {
+                    const f = e.target.files[0] || null;
+                    if (f && f.size > MAX_MANUAL_SIZE) {
+                      showError(`File size (${(f.size / (1024 * 1024)).toFixed(1)} MB) exceeds the 20 MB limit. Please compress the file and try again.`);
+                      e.target.value = '';
+                      return;
+                    }
+                    setNewManualFile(f);
+                  }}
                 />
               </Button>
               <Button
