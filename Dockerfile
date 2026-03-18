@@ -22,6 +22,9 @@ RUN addgroup -S spring && adduser -S spring -G spring
 # Copy the jar from build stage
 COPY --from=build /app/target/*.jar app.jar
 
+# Create uploads directory and set ownership
+RUN mkdir -p /app/uploads && chown -R spring:spring /app/uploads
+
 # Change ownership
 RUN chown spring:spring app.jar
 
