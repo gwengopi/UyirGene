@@ -2,8 +2,6 @@ package com.uyirgene.course;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -63,22 +61,19 @@ public class Course {
     // Course trainer/instructor name
     private String trainerName;
 
-    // Thumbnail image - displayed in courses list
-    @JdbcTypeCode(SqlTypes.BINARY)
-    @Column(columnDefinition = "BYTEA")
-    private byte[] thumbnailImage;
+    // Thumbnail image - displayed in courses list (stored on filesystem)
+    @Column(name = "thumbnail_image_path")
+    private String thumbnailImagePath;
     private String thumbnailImageContentType;
 
-    // Description image - displayed in course detail page
-    @JdbcTypeCode(SqlTypes.BINARY)
-    @Column(columnDefinition = "BYTEA")
-    private byte[] descriptionImage;
+    // Description image - displayed in course detail page (stored on filesystem)
+    @Column(name = "description_image_path")
+    private String descriptionImagePath;
     private String descriptionImageContentType;
 
-    // Legacy image field - kept for backward compatibility, maps to thumbnailImage
-    @JdbcTypeCode(SqlTypes.BINARY)
-    @Column(columnDefinition = "BYTEA")
-    private byte[] image;
+    // Legacy image field - kept for backward compatibility (stored on filesystem)
+    @Column(name = "image_path")
+    private String imagePath;
     private String imageContentType;
 
     // Country-specific prices

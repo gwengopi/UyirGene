@@ -3,8 +3,6 @@ import {
   List,
   ListItemButton,
   ListItemIcon,
-  ListItemText,
-  ListItemSecondaryAction,
   Typography,
   Box,
   Chip,
@@ -68,51 +66,47 @@ function VideoList({
                   <PlayCircleOutlineIcon color={isCurrent ? 'primary' : 'action'} />
                 )}
               </ListItemIcon>
-              <ListItemText
-                primary={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ minWidth: 24 }}
-                    >
-                      {index + 1}.
-                    </Typography>
-                    <Typography
-                      variant="body1"
-                      sx={{
-                        fontWeight: isCurrent ? 600 : 400,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {video.title}
+              <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', minWidth: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ minWidth: 24, flexShrink: 0 }}
+                  >
+                    {index + 1}.
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      flex: 1,
+                      minWidth: 0,
+                      fontWeight: isCurrent ? 600 : 400,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {video.title}
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+                    {isCompleted && (
+                      <Chip label="Completed" size="small" color="success" variant="outlined" />
+                    )}
+                    <Typography variant="body2" color="text.secondary">
+                      {formatDuration(video.durationSeconds)}
                     </Typography>
                   </Box>
-                }
-                secondary={
-                  progressPercent > 0 && !isCompleted ? (
-                    <Box sx={{ mt: 1 }}>
-                      <LinearProgress
-                        variant="determinate"
-                        value={progressPercent}
-                        sx={{ height: 4, borderRadius: 2 }}
-                      />
-                    </Box>
-                  ) : null
-                }
-              />
-              <ListItemSecondaryAction>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {isCompleted && (
-                    <Chip label="Completed" size="small" color="success" variant="outlined" />
-                  )}
-                  <Typography variant="body2" color="text.secondary">
-                    {formatDuration(video.durationSeconds)}
-                  </Typography>
                 </Box>
-              </ListItemSecondaryAction>
+                {progressPercent > 0 && !isCompleted && (
+                  <Box sx={{ mt: 1 }}>
+                    <LinearProgress
+                      variant="determinate"
+                      value={progressPercent}
+                      sx={{ height: 4, borderRadius: 2 }}
+                    />
+                  </Box>
+                )}
+              </Box>
             </ListItemButton>
           </Box>
         );

@@ -109,11 +109,10 @@ public class CourseDto {
     }
 
     public static CourseDto fromEntity(Course course) {
-        // Check for thumbnail image (prefer thumbnailImage, fall back to legacy image)
-        boolean hasThumbnail = (course.getThumbnailImage() != null && course.getThumbnailImage().length > 0)
-                || (course.getImage() != null && course.getImage().length > 0);
-        boolean hasDescImg = course.getDescriptionImage() != null && course.getDescriptionImage().length > 0;
-        boolean hasLegacyImg = course.getImage() != null && course.getImage().length > 0;
+        // Check for thumbnail image (prefer thumbnailImagePath, fall back to legacy imagePath)
+        boolean hasThumbnail = course.getThumbnailImagePath() != null || course.getImagePath() != null;
+        boolean hasDescImg = course.getDescriptionImagePath() != null;
+        boolean hasLegacyImg = course.getImagePath() != null;
 
         return CourseDto.builder()
                 .id(course.getId())

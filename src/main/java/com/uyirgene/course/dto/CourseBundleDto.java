@@ -85,8 +85,7 @@ public class CourseBundleDto {
                 .thumbnailImageUrl(hasThumbnail ? "/api/bundles/" + bundle.getId() + "/thumbnail" : null)
                 .courses(bundle.getCourses() != null
                         ? bundle.getCourses().stream().map(c -> {
-                            boolean courseHasThumbnail = (c.getThumbnailImage() != null && c.getThumbnailImage().length > 0)
-                                    || (c.getImage() != null && c.getImage().length > 0);
+                            boolean courseHasThumbnail = c.getThumbnailImagePath() != null || c.getImagePath() != null;
                             return new BundleCourseDto(
                                     c.getId(),
                                     c.getCourseCode(),

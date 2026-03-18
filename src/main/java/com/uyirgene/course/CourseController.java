@@ -3,6 +3,7 @@ package com.uyirgene.course;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uyirgene.course.dto.CourseDto;
+import com.uyirgene.util.FileStorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -38,6 +39,9 @@ public class CourseController {
     private final CertificateRepository certificateRepo;
     private final VideoProgressRepository videoProgressRepo;
     private final ObjectMapper objectMapper;
+    private final FileStorageService fileStorageService;
+
+    private static final String IMAGE_SUBDIR = "course-images";
 
     @GetMapping("/admin")
     @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
@@ -194,23 +198,23 @@ public class CourseController {
 
         // Handle legacy image field
         if (image != null && !image.isEmpty()) {
-            course.setImage(image.getBytes());
+            course.setImagePath(fileStorageService.store(image, IMAGE_SUBDIR));
             course.setImageContentType(image.getContentType());
         }
 
         // Handle thumbnail image (use dedicated field or fall back to legacy)
         if (thumbnailImage != null && !thumbnailImage.isEmpty()) {
-            course.setThumbnailImage(thumbnailImage.getBytes());
+            course.setThumbnailImagePath(fileStorageService.store(thumbnailImage, IMAGE_SUBDIR));
             course.setThumbnailImageContentType(thumbnailImage.getContentType());
         } else if (image != null && !image.isEmpty()) {
-            // If only legacy image provided, also set it as thumbnail
-            course.setThumbnailImage(image.getBytes());
+            // If only legacy image provided, store a second copy as thumbnail
+            course.setThumbnailImagePath(fileStorageService.store(image, IMAGE_SUBDIR));
             course.setThumbnailImageContentType(image.getContentType());
         }
 
         // Handle description image
         if (descriptionImage != null && !descriptionImage.isEmpty()) {
-            course.setDescriptionImage(descriptionImage.getBytes());
+            course.setDescriptionImagePath(fileStorageService.store(descriptionImage, IMAGE_SUBDIR));
             course.setDescriptionImageContentType(descriptionImage.getContentType());
         }
 
@@ -346,28 +350,34 @@ public class CourseController {
             try {
                 // Handle legacy image
                 if (removeImage) {
-                    existing.setImage(null);
+                    fileStorageService.delete(existing.getImagePath(), IMAGE_SUBDIR);
+                    existing.setImagePath(null);
                     existing.setImageContentType(null);
                 } else if (image != null && !image.isEmpty()) {
-                    existing.setImage(image.getBytes());
+                    fileStorageService.delete(existing.getImagePath(), IMAGE_SUBDIR);
+                    existing.setImagePath(fileStorageService.store(image, IMAGE_SUBDIR));
                     existing.setImageContentType(image.getContentType());
                 }
 
                 // Handle thumbnail image
                 if (removeThumbnailImage) {
-                    existing.setThumbnailImage(null);
+                    fileStorageService.delete(existing.getThumbnailImagePath(), IMAGE_SUBDIR);
+                    existing.setThumbnailImagePath(null);
                     existing.setThumbnailImageContentType(null);
                 } else if (thumbnailImage != null && !thumbnailImage.isEmpty()) {
-                    existing.setThumbnailImage(thumbnailImage.getBytes());
+                    fileStorageService.delete(existing.getThumbnailImagePath(), IMAGE_SUBDIR);
+                    existing.setThumbnailImagePath(fileStorageService.store(thumbnailImage, IMAGE_SUBDIR));
                     existing.setThumbnailImageContentType(thumbnailImage.getContentType());
                 }
 
                 // Handle description image
                 if (removeDescriptionImage) {
-                    existing.setDescriptionImage(null);
+                    fileStorageService.delete(existing.getDescriptionImagePath(), IMAGE_SUBDIR);
+                    existing.setDescriptionImagePath(null);
                     existing.setDescriptionImageContentType(null);
                 } else if (descriptionImage != null && !descriptionImage.isEmpty()) {
-                    existing.setDescriptionImage(descriptionImage.getBytes());
+                    fileStorageService.delete(existing.getDescriptionImagePath(), IMAGE_SUBDIR);
+                    existing.setDescriptionImagePath(fileStorageService.store(descriptionImage, IMAGE_SUBDIR));
                     existing.setDescriptionImageContentType(descriptionImage.getContentType());
                 }
             } catch (IOException e) {
@@ -417,25 +427,26 @@ public class CourseController {
     @Operation(summary = "Get course thumbnail image")
     public ResponseEntity<byte[]> getThumbnailImage(@PathVariable("id") Long id) {
         return repo.findById(id).map(course -> {
-            // Check thumbnail first, fall back to legacy image
-            byte[] imageData = course.getThumbnailImage();
-            String contentType = course.getThumbnailImageContentType();
+            try {
+                // Check thumbnailImagePath first, fall back to legacy imagePath
+                String path = course.getThumbnailImagePath() != null
+                        ? course.getThumbnailImagePath()
+                        : course.getImagePath();
+                String contentType = course.getThumbnailImagePath() != null
+                        ? course.getThumbnailImageContentType()
+                        : course.getImageContentType();
 
-            if (imageData == null || imageData.length == 0) {
-                imageData = course.getImage();
-                contentType = course.getImageContentType();
-            }
+                byte[] imageData = fileStorageService.load(path, IMAGE_SUBDIR);
+                if (imageData == null) return ResponseEntity.notFound().<byte[]>build();
 
-            if (imageData == null || imageData.length == 0) {
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.parseMediaType(contentType != null ? contentType : "image/jpeg"));
+                headers.setContentLength(imageData.length);
+                headers.setCacheControl("public, max-age=3600");
+                return new ResponseEntity<>(imageData, headers, HttpStatus.OK);
+            } catch (IOException e) {
                 return ResponseEntity.notFound().<byte[]>build();
             }
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.parseMediaType(contentType != null ? contentType : "image/jpeg"));
-            headers.setContentLength(imageData.length);
-            headers.setCacheControl("public, max-age=3600");
-
-            return new ResponseEntity<>(imageData, headers, HttpStatus.OK);
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -443,18 +454,20 @@ public class CourseController {
     @Operation(summary = "Get course description image")
     public ResponseEntity<byte[]> getDescriptionImage(@PathVariable("id") Long id) {
         return repo.findById(id).map(course -> {
-            if (course.getDescriptionImage() == null || course.getDescriptionImage().length == 0) {
+            try {
+                byte[] imageData = fileStorageService.load(course.getDescriptionImagePath(), IMAGE_SUBDIR);
+                if (imageData == null) return ResponseEntity.notFound().<byte[]>build();
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.parseMediaType(
+                        course.getDescriptionImageContentType() != null ? course.getDescriptionImageContentType() : "image/jpeg"
+                ));
+                headers.setContentLength(imageData.length);
+                headers.setCacheControl("public, max-age=3600");
+                return new ResponseEntity<>(imageData, headers, HttpStatus.OK);
+            } catch (IOException e) {
                 return ResponseEntity.notFound().<byte[]>build();
             }
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.parseMediaType(
-                    course.getDescriptionImageContentType() != null ? course.getDescriptionImageContentType() : "image/jpeg"
-            ));
-            headers.setContentLength(course.getDescriptionImage().length);
-            headers.setCacheControl("public, max-age=3600");
-
-            return new ResponseEntity<>(course.getDescriptionImage(), headers, HttpStatus.OK);
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -463,7 +476,8 @@ public class CourseController {
     @Operation(summary = "Delete course thumbnail image")
     public ResponseEntity<?> deleteThumbnailImage(@PathVariable("id") Long id) {
         return repo.findById(id).map(course -> {
-            course.setThumbnailImage(null);
+            fileStorageService.delete(course.getThumbnailImagePath(), IMAGE_SUBDIR);
+            course.setThumbnailImagePath(null);
             course.setThumbnailImageContentType(null);
             repo.save(course);
             return ResponseEntity.noContent().build();
@@ -475,7 +489,8 @@ public class CourseController {
     @Operation(summary = "Delete course description image")
     public ResponseEntity<?> deleteDescriptionImage(@PathVariable("id") Long id) {
         return repo.findById(id).map(course -> {
-            course.setDescriptionImage(null);
+            fileStorageService.delete(course.getDescriptionImagePath(), IMAGE_SUBDIR);
+            course.setDescriptionImagePath(null);
             course.setDescriptionImageContentType(null);
             repo.save(course);
             return ResponseEntity.noContent().build();
@@ -483,30 +498,33 @@ public class CourseController {
     }
 
     @GetMapping("/{id}/image")
-    @Operation(summary = "Get course image")
+    @Operation(summary = "Get course image (legacy)")
     public ResponseEntity<byte[]> getImage(@PathVariable("id") Long id) {
         return repo.findById(id).map(course -> {
-            if (course.getImage() == null || course.getImage().length == 0) {
+            try {
+                byte[] imageData = fileStorageService.load(course.getImagePath(), IMAGE_SUBDIR);
+                if (imageData == null) return ResponseEntity.notFound().<byte[]>build();
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.parseMediaType(
+                        course.getImageContentType() != null ? course.getImageContentType() : "image/jpeg"
+                ));
+                headers.setContentLength(imageData.length);
+                headers.setCacheControl("public, max-age=3600");
+                return new ResponseEntity<>(imageData, headers, HttpStatus.OK);
+            } catch (IOException e) {
                 return ResponseEntity.notFound().<byte[]>build();
             }
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.parseMediaType(
-                    course.getImageContentType() != null ? course.getImageContentType() : "image/jpeg"
-            ));
-            headers.setContentLength(course.getImage().length);
-            headers.setCacheControl("public, max-age=3600");
-
-            return new ResponseEntity<>(course.getImage(), headers, HttpStatus.OK);
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}/image")
     @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
-    @Operation(summary = "Delete course image")
+    @Operation(summary = "Delete course image (legacy)")
     public ResponseEntity<?> deleteImage(@PathVariable("id") Long id) {
         return repo.findById(id).map(course -> {
-            course.setImage(null);
+            fileStorageService.delete(course.getImagePath(), IMAGE_SUBDIR);
+            course.setImagePath(null);
             course.setImageContentType(null);
             repo.save(course);
             return ResponseEntity.noContent().build();
@@ -538,7 +556,12 @@ public class CourseController {
             // 4. Delete all enrollments for this course
             enrollmentRepo.deleteByCourse(course);
 
-            // 5. Finally delete the course
+            // 5. Delete image files from filesystem
+            fileStorageService.delete(course.getThumbnailImagePath(), IMAGE_SUBDIR);
+            fileStorageService.delete(course.getDescriptionImagePath(), IMAGE_SUBDIR);
+            fileStorageService.delete(course.getImagePath(), IMAGE_SUBDIR);
+
+            // 6. Finally delete the course
             repo.delete(course);
 
             return ResponseEntity.noContent().build();

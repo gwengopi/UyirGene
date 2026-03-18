@@ -93,3 +93,5 @@ app:
     logo-path: static/images/logo.png
   video:
     encryption-key: ${VIDEO_ENCRYPTION_KEY}
+  storage:
+    root: ${APP_STORAGE_ROOT:uploads}

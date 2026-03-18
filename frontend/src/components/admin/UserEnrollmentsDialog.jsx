@@ -69,6 +69,8 @@ function UserEnrollmentsDialog({
   const [uploadCertType, setUploadCertType] = useState('COMPLETION');
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [publishEnrollmentId, setPublishEnrollmentId] = useState(null);
+  const [unenrollDialogOpen, setUnenrollDialogOpen] = useState(false);
+  const [unenrollTarget, setUnenrollTarget] = useState(null); // { id, courseName }
   const fileInputRef = useRef(null);
 
   // Grant Access dialog state
@@ -100,12 +102,20 @@ function UserEnrollmentsDialog({
     }
   };
 
-  const handleUnenroll = async (enrollmentId) => {
-    if (!window.confirm('Are you sure you want to unenroll this user?')) {
-      return;
-    }
+  const handleUnenrollClick = (enrollment) => {
+    setUnenrollTarget({ id: enrollment.id, courseName: enrollment.courseName });
+    setUnenrollDialogOpen(true);
+  };
 
-    await onUnenroll?.(enrollmentId);
+  const handleUnenrollCancel = () => {
+    setUnenrollDialogOpen(false);
+    setUnenrollTarget(null);
+  };
+
+  const handleUnenrollConfirm = async () => {
+    setUnenrollDialogOpen(false);
+    await onUnenroll?.(unenrollTarget.id);
+    setUnenrollTarget(null);
     loadEnrollments();
     onRefresh?.();
   };
@@ -577,7 +587,7 @@ function UserEnrollmentsDialog({
                             <IconButton
                               size="small"
                               color="error"
-                              onClick={() => handleUnenroll(enrollment.id)}
+                              onClick={() => handleUnenrollClick(enrollment)}
                             >
                               <DeleteIcon fontSize="small" />
                             </IconButton>
@@ -723,6 +733,29 @@ function UserEnrollmentsDialog({
         style={{ display: 'none' }}
         onChange={handleFileSelected}
       />
+
+      {/* Unenroll Confirmation Dialog */}
+      <Dialog open={unenrollDialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') handleUnenrollCancel(); }} disableEscapeKeyDown maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ color: 'error.main' }}>Unenroll User?</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            This action cannot be undone.
+          </Alert>
+          <Typography variant="body2">
+            Are you sure you want to unenroll <strong>{user?.name}</strong> from{' '}
+            <strong>{unenrollTarget?.courseName}</strong>?
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            The user will lose access to all course content, videos, and materials immediately.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleUnenrollCancel}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={handleUnenrollConfirm}>
+            Unenroll
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Publish Result Confirmation Dialog */}
       <Dialog open={publishDialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') handlePublishCancel(); }} disableEscapeKeyDown maxWidth="xs" fullWidth>
