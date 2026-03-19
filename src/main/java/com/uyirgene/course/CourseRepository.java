@@ -9,6 +9,7 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     @Query("SELECT c.title FROM Course c WHERE c.id = :id")
     java.util.Optional<String> findTitleById(@Param("id") Long id);
     java.util.Optional<Course> findByCourseCodeIgnoreCase(String courseCode);
+    boolean existsByCourseCodeIgnoreCaseAndIdNot(String courseCode, Long id);
     java.util.List<Course> findByFlagshipTrue();
     java.util.List<Course> findByPublishedTrueOrderByDisplayOrderAscIdAsc();
     java.util.List<Course> findByFlagshipTrueAndPublishedTrueOrderByDisplayOrderAscIdAsc();

@@ -281,6 +281,7 @@ public class AdminController {
 
     @PostMapping("/enrollments/{id}/generate-certificate")
     @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
     @Operation(summary = "Generate certificate for an enrollment based on marks")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Certificate generated"),
@@ -340,7 +341,11 @@ public class AdminController {
             enrollment.setStatus(Enrollment.Status.COMPLETED);
             enrollmentRepository.save(enrollment);
 
-            return ResponseEntity.ok(certificate);
+            return ResponseEntity.ok(Map.of(
+                    "certificateId", certificate.getCertificateId(),
+                    "filePath", certificate.getFilePath() != null ? certificate.getFilePath() : "",
+                    "type", certificate.getType().name()
+            ));
         } catch (Exception e) {
             // Log the full stack trace so we can diagnose the root cause
             org.slf4j.LoggerFactory.getLogger(AdminController.class)

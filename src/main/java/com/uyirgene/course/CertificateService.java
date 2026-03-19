@@ -91,6 +91,7 @@ public class CertificateService {
             } else {
                 // No PDF — delete the stale entity and generate a fresh ID using current format.
                 certRepo.deleteById(oldCert.getId());
+                certRepo.flush(); // flush DELETE before INSERT to avoid unique constraint violation
                 certificate = Certificate.builder()
                         .user(user)
                         .flagshipProgram(program)
@@ -200,6 +201,7 @@ public class CertificateService {
             } else {
                 // No PDF exists — delete the stale entity and generate a fresh ID using current format.
                 certRepo.deleteById(oldCert.getId());
+                certRepo.flush(); // flush DELETE before INSERT to avoid unique constraint violation
                 certificate = Certificate.builder()
                         .user(user)
                         .course(course)

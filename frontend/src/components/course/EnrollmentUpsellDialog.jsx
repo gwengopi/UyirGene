@@ -32,6 +32,30 @@ function resolveBundlePrice(bundle, countryCode, fallbackCurrency = 'INR') {
 }
 
 /**
+ * Resolves the original (pre-discount) price for a bundle based on country.
+ * Sums individual course country prices, mirroring the bundle card logic.
+ */
+function resolveBundleOriginalPrice(bundle, countryCode, bundlePrice) {
+  const courses = bundle.courses || [];
+  if (!countryCode || countryCode === 'IN') {
+    // INR: use stored originalPrice (sum of course base prices)
+    if (bundle.originalPrice > bundle.price) {
+      return { amount: bundle.originalPrice, currency: 'INR' };
+    }
+    return null;
+  }
+  const cp = bundle.countryPrices?.find((p) => p.countryCode === countryCode);
+  if (!cp) return null; // no country price configured, can't compute original
+  // Sum each course's stored country price
+  const total = courses.reduce((sum, c) => {
+    const courseCp = c.countryPrices?.find((p) => p.countryCode === countryCode);
+    return sum + (courseCp ? courseCp.amount : 0);
+  }, 0);
+  if (total <= 0 || total <= bundlePrice.amount) return null;
+  return { amount: Math.round(total * 100) / 100, currency: cp.currencyCode };
+}
+
+/**
  * Dialog shown after clicking Enroll when bundles are available for the course.
  *
  * Props:
@@ -243,6 +267,10 @@ function EnrollmentUpsellDialog({
           <Box>
             {bundles.map((bundle, idx) => {
               const { amount: bundleAmount, currency: bundleCurrency } = resolveBundlePrice(bundle, selectedCountry, effectiveCurrency);
+              const bundleOriginalPrice = resolveBundleOriginalPrice(bundle, selectedCountry, { amount: bundleAmount, currency: bundleCurrency });
+              const localSavingsPercent = bundleOriginalPrice && bundleOriginalPrice.amount > 0
+                ? Math.round((1 - bundleAmount / bundleOriginalPrice.amount) * 100)
+                : bundle.savingsPercent;
               const isChecked = selectedIds.has(bundle.id);
 
               // Which courses in this bundle does user already own?
@@ -276,9 +304,9 @@ function EnrollmentUpsellDialog({
                         {/* Bundle header */}
                         <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 0.5 }}>
                           <Typography variant="subtitle1" fontWeight={700}>{bundle.title}</Typography>
-                          {bundle.savingsPercent > 0 && (
+                          {localSavingsPercent > 0 && (
                             <Chip
-                              label={`Save ${bundle.savingsPercent}%`}
+                              label={`Save ${localSavingsPercent}%`}
                               size="small"
                               color="success"
                               sx={{ fontWeight: 700, height: 20, fontSize: '0.7rem' }}
@@ -327,13 +355,13 @@ function EnrollmentUpsellDialog({
                           <Typography variant="h6" color="primary" fontWeight={700}>
                             {formatCurrency(bundleAmount, bundleCurrency)}
                           </Typography>
-                          {bundle.originalPrice > bundle.price && (
+                          {bundleOriginalPrice && (
                             <Typography
                               variant="body2"
                               color="text.disabled"
                               sx={{ textDecoration: 'line-through' }}
                             >
-                              {formatCurrency(bundle.originalPrice, bundleCurrency)}
+                              {formatCurrency(bundleOriginalPrice.amount, bundleOriginalPrice.currency)}
                             </Typography>
                           )}
                         </Box>

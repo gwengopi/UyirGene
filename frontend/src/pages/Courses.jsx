@@ -343,8 +343,8 @@ function Courses() {
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto' }}>
                               <Typography variant="caption" fontWeight={700} sx={{ color }}>
                                 {item.price ? (() => {
-                                const usCp = item.countryPrices?.find((p) => p.countryCode === 'US');
-                                return formatCurrency(usCp ? usCp.amount : item.price, usCp ? usCp.currencyCode : 'INR');
+                                const cp = item.countryPrices?.find((p) => p.countryCode === 'US');
+                                return formatCurrency(cp ? cp.amount : item.price, cp ? cp.currencyCode : 'INR');
                               })() : 'Free'}
                               </Typography>
                               <ArrowForwardIcon sx={{ fontSize: 14, color }} />

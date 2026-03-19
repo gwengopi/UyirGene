@@ -469,6 +469,8 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
       category: { required: true, label: 'Category' },
       durationHours: { positive: true, label: 'Duration' },
       price: { positive: true, label: 'Price' },
+      displayOrder: { positive: true, label: 'Display Order' },
+      reminderDays: { positive: true, label: 'Reminder Days' },
     };
 
     const validationErrors = validateForm(schema, formData);
@@ -1048,6 +1050,7 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
             value={formData.displayOrder}
             onChange={handleChange}
             placeholder="e.g., 1, 2, 3..."
+            error={errors.displayOrder}
             helperText="Lower number = shown first. Leave empty for default ordering."
             inputProps={{ min: 0, step: 1 }}
           />
@@ -1088,6 +1091,8 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
               placeholder="e.g. 8299"
               inputProps={{ min: 0, step: 1 }}
               InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }}
+              error={!!errors.price}
+              helperText={errors.price}
             />
             <Button
               variant="contained"
@@ -1332,6 +1337,7 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
             value={formData.reminderDays}
             onChange={handleChange}
             placeholder="e.g., 7, 14, 30"
+            error={errors.reminderDays}
             helperText="Send a reminder email if the user hasn't completed the course after this many days. Leave empty to disable."
             inputProps={{ min: 1, step: 1 }}
           />

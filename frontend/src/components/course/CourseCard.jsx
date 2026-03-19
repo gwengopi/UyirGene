@@ -30,6 +30,7 @@ const CourseCard = memo(function CourseCard({
   onEnroll,
   loading = false,
   enrolling = false,
+  selectedCountry = 'US',
 }) {
   const navigate = useNavigate();
   const { getImage } = useConfig();
@@ -185,10 +186,13 @@ const CourseCard = memo(function CourseCard({
       <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
         <Typography variant="h6" color="primary" fontWeight={600}>
           {(() => {
+            if (!selectedCountry || selectedCountry === 'IN') {
+              return formatCurrency(course.price || 0, 'INR');
+            }
+            const cp = course.countryPrices?.find((p) => p.countryCode === selectedCountry);
+            if (cp) return formatCurrency(cp.amount, cp.currencyCode);
             const usCp = course.countryPrices?.find((p) => p.countryCode === 'US');
-            const amt = usCp ? usCp.amount : course.price;
-            const cur = usCp ? usCp.currencyCode : 'INR';
-            return formatCurrency(amt, cur);
+            return formatCurrency(usCp ? usCp.amount : course.price || 0, usCp ? usCp.currencyCode : 'INR');
           })()}
         </Typography>
         <Button

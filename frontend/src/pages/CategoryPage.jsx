@@ -130,33 +130,37 @@ function CategoryPage() {
 
   const apiBase = getApiBaseUrl();
 
-  // Get bundle price in the default display currency (US if available, else INR)
-  // This mirrors BundleDetail's default selectedCountry of 'US'
-  const getBundleCardPrice = (bundle) => {
+  // Get bundle price for a given country (defaults to US for international display)
+  const getBundleCardPrice = (bundle, country = 'US') => {
+    if (!country || country === 'IN') return { amount: bundle.price, currency: 'INR' };
+    const cp = bundle.countryPrices?.find((p) => p.countryCode === country);
+    if (cp) return { amount: cp.amount, currency: cp.currencyCode };
+    // No price for this country — fall back to US if available, else INR
     const usCp = bundle.countryPrices?.find((p) => p.countryCode === 'US');
     if (usCp) return { amount: usCp.amount, currency: usCp.currencyCode };
     return { amount: bundle.price, currency: 'INR' };
   };
-  // Original price = sum of individual course prices for the default country (US)
-  const getBundleCardOriginalPrice = (bundle) => {
+  // Original price = sum of individual course prices for the given country
+  const getBundleCardOriginalPrice = (bundle, country = 'US') => {
     const courses = bundle.courses || [];
-    const dp = getBundleCardPrice(bundle);
-    const usCp = bundle.countryPrices?.find((p) => p.countryCode === 'US');
+    const dp = getBundleCardPrice(bundle, country);
 
-    if (!usCp) {
-      // No US bundle price — fall back to INR sum of courses
+    if (!country || country === 'IN') {
       const total = courses.reduce((sum, c) => sum + (c.price || 0), 0);
       return total > dp.amount ? { amount: Math.round(total), currency: 'INR' } : null;
     }
 
-    // Sum each course's stored US price
+    const cp = bundle.countryPrices?.find((p) => p.countryCode === country);
+    if (!cp) return null;
+
+    // Sum each course's stored country price
     const total = courses.reduce((sum, c) => {
-      const cp = c.countryPrices?.find((p) => p.countryCode === 'US');
-      return sum + (cp ? cp.amount : 0);
+      const courseCp = c.countryPrices?.find((p) => p.countryCode === country);
+      return sum + (courseCp ? courseCp.amount : 0);
     }, 0);
 
-    if (total <= 0 || total <= usCp.amount) return null;
-    return { amount: Math.round(total * 100) / 100, currency: usCp.currencyCode };
+    if (total <= 0 || total <= dp.amount) return null;
+    return { amount: Math.round(total * 100) / 100, currency: cp.currencyCode };
   };
 
   const searchLower = search.toLowerCase();
@@ -281,14 +285,19 @@ function CategoryPage() {
                               );
                             })
                           )}
-                          {bundle.savingsPercent > 0 && (
-                            <Chip
-                              label={`SAVE ${bundle.savingsPercent}%`}
-                              color="error"
-                              size="small"
-                              sx={{ position: 'absolute', top: 10, right: 10, fontWeight: 700 }}
-                            />
-                          )}
+                          {(() => {
+                            const dp = getBundleCardPrice(bundle);
+                            const op = getBundleCardOriginalPrice(bundle);
+                            const pct = op && op.amount > 0 ? Math.round((1 - dp.amount / op.amount) * 100) : bundle.savingsPercent;
+                            return pct > 0 ? (
+                              <Chip
+                                label={`SAVE ${pct}%`}
+                                color="error"
+                                size="small"
+                                sx={{ position: 'absolute', top: 10, right: 10, fontWeight: 700 }}
+                              />
+                            ) : null;
+                          })()}
                           <Chip
                             icon={<SchoolIcon sx={{ fontSize: 16 }} />}
                             label={`${bundleCourses.length} Courses`}

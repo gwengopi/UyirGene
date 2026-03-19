@@ -162,6 +162,15 @@ public class CourseController {
             return ResponseEntity.badRequest().body(null);
         }
 
+        // Validate course code uniqueness
+        if (courseCode != null && !courseCode.isBlank()) {
+            boolean exists = repo.findByCourseCodeIgnoreCase(courseCode.trim()).isPresent();
+            if (exists) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(Map.of("message", "Course code '" + courseCode.trim() + "' is already in use."));
+            }
+        }
+
         // Validate uploaded images
         for (MultipartFile img : new MultipartFile[]{image, thumbnailImage, descriptionImage}) {
             String err = validateImage(img);
@@ -320,6 +329,16 @@ public class CourseController {
             String err = validateImage(img);
             if (err != null) return ResponseEntity.badRequest().body(Map.of("message", err));
         }
+
+        // Validate course code uniqueness (exclude current course)
+        if (courseCode != null && !courseCode.isBlank()) {
+            boolean taken = repo.existsByCourseCodeIgnoreCaseAndIdNot(courseCode.trim(), id);
+            if (taken) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(Map.of("message", "Course code '" + courseCode.trim() + "' is already in use."));
+            }
+        }
+
         return repo.findById(id).map(existing -> {
             existing.setCourseCode(courseCode != null && !courseCode.isBlank() ? courseCode : null);
             existing.setTitle(title);

@@ -19,6 +19,7 @@ function CourseList({
   emptyAction,
   onEmptyAction,
   enrollingId,
+  selectedCountry = 'US',
 }) {
   // Show loading skeletons
   if (loading) {
@@ -61,6 +62,7 @@ function CourseList({
               progress={progress}
               onEnroll={onEnroll}
               enrolling={isEnrolling}
+              selectedCountry={selectedCountry}
             />
           </Grid>
         );
