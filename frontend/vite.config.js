@@ -103,12 +103,12 @@ export default defineConfig({
           vendor: ['react', 'react-dom', 'react-router-dom'],
           mui: ['@mui/material', '@emotion/react', '@emotion/styled'],
           muiIcons: ['@mui/icons-material'],
-          pdfjs: ['pdfjs-dist'],
         },
       },
     },
     sourcemap: false,
     minify: 'terser',
+    chunkSizeWarningLimit: 1000,
     terserOptions: {
       compress: {
         drop_console: true,

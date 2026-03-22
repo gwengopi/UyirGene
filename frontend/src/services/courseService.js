@@ -50,7 +50,7 @@ export async function getFlagshipCourses() {
 export async function getCoursesByCategory(category, exclude = false) {
   const params = { category };
   if (exclude) params.excludeCategory = true;
-  const response = await api.get(COURSE_ENDPOINTS.LIST, { params });
+  const response = await api.get(COURSE_ENDPOINTS.LIST, { params, cache: true, cacheTTL: 60_000 });
   return response.data;
 }
 

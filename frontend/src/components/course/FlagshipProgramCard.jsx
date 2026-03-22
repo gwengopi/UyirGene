@@ -47,6 +47,7 @@ function FlagshipProgramCard({ program }) {
           component="img"
           image={imageUrl}
           alt={program.title}
+          loading="lazy"
           sx={{
             position: 'absolute',
             inset: 0,

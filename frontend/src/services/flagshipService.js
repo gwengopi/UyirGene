@@ -4,7 +4,7 @@ const BASE = '/api/flagship';
 
 export const flagshipService = {
   // ── Public ────────────────────────────────────────────────────────────────
-  getActivePrograms: () => api.get(BASE).then((r) => r.data),
+  getActivePrograms: () => api.get(BASE, { cache: true, cacheTTL: 60_000 }).then((r) => r.data),
   getProgramById: (id) => api.get(`${BASE}/${id}`).then((r) => r.data),
   getProgramBySlug: (slug) => api.get(`${BASE}/slug/${slug}`).then((r) => r.data),
 

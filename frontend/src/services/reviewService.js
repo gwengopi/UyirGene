@@ -14,7 +14,7 @@ const REVIEW_ENDPOINTS = {
  * Returns { reviews: [...], googleReviewLink: "..." }
  */
 export async function getReviews() {
-  const response = await api.get(REVIEW_ENDPOINTS.PUBLIC);
+  const response = await api.get(REVIEW_ENDPOINTS.PUBLIC, { cache: true, cacheTTL: 60_000 });
   return response.data;
 }
 

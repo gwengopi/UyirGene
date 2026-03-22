@@ -126,12 +126,17 @@ export function ConfigProvider({ children }) {
     }));
   }, [categories]);
 
+  // Map for O(1) category code → label lookup
+  const categoryMap = React.useMemo(
+    () => new Map(categories.map((cat) => [cat.code, cat.label])),
+    [categories]
+  );
+
   // Resolve a category code to its display label (falls back to the code itself)
   const getCategoryLabel = useCallback((code) => {
     if (!code) return code;
-    const found = categories.find((cat) => cat.code === code);
-    return found ? found.label : code;
-  }, [categories]);
+    return categoryMap.get(code) ?? code;
+  }, [categoryMap]);
 
   const value = {
     images,

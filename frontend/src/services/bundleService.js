@@ -20,12 +20,12 @@ const BUNDLE_ENDPOINTS = {
 // ==================== Public ====================
 
 export async function getBundlesByCourse(courseId) {
-  const response = await api.get(BUNDLE_ENDPOINTS.BY_COURSE(courseId));
+  const response = await api.get(BUNDLE_ENDPOINTS.BY_COURSE(courseId), { cache: true, cacheTTL: 60_000 });
   return response.data;
 }
 
 export async function getBundlesByCourseCategory(category) {
-  const response = await api.get(BUNDLE_ENDPOINTS.BY_COURSE_CATEGORY, { params: { category } });
+  const response = await api.get(BUNDLE_ENDPOINTS.BY_COURSE_CATEGORY, { params: { category }, cache: true, cacheTTL: 60_000 });
   return response.data;
 }
 

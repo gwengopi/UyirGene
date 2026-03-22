@@ -94,6 +94,7 @@ const CourseCard = memo(function CourseCard({
           height={180}
           image={imageUrl}
           alt={course.title}
+          loading="lazy"
           sx={{ objectFit: 'cover' }}
         />
         {isEnrolled && (
