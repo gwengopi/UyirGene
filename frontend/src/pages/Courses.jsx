@@ -59,7 +59,7 @@ function Courses() {
   useEffect(() => {
     Promise.all([
       courseService.getAllCourses(),
-      flagshipService.getAllPrograms().catch(() => []),
+      flagshipService.getActivePrograms().catch(() => []),
     ]).then(([courses, programs]) => {
         setAllCourses(courses);
         setAllPrograms(programs || []);
