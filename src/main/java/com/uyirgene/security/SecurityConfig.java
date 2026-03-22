@@ -58,7 +58,7 @@ public class SecurityConfig {
                     ).permitAll()
                     // Course & bundle public endpoints (read-only)
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/courses/**").permitAll()
-                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/bundles", "/api/bundles/{id}", "/api/bundles/{id}/thumbnail", "/api/bundles/by-course/{courseId}", "/api/bundles/by-course-category").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/bundles", "/api/bundles/{id}", "/api/bundles/slug/{slug}", "/api/bundles/{id}/thumbnail", "/api/bundles/by-course/{courseId}", "/api/bundles/by-course-category").permitAll()
                     // Flagship program public endpoints (read-only; admin endpoints use @PreAuthorize)
                     .requestMatchers(org.springframework.http.HttpMethod.GET,
                             "/api/flagship", "/api/flagship/{id}", "/api/flagship/{id}/image",
