@@ -35,7 +35,7 @@ import { VideoPlayer, VideoList, ManualSection, EnrollmentUpsellDialog } from '.
 import { getBundlesByCourseCategory, startMultiBundleEnrollment } from '../services/bundleService';
 import { ProgressTracker } from '../components/user';
 import { courseService, enrollmentService, videoService, certificateService } from '../services';
-import { useAuth, useToast } from '../store';
+import { useAuth, useToast, useConfig } from '../store';
 import { formatCurrency, formatDurationHours } from '../utils/formatters';
 import { ROUTES, IMAGES, SUPPORTED_COUNTRIES } from '../utils/constants';
 import { getApiBaseUrl } from '../services/api';
@@ -47,11 +47,13 @@ const COURSE_TYPE_LABELS = {
 };
 
 function CourseDetail() {
-  const { id } = useParams();
+  const { slug } = useParams();
+  const [courseId, setCourseId] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, user } = useAuth();
   const { showSuccess, showError } = useToast();
+  const { getCategoryLabel } = useConfig();
   const isAdmin = user?.role === 'ADMIN';
 
   // Learn mode: only show video player when navigated from My Courses page
@@ -97,16 +99,17 @@ function CourseDetail() {
       try {
         // Fire course and enrollment in parallel
         const [courseData, enrolled] = await Promise.all([
-          courseService.getCourse(id),
+          courseService.getCourseBySlug(slug),
           isAuthenticated() ? enrollmentService.getEnrolledCourses().catch(() => null) : Promise.resolve(null),
         ]);
 
         setCourse(courseData);
+        setCourseId(courseData.id);
 
         // Fetch combo deals for ALL courses in the same category.
         // Uses course-category lookup: finds bundles whose member courses share this category.
-        const bundles = courseData?.category
-          ? await getBundlesByCourseCategory(courseData.category).catch(() => [])
+        const bundles = courseData?.categories?.[0]
+          ? await getBundlesByCourseCategory(courseData.categories[0]).catch(() => [])
           : [];
         setAvailableBundles(bundles || []);
 
@@ -121,7 +124,7 @@ function CourseDetail() {
 
           const enrollmentData = enrolled.find((c) => {
             const courseObj = c.course || c;
-            return courseObj.id === parseInt(id);
+            return courseObj.id === courseData.id;
           });
           // Only consider as enrolled if status is ENROLLED or COMPLETED (not PENDING)
           const status = enrollmentData?.status;
@@ -133,7 +136,7 @@ function CourseDetail() {
 
           if (isUserEnrolled) {
             // Load videos and progress in parallel
-            const videosData = await courseService.getCourseVideos(id);
+            const videosData = await courseService.getCourseVideos(courseData.id);
             setVideos(videosData);
 
             const progress = await videoService.getMultipleProgress(
@@ -159,14 +162,14 @@ function CourseDetail() {
     };
 
     loadCourse();
-  }, [id, isAuthenticated, showError]);
+  }, [slug, isAuthenticated, showError]);
 
   // Load videos for admin — runs once isAdmin resolves (user hydrates from auth context)
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isAdmin || !courseId) return;
     const loadAdminVideos = async () => {
       try {
-        const videosData = await courseService.getCourseVideos(id);
+        const videosData = await courseService.getCourseVideos(courseId);
         setVideos(videosData);
         const progress = await videoService.getMultipleProgress(videosData.map((v) => v.id));
         setProgressMap(progress);
@@ -174,7 +177,7 @@ function CourseDetail() {
       } catch {}
     };
     loadAdminVideos();
-  }, [id, isAdmin]); // eslint-disable-line
+  }, [courseId, isAdmin]); // eslint-disable-line
 
   // Decrypt video URL when current video changes
   useEffect(() => {
@@ -202,17 +205,17 @@ function CourseDetail() {
     setUpsellOpen(false);
     setEnrolling(true);
     try {
-      const result = await enrollmentService.startEnrollment(id, selectedCountry);
+      const result = await enrollmentService.startEnrollment(courseId, selectedCountry);
       const order = result && (result.order ? result.order : result.orderId ? result : null);
       if (order) {
         navigate(ROUTES.PAYMENT, {
-          state: { courseId: id, courseName: course?.title, order },
+          state: { courseId: courseId, courseName: course?.title, order },
         });
         return;
       }
       setIsEnrolled(true);
       showSuccess('Successfully enrolled!');
-      const videosData = await courseService.getCourseVideos(id);
+      const videosData = await courseService.getCourseVideos(courseId);
       setVideos(videosData);
       setCurrentVideo(videosData[0]);
     } catch (error) {
@@ -236,7 +239,7 @@ function CourseDetail() {
     setUpsellOpen(false);
     setEnrolling(true);
     try {
-      const standaloneCourseId = courseIsStandalone ? id : null;
+      const standaloneCourseId = courseIsStandalone ? courseId : null;
       const result = await startMultiBundleEnrollment(bundleIds, selectedCountry, standaloneCourseId);
       const order = result?.order;
       if (order) {
@@ -287,14 +290,14 @@ function CourseDetail() {
 
     setEnrolling(true);
     try {
-      const result = await enrollmentService.startEnrollment(id, selectedCountry);
+      const result = await enrollmentService.startEnrollment(courseId, selectedCountry);
 
       // Detect order shape: backend may return order object directly or wrapped
       const order = result && (result.order ? result.order : result.orderId ? result : null);
       if (order) {
         navigate(ROUTES.PAYMENT, {
           state: {
-            courseId: id,
+            courseId: courseId,
             courseName: course?.title,
             order,
           },
@@ -307,7 +310,7 @@ function CourseDetail() {
       showSuccess('Successfully enrolled!');
 
       // Load videos after enrollment
-      const videosData = await courseService.getCourseVideos(id);
+      const videosData = await courseService.getCourseVideos(courseId);
       setVideos(videosData);
       setCurrentVideo(videosData[0]);
     } catch (error) {
@@ -419,7 +422,7 @@ function CourseDetail() {
   // Handle unenroll
   const handleUnenroll = async () => {
     try {
-      await enrollmentService.unenroll(id);
+      await enrollmentService.unenroll(courseId);
       showSuccess('You have been unenrolled from this course');
       setIsEnrolled(false);
       setEnrollmentStatus(null);
@@ -452,7 +455,7 @@ function CourseDetail() {
 
   const breadcrumbItems = [
     { label: 'Courses', path: ROUTES.COURSES },
-    { label: course.title, path: ROUTES.COURSE_DETAIL(id) },
+    { label: course.title, path: ROUTES.COURSE_DETAIL(course.slug || slug) },
   ];
 
   const imgPath = course.descriptionImageUrl || course.thumbnailImageUrl || course.imageUrl;
@@ -468,8 +471,8 @@ function CourseDetail() {
         <SEO
           title={course.title}
           description={course.shortDescription || course.description?.substring(0, 160)}
-          path={`/courses/${id}`}
-          image={course.thumbnailImage ? `${getApiBaseUrl()}/api/courses/${id}/thumbnail` : undefined}
+          path={`/courses/${course.slug || slug}`}
+          image={courseId ? `${getApiBaseUrl()}/api/courses/${courseId}/thumbnail` : undefined}
           structuredData={courseSchema(course)}
         />
       )}
@@ -496,13 +499,18 @@ function CourseDetail() {
         )}
         <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.78) 100%)' }} />
         <Container maxWidth="lg" sx={{ position: 'relative', pb: { xs: 4, md: 5 }, pt: { xs: 8, md: 10 } }}>
-          {course.category && (
-            <Chip
-              icon={<CategoryIcon sx={{ color: 'rgba(255,255,255,0.85) !important', fontSize: '14px !important' }} />}
-              label={course.category}
-              size="small"
-              sx={{ mb: 2, bgcolor: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)' }}
-            />
+          {course.categories?.length > 0 && (
+            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 2 }}>
+              {course.categories.map((cat) => (
+                <Chip
+                  key={cat}
+                  icon={<CategoryIcon sx={{ color: 'rgba(255,255,255,0.85) !important', fontSize: '14px !important' }} />}
+                  label={getCategoryLabel(cat)}
+                  size="small"
+                  sx={{ bgcolor: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)' }}
+                />
+              ))}
+            </Box>
           )}
           <Typography
             variant="h3"
@@ -923,7 +931,7 @@ function CourseDetail() {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <CategoryIcon color="action" fontSize="small" />
                     <Typography variant="body2">
-                      Category: <strong>{course.category || 'General'}</strong>
+                      Category: <strong>{course.categories?.map(getCategoryLabel).join(', ') || 'General'}</strong>
                     </Typography>
                   </Box>
                   {course.courseType && (

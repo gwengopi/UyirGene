@@ -23,6 +23,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary';
 import { Button, EmptyState, LoadingSpinner } from '../common';
+import { useConfig } from '../../store';
 import { formatCurrency, formatDurationHours } from '../../utils/formatters';
 
 /**
@@ -37,6 +38,7 @@ function CourseManager({
   onTogglePublish,
   onManageVideos,
 }) {
+  const { getCategoryLabel } = useConfig();
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedCourse, setSelectedCourse] = useState(null);
 
@@ -95,7 +97,7 @@ function CourseManager({
                   </Typography>
                 </TableCell>
                 <TableCell>
-                  <Chip label={course.category || 'Uncategorized'} size="small" variant="outlined" />
+                  <Chip label={course.categories?.[0] ? getCategoryLabel(course.categories[0]) : 'Uncategorized'} size="small" variant="outlined" />
                 </TableCell>
                 <TableCell align="right">{formatCurrency(course.price)}</TableCell>
                 <TableCell align="right">

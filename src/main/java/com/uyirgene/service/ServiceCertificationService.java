@@ -36,6 +36,23 @@ public class ServiceCertificationService {
         return ServiceCertificationDto.fromEntity(entity);
     }
 
+    public ServiceCertificationDto getBySlug(String slug) {
+        ServiceCertification entity = repository.findBySlug(slug)
+                .orElseThrow(() -> new EntityNotFoundException("Service Certification not found"));
+        return ServiceCertificationDto.fromEntity(entity);
+    }
+
+    private String generateUniqueSlug(String title, Long excludeId) {
+        String base = title.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("^-+|-+$", "");
+        if (base.isEmpty()) base = "certification";
+        String candidate = base;
+        int suffix = 2;
+        while (excludeId != null ? repository.existsBySlugAndIdNot(candidate, excludeId) : repository.existsBySlug(candidate)) {
+            candidate = base + "-" + suffix++;
+        }
+        return candidate;
+    }
+
     public ServiceCertification getEntityById(Long id) {
         return repository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Service Certification not found"));
@@ -58,6 +75,7 @@ public class ServiceCertificationService {
     ) throws IOException {
         ServiceCertification entity = ServiceCertification.builder()
                 .title(title)
+                .slug(generateUniqueSlug(title, null))
                 .subtitle(subtitle)
                 .description(description)
                 .whatIs(whatIs)
@@ -104,6 +122,7 @@ public class ServiceCertificationService {
         ServiceCertification entity = getEntityById(id);
 
         entity.setTitle(title);
+        entity.setSlug(generateUniqueSlug(title, id));
         entity.setSubtitle(subtitle);
         entity.setDescription(description);
         entity.setWhatIs(whatIs);

@@ -18,6 +18,9 @@ public class ServiceCertification {
     @Column(nullable = false)
     private String title; // e.g., "ISO 22000 - Food Safety Certifications"
 
+    @Column(unique = true, length = 200)
+    private String slug;
+
     private String subtitle; // e.g., "Global Training & Certification Services"
 
     @Column(columnDefinition = "TEXT")

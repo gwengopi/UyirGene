@@ -22,6 +22,7 @@ public class CourseDto {
     private Long id;
     private String courseCode;
     private String title;
+    private String slug;
     private String tagline;
     private String shortDescription;
     private String description;
@@ -31,7 +32,7 @@ public class CourseDto {
     private String outcome;
     private String courseDurationText;
     private List<String> examDetails;
-    private String category;
+    private List<String> categories;
     private Integer durationHours;
     private Double price;
     private Boolean published;
@@ -118,6 +119,7 @@ public class CourseDto {
                 .id(course.getId())
                 .courseCode(course.getCourseCode())
                 .title(course.getTitle())
+                .slug(course.getSlug())
                 .tagline(course.getTagline())
                 .shortDescription(course.getShortDescription())
                 .description(course.getDescription())
@@ -127,7 +129,7 @@ public class CourseDto {
                 .outcome(course.getOutcome())
                 .courseDurationText(course.getCourseDurationText())
                 .examDetails(parseStringList(course.getExamDetails()))
-                .category(course.getCategory())
+                .categories(parseStringList(course.getCategory()))
                 .durationHours(course.getDurationHours())
                 .price(course.getPrice())
                 .published(course.getPublished())

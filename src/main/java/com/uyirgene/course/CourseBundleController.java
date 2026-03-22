@@ -60,6 +60,12 @@ public class CourseBundleController {
         return ResponseEntity.ok(bundleService.getPublishedBundles());
     }
 
+    @GetMapping("/slug/{slug}")
+    @Operation(summary = "Get bundle detail by slug")
+    public ResponseEntity<CourseBundleDto> getBundleBySlug(@PathVariable("slug") String slug) {
+        return ResponseEntity.ok(bundleService.getBundleBySlug(slug));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get bundle detail")
     public ResponseEntity<CourseBundleDto> getBundleById(@PathVariable("id") Long id) {
@@ -77,7 +83,7 @@ public class CourseBundleController {
             headers.setContentType(MediaType.parseMediaType(
                     bundle.getThumbnailImageContentType() != null ? bundle.getThumbnailImageContentType() : "image/jpeg"));
             headers.setContentLength(bundle.getThumbnailImage().length);
-            headers.setCacheControl("public, max-age=3600");
+            headers.setCacheControl("no-cache");
             return new ResponseEntity<>(bundle.getThumbnailImage(), headers, HttpStatus.OK);
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }

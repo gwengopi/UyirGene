@@ -196,7 +196,7 @@ function CourseStyleField({ icon, label, children }) {
 // ── Main Component ───────────────────────────────────────────────────────────
 
 function FlagshipDetail() {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, user } = useAuth();
@@ -216,13 +216,13 @@ function FlagshipDetail() {
     const load = async () => {
       setLoading(true);
       try {
-        const data = await flagshipService.getProgramById(id);
+        const data = await flagshipService.getProgramBySlug(slug);
         if (!cancelled) setProgram(data);
 
         if (!cancelled && isAuthenticated()) {
           try {
             const enrolledPrograms = await flagshipService.getEnrolledPrograms();
-            const enrolledProgram = enrolledPrograms.find((p) => p.id === Number(id));
+            const enrolledProgram = enrolledPrograms.find((p) => p.id === data.id);
             const isUserEnrolled = !!enrolledProgram;
 
             if (!cancelled) {
@@ -243,11 +243,11 @@ function FlagshipDetail() {
     };
     load();
     return () => { cancelled = true; };
-  }, [id, isAuthenticated]);
+  }, [slug, isAuthenticated]);
 
   const handleEnroll = useCallback(async () => {
     if (!isAuthenticated()) {
-      navigate(ROUTES.LOGIN, { state: { from: { pathname: `/flagship/${id}` } } });
+      navigate(ROUTES.LOGIN, { state: { from: { pathname: `/flagship/${slug}` } } });
       return;
     }
     if (isEnrolled) {
@@ -257,7 +257,7 @@ function FlagshipDetail() {
     setEnrolling(true);
     try {
       const result = await flagshipService.startEnrollment(
-        id,
+        program.id,
         selectedCountry !== 'IN' ? selectedCountry : null
       );
 
@@ -266,7 +266,7 @@ function FlagshipDetail() {
       if (order) {
         navigate(ROUTES.PAYMENT, {
           state: {
-            flagshipProgramId: Number(id),
+            flagshipProgramId: program.id,
             courseName: program.title,
             order,
           },
@@ -285,11 +285,11 @@ function FlagshipDetail() {
     } finally {
       setEnrolling(false);
     }
-  }, [isAuthenticated, program, selectedCountry, isEnrolled, navigate, showError, showSuccess, id]);
+  }, [isAuthenticated, program, selectedCountry, isEnrolled, navigate, showError, showSuccess, slug]);
 
   const handleDownloadCertificate = useCallback(async () => {
     try {
-      await flagshipService.downloadAndSaveCertificate(id, program?.title || 'program');
+      await flagshipService.downloadAndSaveCertificate(program?.id, program?.title || 'program');
       showSuccess('Certificate downloaded!');
     } catch (err) {
       if (err.response?.status === 403) {
@@ -300,7 +300,7 @@ function FlagshipDetail() {
         showError('Please ensure you have completed both the Pre-Assessment and Assessment. Your result will be reviewed and the certificate will be issued within 24–48 hours.');
       }
     }
-  }, [id, program, showSuccess, showError]);
+  }, [program, showSuccess, showError]);
 
   if (loading) {
     return (
@@ -343,7 +343,7 @@ function FlagshipDetail() {
       <SEO
         title={`${program.title} | UyirGene`}
         description={program.cardDescription || program.tagline}
-        path={`/flagship/${program.id}`}
+        path={`/flagship/${program.slug || program.id}`}
       />
 
       {/* Hero */}

@@ -58,7 +58,7 @@ const whyChoose = [
 ];
 
 function CertificationDetail() {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
   const { isDarkMode } = useUI();
   const { getImage } = useConfig();
@@ -73,7 +73,7 @@ function CertificationDetail() {
     const loadCertification = async () => {
       setLoading(true);
       try {
-        const data = await serviceCertificationService.getCertification(id);
+        const data = await serviceCertificationService.getCertificationBySlug(slug);
         setCertification(data);
       } catch (err) {
         setError('Failed to load certification details');
@@ -82,7 +82,7 @@ function CertificationDetail() {
       }
     };
     loadCertification();
-  }, [id]);
+  }, [slug]);
 
   if (loading) {
     return <LoadingSpinner fullScreen text="Loading certification..." />;
@@ -114,13 +114,13 @@ function CertificationDetail() {
             ? `${certification.subtitle} | Uyirgene International`
             : `${certification.title} certification services from Uyirgene International. Expert food safety and quality management certification support.`
         }
-        path={`/services/certification/${id}`}
+        path={`/services/certification/${certification?.slug || slug}`}
       />
       <Breadcrumb
         items={[
           { label: 'Services', path: ROUTES.SERVICES },
           { label: 'Certification', path: ROUTES.SERVICES_CERTIFICATION },
-          { label: certification.title, path: `/services/certification/${id}` },
+          { label: certification.title, path: `/services/certification/${certification?.slug || slug}` },
         ]}
       />
 

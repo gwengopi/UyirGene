@@ -16,6 +16,7 @@ import java.util.List;
 public class ServiceTestingDto {
     private Long id;
     private String title;
+    private String slug;
     private String subtitle;
     private String description;
     private String whatIs;
@@ -45,6 +46,7 @@ public class ServiceTestingDto {
         return ServiceTestingDto.builder()
                 .id(entity.getId())
                 .title(entity.getTitle())
+                .slug(entity.getSlug())
                 .subtitle(entity.getSubtitle())
                 .description(entity.getDescription())
                 .whatIs(entity.getWhatIs())

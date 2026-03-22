@@ -35,12 +35,12 @@ import { getApiBaseUrl } from '../services/api';
 import * as bundleService from '../services/bundleService';
 
 function BundleDetail() {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
   const { showSuccess, showError } = useToast();
-  const { getImage } = useConfig();
+  const { getImage, getCategoryLabel } = useConfig();
 
   const [bundle, setBundle] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -53,7 +53,7 @@ function BundleDetail() {
     const loadBundle = async () => {
       setLoading(true);
       try {
-        const data = await bundleService.getBundleById(id);
+        const data = await bundleService.getBundleBySlug(slug);
         setBundle(data);
       } catch (error) {
         showError('Failed to load bundle details');
@@ -63,7 +63,7 @@ function BundleDetail() {
       }
     };
     loadBundle();
-  }, [id, showError, navigate]);
+  }, [slug, showError, navigate]);
 
   const handleEnroll = async () => {
     if (!isAuthenticated()) {
@@ -74,7 +74,7 @@ function BundleDetail() {
 
     setEnrolling(true);
     try {
-      const result = await bundleService.startBundleEnrollment(id, selectedCountry);
+      const result = await bundleService.startBundleEnrollment(bundle.id, selectedCountry);
 
       if (result.allOwned) {
         setAllOwnedDialog({ open: true, message: result.message || 'You already own all courses in this bundle.' });
@@ -100,7 +100,7 @@ function BundleDetail() {
     setWarningDialog({ open: false, message: '', order: null });
     navigate(ROUTES.PAYMENT, {
       state: {
-        bundleId: id,
+        bundleId: bundle.id,
         bundleName: bundle.title,
         courseName: bundle.title,
         order,
@@ -161,7 +161,7 @@ function BundleDetail() {
       <SEO
         title={`${bundle.title} - Combo Offer`}
         description={bundle.description || `Save ${bundle.savingsPercent}% with this combo offer. Includes ${bundleCourses.length} courses.`}
-        path={`/bundles/${id}`}
+        path={`/bundles/${bundle.slug || slug}`}
       />
       <Breadcrumb items={breadcrumbItems} />
 
@@ -276,7 +276,7 @@ function BundleDetail() {
                     '&:hover': { boxShadow: 2, borderColor: 'primary.main' },
                     overflow: 'hidden',
                   }}
-                  onClick={() => navigate(ROUTES.COURSE_DETAIL(course.id))}
+                  onClick={() => navigate(ROUTES.COURSE_DETAIL(course.slug || course.id))}
                 >
                   <CardMedia
                     component="img"
@@ -307,8 +307,8 @@ function BundleDetail() {
                           </Typography>
                         )}
                         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
-                          {course.category && (
-                            <Chip label={course.category} size="small" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
+                          {course.categories?.[0] && (
+                            <Chip label={getCategoryLabel(course.categories[0])} size="small" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
                           )}
                           {course.durationHours > 0 && (
                             <Chip

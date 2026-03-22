@@ -4,6 +4,7 @@ const ENDPOINTS = {
   LIST: '/api/service-certifications',
   LIST_ADMIN: '/api/service-certifications/admin',
   SINGLE: (id) => `/api/service-certifications/${id}`,
+  BY_SLUG: (slug) => `/api/service-certifications/slug/${slug}`,
   THUMBNAIL: (id) => `/api/service-certifications/${id}/thumbnail`,
   HERO_IMAGE: (id) => `/api/service-certifications/${id}/hero-image`,
 };
@@ -29,6 +30,14 @@ export async function getAllCertifications() {
  */
 export async function getCertification(id) {
   const response = await api.get(ENDPOINTS.SINGLE(id));
+  return response.data;
+}
+
+/**
+ * Get a single certification by slug
+ */
+export async function getCertificationBySlug(slug) {
+  const response = await api.get(ENDPOINTS.BY_SLUG(slug));
   return response.data;
 }
 
@@ -109,6 +118,7 @@ export default {
   getPublishedCertifications,
   getAllCertifications,
   getCertification,
+  getCertificationBySlug,
   createCertification,
   updateCertification,
   deleteCertification,

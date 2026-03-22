@@ -18,6 +18,9 @@ public class ServiceTesting {
     @Column(nullable = false)
     private String title;
 
+    @Column(unique = true, length = 200)
+    private String slug;
+
     private String subtitle;
 
     @Column(columnDefinition = "TEXT")

@@ -38,8 +38,8 @@ function FlagshipProgramCard({ program }) {
         },
         '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
       }}
-      onClick={() => navigate(`/flagship/${program.id}`)}
-      onKeyDown={(e) => e.key === 'Enter' && navigate(`/flagship/${program.id}`)}
+      onClick={() => navigate(`/flagship/${program.slug || program.id}`)}
+      onKeyDown={(e) => e.key === 'Enter' && navigate(`/flagship/${program.slug || program.id}`)}
     >
       {/* Background image */}
       {imageUrl ? (
@@ -155,7 +155,7 @@ function FlagshipProgramCard({ program }) {
           endIcon={<ArrowForwardIcon />}
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/flagship/${program.id}`);
+            navigate(`/flagship/${program.slug || program.id}`);
           }}
           sx={{
             alignSelf: 'flex-start',

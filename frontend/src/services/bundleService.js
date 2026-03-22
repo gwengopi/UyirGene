@@ -5,6 +5,7 @@ const BUNDLE_ENDPOINTS = {
   BY_COURSE: (courseId) => `/api/bundles/by-course/${courseId}`,
   BY_COURSE_CATEGORY: '/api/bundles/by-course-category',
   DETAIL: (id) => `/api/bundles/${id}`,
+  BY_SLUG: (slug) => `/api/bundles/slug/${slug}`,
   ENROLL: (id) => `/api/bundles/${id}/enroll`,
   CONFIRM: (id) => `/api/bundles/${id}/enroll/confirm`,
   MULTI_ENROLL: '/api/bundles/enroll/multi',
@@ -40,6 +41,11 @@ export async function getPublishedBundlesByCategory(category) {
 
 export async function getBundleById(id) {
   const response = await api.get(BUNDLE_ENDPOINTS.DETAIL(id));
+  return response.data;
+}
+
+export async function getBundleBySlug(slug) {
+  const response = await api.get(BUNDLE_ENDPOINTS.BY_SLUG(slug));
   return response.data;
 }
 
@@ -131,6 +137,7 @@ export default {
   getPublishedBundles,
   getBundlesByCourse,
   getBundleById,
+  getBundleBySlug,
   startBundleEnrollment,
   confirmBundlePayment,
   startMultiBundleEnrollment,

@@ -18,6 +18,9 @@ public class Course {
 
     private String title;
 
+    @Column(unique = true, length = 200)
+    private String slug;
+
     // Short marketing tagline shown below the title on the detail page
     @Column(length = 300)
     private String tagline;

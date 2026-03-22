@@ -395,7 +395,7 @@ function FlagshipProgramForm({ open, program, onClose, onSaved, courses = [] }) 
           <Autocomplete
             multiple
             options={courses}
-            getOptionLabel={(c) => c.title + (c.category ? ` (${c.category})` : '')}
+            getOptionLabel={(c) => c.title + (c.categories?.[0] ? ` (${c.categories[0]})` : '')}
             value={courses.filter((c) => form.courseIds.includes(c.id))}
             onChange={(_, newValue) => set('courseIds', newValue.map((c) => c.id))}
             isOptionEqualToValue={(option, value) => option.id === value.id}

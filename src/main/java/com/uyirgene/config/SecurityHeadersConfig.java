@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.filter.ShallowEtagHeaderFilter;
 
 @Configuration
 public class SecurityHeadersConfig {
@@ -51,5 +52,22 @@ public class SecurityHeadersConfig {
         registrationBean.setOrder(1);
 
         return registrationBean;
+    }
+
+    @Bean
+    public FilterRegistrationBean<ShallowEtagHeaderFilter> etagFilter() {
+        FilterRegistrationBean<ShallowEtagHeaderFilter> registration = new FilterRegistrationBean<>();
+        registration.setFilter(new ShallowEtagHeaderFilter());
+        registration.addUrlPatterns(
+                "/api/courses/*/thumbnail",
+                "/api/courses/*/description-image",
+                "/api/courses/*/image",
+                "/api/bundles/*/thumbnail",
+                "/api/flagship/*/image",
+                "/api/config/image/*"
+        );
+        registration.setName("etagFilter");
+        registration.setOrder(2);
+        return registration;
     }
 }

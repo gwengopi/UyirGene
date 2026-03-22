@@ -33,6 +33,12 @@ public class ServiceCertificationController {
         return ResponseEntity.ok(service.getAllPublished());
     }
 
+    @GetMapping("/slug/{slug}")
+    @Operation(summary = "Get a service certification by slug")
+    public ResponseEntity<ServiceCertificationDto> getBySlug(@PathVariable String slug) {
+        return ResponseEntity.ok(service.getBySlug(slug));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get a service certification by ID")
     @ApiResponses({

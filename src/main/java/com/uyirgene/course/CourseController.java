@@ -78,9 +78,12 @@ public class CourseController {
     ) {
         List<Course> courses;
         if (category != null && !category.isBlank()) {
+            // Search for category value within JSON array stored in the category column
+            // e.g. category="HACCP" matches '["HACCP","Food Safety"]' via LIKE '%"HACCP"%'
+            String pattern = "\"" + category + "\"";
             courses = excludeCategory
-                    ? repo.findByPublishedTrueAndCategoryNotOrderByDisplayOrderAscIdAsc(category)
-                    : repo.findByPublishedTrueAndCategoryOrderByDisplayOrderAscIdAsc(category);
+                    ? repo.findByPublishedTrueAndCategoryNotContaining(pattern)
+                    : repo.findByPublishedTrueAndCategoryContaining(pattern);
             List<CourseDto> dtos = courses.stream().map(CourseDto::fromEntity).toList();
             return ResponseEntity.ok(dtos);
         }
@@ -132,7 +135,7 @@ public class CourseController {
             @RequestParam(value = "tagline", required = false) String tagline,
             @RequestParam(value = "shortDescription", required = false) String shortDescription,
             @RequestParam("description") String description,
-            @RequestParam(value = "category", required = false) String category,
+            @RequestParam(value = "categories", required = false) String categoriesJson,
             @RequestParam(value = "durationHours", required = false) Integer durationHours,
             @RequestParam(value = "price", required = false) Double price,
             @RequestParam(value = "published", defaultValue = "false") Boolean published,
@@ -189,7 +192,7 @@ public class CourseController {
                 .outcome(outcome)
                 .courseDurationText(courseDurationText)
                 .examDetails(examDetails)
-                .category(category)
+                .category(categoriesJson)
                 .durationHours(durationHours)
                 .price(price)
                 .published(published)
@@ -204,6 +207,9 @@ public class CourseController {
                 .preAssessmentInstructions(preAssessmentInstructions)
                 .reminderDays(reminderDays)
                 .build();
+
+        // Generate unique slug from title
+        course.setSlug(generateUniqueSlug(title, null));
 
         // Handle legacy image field
         if (image != null && !image.isEmpty()) {
@@ -256,7 +262,7 @@ public class CourseController {
                 .outcome(c.getOutcome())
                 .courseDurationText(c.getCourseDurationText())
                 .examDetails(c.getExamDetails())
-                .category(c.getCategory())
+                .category(c.getCategory()) // category stored as JSON array string
                 .durationHours(c.getDurationHours())
                 .price(c.getPrice())
                 .published(c.getPublished())
@@ -266,10 +272,20 @@ public class CourseController {
                 .trainerName(c.getTrainerName())
                 .testLink(c.getTestLink())
                 .testDescription(c.getTestDescription())
+                .slug(generateUniqueSlug(c.getTitle(), null))
                 .build();
         Course saved = repo.save(course);
         return ResponseEntity.created(URI.create("/api/courses/" + saved.getId()))
                 .body(CourseDto.fromEntity(saved));
+    }
+
+    @GetMapping("/slug/{slug}")
+    @Operation(summary = "Get single course by slug")
+    @Transactional(readOnly = true)
+    public ResponseEntity<CourseDto> getBySlug(@PathVariable("slug") String slug) {
+        return repo.findBySlug(slug)
+                .map(course -> ResponseEntity.ok(CourseDto.fromEntity(course)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/{id}")
@@ -296,7 +312,7 @@ public class CourseController {
             @RequestParam(value = "tagline", required = false) String tagline,
             @RequestParam(value = "shortDescription", required = false) String shortDescription,
             @RequestParam("description") String description,
-            @RequestParam(value = "category", required = false) String category,
+            @RequestParam(value = "categories", required = false) String categoriesJson,
             @RequestParam(value = "durationHours", required = false) Integer durationHours,
             @RequestParam(value = "price", required = false) Double price,
             @RequestParam(value = "published", defaultValue = "false") Boolean published,
@@ -342,6 +358,7 @@ public class CourseController {
         return repo.findById(id).map(existing -> {
             existing.setCourseCode(courseCode != null && !courseCode.isBlank() ? courseCode : null);
             existing.setTitle(title);
+            existing.setSlug(generateUniqueSlug(title, id));
             existing.setTagline(tagline);
             existing.setShortDescription(shortDescription);
             existing.setDescription(description);
@@ -351,7 +368,7 @@ public class CourseController {
             existing.setOutcome(outcome);
             existing.setCourseDurationText(courseDurationText);
             existing.setExamDetails(examDetails);
-            existing.setCategory(category);
+            existing.setCategory(categoriesJson);
             existing.setTrainerName(trainerName);
             existing.setDurationHours(durationHours);
             existing.setPrice(price);
@@ -421,6 +438,7 @@ public class CourseController {
         }
         return repo.findById(id).map(existing -> {
             existing.setTitle(c.getTitle());
+            existing.setSlug(generateUniqueSlug(c.getTitle(), id));
             existing.setTagline(c.getTagline());
             existing.setDescription(c.getDescription());
             existing.setKeyComponents(c.getKeyComponents());
@@ -461,7 +479,7 @@ public class CourseController {
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.parseMediaType(contentType != null ? contentType : "image/jpeg"));
                 headers.setContentLength(imageData.length);
-                headers.setCacheControl("public, max-age=3600");
+                headers.setCacheControl("no-cache");
                 return new ResponseEntity<>(imageData, headers, HttpStatus.OK);
             } catch (IOException e) {
                 return ResponseEntity.notFound().<byte[]>build();
@@ -482,7 +500,7 @@ public class CourseController {
                         course.getDescriptionImageContentType() != null ? course.getDescriptionImageContentType() : "image/jpeg"
                 ));
                 headers.setContentLength(imageData.length);
-                headers.setCacheControl("public, max-age=3600");
+                headers.setCacheControl("no-cache");
                 return new ResponseEntity<>(imageData, headers, HttpStatus.OK);
             } catch (IOException e) {
                 return ResponseEntity.notFound().<byte[]>build();
@@ -529,7 +547,7 @@ public class CourseController {
                         course.getImageContentType() != null ? course.getImageContentType() : "image/jpeg"
                 ));
                 headers.setContentLength(imageData.length);
-                headers.setCacheControl("public, max-age=3600");
+                headers.setCacheControl("no-cache");
                 return new ResponseEntity<>(imageData, headers, HttpStatus.OK);
             } catch (IOException e) {
                 return ResponseEntity.notFound().<byte[]>build();
@@ -755,6 +773,24 @@ public class CourseController {
         } catch (Exception e) {
             throw new RuntimeException("Invalid countryPrices JSON", e);
         }
+    }
+
+    /**
+     * Generate a URL-safe slug from a title, ensuring uniqueness in the course table.
+     */
+    private String generateUniqueSlug(String title, Long excludeId) {
+        String base = title.toLowerCase()
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("^-+|-+$", "");
+        if (base.isEmpty()) base = "course";
+        String candidate = base;
+        int suffix = 2;
+        while (excludeId != null
+                ? repo.existsBySlugAndIdNot(candidate, excludeId)
+                : repo.existsBySlug(candidate)) {
+            candidate = base + "-" + suffix++;
+        }
+        return candidate;
     }
 
     /**

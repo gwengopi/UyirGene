@@ -9,4 +9,7 @@ import java.util.List;
 public interface ServiceCertificationRepository extends JpaRepository<ServiceCertification, Long> {
     List<ServiceCertification> findByPublishedTrueOrderByDisplayOrderAsc();
     List<ServiceCertification> findAllByOrderByDisplayOrderAsc();
+    java.util.Optional<ServiceCertification> findBySlug(String slug);
+    boolean existsBySlug(String slug);
+    boolean existsBySlugAndIdNot(String slug, Long id);
 }

@@ -126,6 +126,13 @@ export function ConfigProvider({ children }) {
     }));
   }, [categories]);
 
+  // Resolve a category code to its display label (falls back to the code itself)
+  const getCategoryLabel = useCallback((code) => {
+    if (!code) return code;
+    const found = categories.find((cat) => cat.code === code);
+    return found ? found.label : code;
+  }, [categories]);
+
   const value = {
     images,
     texts,
@@ -135,6 +142,7 @@ export function ConfigProvider({ children }) {
     getImage,
     getText,
     getCategoryOptions,
+    getCategoryLabel,
     refreshImages,
     refreshCategories,
   };

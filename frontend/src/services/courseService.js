@@ -4,6 +4,7 @@ const COURSE_ENDPOINTS = {
   LIST: '/api/courses',
   ADMIN_LIST: '/api/courses/admin',
   DETAIL: (id) => `/api/courses/${id}`,
+  BY_SLUG: (slug) => `/api/courses/slug/${slug}`,
   VIDEOS: (courseId) => `/api/courses/${courseId}/videos`,
   VIDEOS_ADMIN: (courseId) => `/api/courses/${courseId}/videos/admin`,
   VIDEO: (courseId, videoId) => `/api/courses/${courseId}/videos/${videoId}`,
@@ -64,6 +65,16 @@ export async function getCourse(id) {
 }
 
 /**
+ * Get a single course by slug
+ * @param {string} slug - Course slug
+ * @returns {Promise<Object>} Course details
+ */
+export async function getCourseBySlug(slug) {
+  const response = await api.get(COURSE_ENDPOINTS.BY_SLUG(slug));
+  return response.data;
+}
+
+/**
  * Get videos for a course (requires enrollment)
  * @param {number|string} courseId - Course ID
  * @returns {Promise<Array>} List of videos
@@ -107,7 +118,7 @@ export async function createCourse(courseData, imageOptions = {}) {
   if (courseOnly.trainerName) formData.append('trainerName', courseOnly.trainerName);
   if (courseOnly.shortDescription) formData.append('shortDescription', courseOnly.shortDescription);
   formData.append('description', courseOnly.description);
-  if (courseOnly.category) formData.append('category', courseOnly.category);
+  if (courseOnly.categories && courseOnly.categories.length > 0) formData.append('categories', JSON.stringify(courseOnly.categories));
   if (courseOnly.durationHours) formData.append('durationHours', courseOnly.durationHours);
   if (courseOnly.price) formData.append('price', courseOnly.price);
   formData.append('published', courseOnly.published || false);
@@ -190,7 +201,7 @@ export async function updateCourse(id, courseData, imageOptions = {}) {
   if (courseOnly.trainerName !== undefined) formData.append('trainerName', courseOnly.trainerName || '');
   if (courseOnly.shortDescription !== undefined) formData.append('shortDescription', courseOnly.shortDescription || '');
   formData.append('description', courseOnly.description);
-  if (courseOnly.category) formData.append('category', courseOnly.category);
+  if (courseOnly.categories !== undefined) formData.append('categories', courseOnly.categories && courseOnly.categories.length > 0 ? JSON.stringify(courseOnly.categories) : '[]');
   if (courseOnly.durationHours) formData.append('durationHours', courseOnly.durationHours);
   if (courseOnly.price) formData.append('price', courseOnly.price);
   formData.append('published', courseOnly.published || false);
@@ -354,6 +365,7 @@ export default {
   getFlagshipCourses,
   getCoursesByCategory,
   getCourse,
+  getCourseBySlug,
   getCourseVideos,
   getAdminCourseVideos,
   getEnrolledCourses,

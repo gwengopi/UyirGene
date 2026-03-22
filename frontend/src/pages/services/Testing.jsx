@@ -259,7 +259,7 @@ function Testing() {
               <Grid item xs={12} sm={6} md={4} key={testing.id}>
                 <TestingCard
                   testing={testing}
-                  onClick={() => navigate(`/services/testing/${testing.id}`)}
+                  onClick={() => navigate(`/services/testing/${testing.slug || testing.id}`)}
                   index={index}
                   isVisible={testingsAnim.isVisible}
                 />

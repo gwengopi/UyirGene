@@ -11,6 +11,9 @@ public interface CourseBundleRepository extends JpaRepository<CourseBundle, Long
 
     @Query("SELECT b.title FROM CourseBundle b WHERE b.id = :id")
     Optional<String> findTitleById(@Param("id") Long id);
+    Optional<CourseBundle> findBySlug(String slug);
+    boolean existsBySlugAndIdNot(String slug, Long id);
+    boolean existsBySlug(String slug);
     List<CourseBundle> findByPublishedTrueOrderByDisplayOrderAscIdAsc();
     List<CourseBundle> findAllByOrderByDisplayOrderAscIdAsc();
     Optional<CourseBundle> findByBundleCode(String bundleCode);

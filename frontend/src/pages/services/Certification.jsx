@@ -259,7 +259,7 @@ function Certification() {
               <Grid item xs={12} sm={6} md={4} key={cert.id}>
                 <CertificationCard
                   certification={cert}
-                  onClick={() => navigate(`/services/certification/${cert.id}`)}
+                  onClick={() => navigate(`/services/certification/${cert.slug || cert.id}`)}
                   index={index}
                   isVisible={certsAnim.isVisible}
                 />

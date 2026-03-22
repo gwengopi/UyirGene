@@ -78,7 +78,7 @@ function BundleForm({ bundle, courses = [], onSave, onCancel, loading }) {
 
   // Filter courses by selected category (when category is set)
   const filteredCourses = formData.category
-    ? courses.filter((c) => c.category === formData.category)
+    ? courses.filter((c) => (c.categories || []).includes(formData.category))
     : courses;
 
   // Calculate original price from selected courses

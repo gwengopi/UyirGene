@@ -4,6 +4,7 @@ const ENDPOINTS = {
   LIST: '/api/service-testings',
   LIST_ADMIN: '/api/service-testings/admin',
   SINGLE: (id) => `/api/service-testings/${id}`,
+  BY_SLUG: (slug) => `/api/service-testings/slug/${slug}`,
   THUMBNAIL: (id) => `/api/service-testings/${id}/thumbnail`,
   HERO_IMAGE: (id) => `/api/service-testings/${id}/hero-image`,
 };
@@ -29,6 +30,14 @@ export async function getAllTestings() {
  */
 export async function getTesting(id) {
   const response = await api.get(ENDPOINTS.SINGLE(id));
+  return response.data;
+}
+
+/**
+ * Get a single testing by slug
+ */
+export async function getTestingBySlug(slug) {
+  const response = await api.get(ENDPOINTS.BY_SLUG(slug));
   return response.data;
 }
 
@@ -109,6 +118,7 @@ export default {
   getPublishedTestings,
   getAllTestings,
   getTesting,
+  getTestingBySlug,
   createTesting,
   updateTesting,
   deleteTesting,

@@ -1,5 +1,8 @@
 package com.uyirgene.course.dto;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uyirgene.course.CourseBundle;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,6 +22,7 @@ public class CourseBundleDto {
     private Long id;
     private String bundleCode;
     private String title;
+    private String slug;
     private String description;
     private Double price;
     private Double originalPrice;
@@ -42,8 +46,9 @@ public class CourseBundleDto {
         private Long id;
         private String courseCode;
         private String title;
+        private String slug;
         private String shortDescription;
-        private String category;
+        private List<String> categories;
         private Integer durationHours;
         private Double price;
         private String courseType;
@@ -73,6 +78,7 @@ public class CourseBundleDto {
                 .id(bundle.getId())
                 .bundleCode(bundle.getBundleCode())
                 .title(bundle.getTitle())
+                .slug(bundle.getSlug())
                 .description(bundle.getDescription())
                 .price(bundle.getPrice())
                 .originalPrice(bundle.getOriginalPrice())
@@ -90,8 +96,9 @@ public class CourseBundleDto {
                                     c.getId(),
                                     c.getCourseCode(),
                                     c.getTitle(),
+                                    c.getSlug(),
                                     c.getShortDescription(),
-                                    c.getCategory(),
+                                    parseCategories(c.getCategory()),
                                     c.getDurationHours(),
                                     c.getPrice(),
                                     c.getCourseType(),
@@ -111,5 +118,16 @@ public class CourseBundleDto {
                             .collect(Collectors.toList())
                         : Collections.emptyList())
                 .build();
+    }
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    private static List<String> parseCategories(String json) {
+        if (json == null || json.isBlank()) return Collections.emptyList();
+        try {
+            return OBJECT_MAPPER.readValue(json, new TypeReference<List<String>>() {});
+        } catch (JsonProcessingException e) {
+            return Collections.emptyList();
+        }
     }
 }

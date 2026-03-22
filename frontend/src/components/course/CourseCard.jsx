@@ -33,7 +33,7 @@ const CourseCard = memo(function CourseCard({
   selectedCountry = 'US',
 }) {
   const navigate = useNavigate();
-  const { getImage } = useConfig();
+  const { getImage, getCategoryLabel } = useConfig();
 
   if (loading) {
     return (
@@ -52,12 +52,12 @@ const CourseCard = memo(function CourseCard({
   }
 
   const handleCardClick = () => {
-    navigate(ROUTES.COURSE_DETAIL(course.id));
+    navigate(ROUTES.COURSE_DETAIL(course.slug || course.id));
   };
 
   const handleEnrollClick = (e) => {
     e.stopPropagation();
-    navigate(ROUTES.COURSE_DETAIL(course.id));
+    navigate(ROUTES.COURSE_DETAIL(course.slug || course.id));
   };
 
   const isFree = !course.price || course.price === 0;
@@ -176,8 +176,8 @@ const CourseCard = memo(function CourseCard({
               </Typography>
             </Box>
           )}
-          {course.category && (
-            <Chip label={course.category} size="small" variant="outlined" />
+          {course.categories?.[0] && (
+            <Chip label={getCategoryLabel(course.categories[0])} size="small" variant="outlined" />
           )}
         </Box>
       </CardContent>

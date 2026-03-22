@@ -46,7 +46,7 @@ const CATEGORY_COLORS = [
 function Courses() {
   const navigate = useNavigate();
   const { isDarkMode } = useUI();
-  const { getImage } = useConfig();
+  const { getImage, getCategoryLabel } = useConfig();
 
   const [allCourses, setAllCourses] = useState([]);
   const [allPrograms, setAllPrograms] = useState([]);
@@ -65,21 +65,26 @@ function Courses() {
         setAllPrograms(programs || []);
         const countMap = {};
         courses.forEach((c) => {
-          if (c.category) countMap[c.category] = (countMap[c.category] || 0) + 1;
+          (c.categories || []).forEach((cat) => {
+            countMap[cat] = (countMap[cat] || 0) + 1;
+          });
         });
         const seen = new Set();
         const unique = [];
         courses.forEach((c) => {
-          if (c.category && !seen.has(c.category)) {
-            seen.add(c.category);
-            const thumb = c.thumbnailImageUrl || c.imageUrl || null;
-            unique.push({
-              name: c.category,
-              count: countMap[c.category],
-              imageUrl: thumb ? `${apiBase}${thumb}` : null,
-            });
-          }
+          (c.categories || []).forEach((cat) => {
+            if (cat && !seen.has(cat)) {
+              seen.add(cat);
+              const thumb = c.thumbnailImageUrl || c.imageUrl || null;
+              unique.push({
+                name: cat,
+                count: countMap[cat],
+                imageUrl: thumb ? `${apiBase}${thumb}` : null,
+              });
+            }
+          });
         });
+        // labels resolved after categories load — done in render via getCategoryLabel
         setCategories(unique);
       })
       .catch(() => {})
@@ -95,7 +100,7 @@ function Courses() {
     const matchesCourseSearch = (c) =>
       c.title?.toLowerCase().includes(q) ||
       c.shortDescription?.toLowerCase().includes(q) ||
-      c.category?.toLowerCase().includes(q);
+      (c.categories || []).some((cat) => cat.toLowerCase().includes(q));
 
     const matchesProgramSearch = (p) =>
       p.title?.toLowerCase().includes(q) ||
@@ -105,7 +110,7 @@ function Courses() {
     const courses = selectedCategory === 'Flagship'
       ? []
       : allCourses
-          .filter((c) => matchesCourseSearch(c) && (!selectedCategory || c.category === selectedCategory))
+          .filter((c) => matchesCourseSearch(c) && (!selectedCategory || (c.categories || []).includes(selectedCategory)))
           .map((c) => ({ ...c, _type: 'course' }));
 
     const programs = (selectedCategory === '' || selectedCategory === 'Flagship')
@@ -217,7 +222,7 @@ function Courses() {
               {categories.map((cat) => (
                 <Chip
                   key={cat.name}
-                  label={cat.name}
+                  label={getCategoryLabel(cat.name)}
                   onClick={() => setSelectedCategory(selectedCategory === cat.name ? '' : cat.name)}
                   color={selectedCategory === cat.name ? 'primary' : 'default'}
                   variant={selectedCategory === cat.name ? 'filled' : 'outlined'}
@@ -254,17 +259,18 @@ function Courses() {
                   const thumbUrl = thumb
                     ? (isFlagship ? thumb : `${apiBase}${thumb}`)
                     : (isFlagship ? item.backgroundImageUrl : null);
-                  const catIndex = categories.findIndex((c) => c.name === item.category);
+                  const firstCat = !isFlagship ? (item.categories?.[0] || null) : null;
+                  const catIndex = firstCat ? categories.findIndex((c) => c.name === firstCat) : -1;
                   const color = isFlagship ? '#7B2D8B' : CATEGORY_COLORS[catIndex >= 0 ? catIndex % CATEGORY_COLORS.length : 0];
-                  const label = isFlagship ? (item.tagline || 'Flagship Program') : item.category;
+                  const label = isFlagship ? (item.tagline || 'Flagship Program') : getCategoryLabel(firstCat);
                   return (
                     <Grid item xs={12} sm={6} md={4} key={`${item._type}-${item.id}`}>
                       <Paper
                         elevation={0}
                         role="button"
                         tabIndex={0}
-                        onClick={() => navigate(isFlagship ? `/flagship/${item.id}` : ROUTES.COURSE_DETAIL(item.id))}
-                        onKeyDown={(e) => e.key === 'Enter' && navigate(isFlagship ? `/flagship/${item.id}` : ROUTES.COURSE_DETAIL(item.id))}
+                        onClick={() => navigate(isFlagship ? `/flagship/${item.slug || item.id}` : ROUTES.COURSE_DETAIL(item.slug || item.id))}
+                        onKeyDown={(e) => e.key === 'Enter' && navigate(isFlagship ? `/flagship/${item.slug || item.id}` : ROUTES.COURSE_DETAIL(item.slug || item.id))}
                         sx={cardSx}
                       >
                         <Box sx={{ position: 'relative', flexShrink: 0, overflow: 'hidden' }}>
@@ -306,9 +312,9 @@ function Courses() {
                                 Flagship
                               </Typography>
                             </Box>
-                          ) : item.category && (
+                          ) : firstCat && (
                             <Chip
-                              label={item.category}
+                              label={getCategoryLabel(firstCat)}
                               size="small"
                               sx={{
                                 position: 'absolute', bottom: 10, left: 12,
@@ -479,7 +485,7 @@ function Courses() {
                           }}
                         >
                           <Typography sx={{ fontSize: 90, fontWeight: 900, color: 'rgba(255,255,255,0.15)', lineHeight: 1, userSelect: 'none' }}>
-                            {cat.name.charAt(0).toUpperCase()}
+                            {getCategoryLabel(cat.name).charAt(0).toUpperCase()}
                           </Typography>
                         </Box>
                       )}
@@ -529,7 +535,7 @@ function Courses() {
                       </Box>
 
                       <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5 }}>
-                        {cat.name}
+                        {getCategoryLabel(cat.name)}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
                         Professional courses with certification

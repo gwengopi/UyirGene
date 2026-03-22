@@ -29,7 +29,7 @@ import { getApiBaseUrl } from '../../services/api';
 import { ROUTES, IMAGES } from '../../utils/constants';
 
 function TestingDetail() {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
   const { isDarkMode } = useUI();
   const { getImage } = useConfig();
@@ -44,7 +44,7 @@ function TestingDetail() {
     const loadTesting = async () => {
       setLoading(true);
       try {
-        const data = await serviceTestingService.getTesting(id);
+        const data = await serviceTestingService.getTestingBySlug(slug);
         setTesting(data);
       } catch (err) {
         setError('Failed to load testing details');
@@ -53,7 +53,7 @@ function TestingDetail() {
       }
     };
     loadTesting();
-  }, [id]);
+  }, [slug]);
 
   if (loading) {
     return <LoadingSpinner fullScreen text="Loading testing details..." />;
@@ -85,13 +85,13 @@ function TestingDetail() {
             ? `${testing.subtitle} | Uyirgene International`
             : `${testing.title} testing services from Uyirgene International. Accredited laboratory testing with reliable, accurate results.`
         }
-        path={`/services/testing/${id}`}
+        path={`/services/testing/${testing?.slug || slug}`}
       />
       <Breadcrumb
         items={[
           { label: 'Services', path: ROUTES.SERVICES },
           { label: 'Testing', path: ROUTES.SERVICES_TESTING },
-          { label: testing.title, path: `/services/testing/${id}` },
+          { label: testing.title, path: `/services/testing/${testing?.slug || slug}` },
         ]}
       />
 

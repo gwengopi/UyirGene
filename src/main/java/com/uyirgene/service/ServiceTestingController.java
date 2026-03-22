@@ -33,6 +33,12 @@ public class ServiceTestingController {
         return ResponseEntity.ok(service.getAllPublished());
     }
 
+    @GetMapping("/slug/{slug}")
+    @Operation(summary = "Get a service testing by slug")
+    public ResponseEntity<ServiceTestingDto> getBySlug(@PathVariable String slug) {
+        return ResponseEntity.ok(service.getBySlug(slug));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get a service testing by ID")
     @ApiResponses({

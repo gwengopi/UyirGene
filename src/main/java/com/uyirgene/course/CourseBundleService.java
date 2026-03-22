@@ -65,6 +65,28 @@ public class CourseBundleService {
         return CourseBundleDto.fromEntity(bundle);
     }
 
+    @Transactional(readOnly = true)
+    public CourseBundleDto getBundleBySlug(String slug) {
+        CourseBundle bundle = bundleRepo.findBySlug(slug)
+                .orElseThrow(() -> new EntityNotFoundException("Bundle not found"));
+        return CourseBundleDto.fromEntity(bundle);
+    }
+
+    private String generateUniqueSlug(String title, Long excludeId) {
+        String base = title.toLowerCase()
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("^-+|-+$", "");
+        if (base.isEmpty()) base = "bundle";
+        String candidate = base;
+        int suffix = 2;
+        while (excludeId != null
+                ? bundleRepo.existsBySlugAndIdNot(candidate, excludeId)
+                : bundleRepo.existsBySlug(candidate)) {
+            candidate = base + "-" + suffix++;
+        }
+        return candidate;
+    }
+
     // ==================== Admin CRUD ====================
 
     @Transactional(readOnly = true)
@@ -94,6 +116,7 @@ public class CourseBundleService {
         CourseBundle bundle = CourseBundle.builder()
                 .bundleCode(bundleCode)
                 .title(title)
+                .slug(generateUniqueSlug(title, null))
                 .description(description)
                 .price(price)
                 .originalPrice(originalPrice)
@@ -142,6 +165,7 @@ public class CourseBundleService {
 
         bundle.setBundleCode(bundleCode);
         bundle.setTitle(title);
+        bundle.setSlug(generateUniqueSlug(title, id));
         bundle.setDescription(description);
         bundle.setPrice(price);
         bundle.setDisplayOrder(displayOrder != null ? displayOrder : 0);

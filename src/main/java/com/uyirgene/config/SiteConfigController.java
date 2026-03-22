@@ -42,7 +42,7 @@ public class SiteConfigController {
         String contentType = config.getImageContentType() != null ? config.getImageContentType() : "image/jpeg";
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, contentType)
-                .header(HttpHeaders.CACHE_CONTROL, "max-age=86400, public")
+                .header(HttpHeaders.CACHE_CONTROL, "no-cache")
                 .body(config.getImageData());
     }
 

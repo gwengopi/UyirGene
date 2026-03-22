@@ -160,9 +160,9 @@ function AppContent() {
             <Route path={ROUTES.COURSES} element={<Courses />} />
             <Route path="/courses/flagship" element={<FlagshipPage />} />
             <Route path="/courses/category/:categoryCode" element={<CategoryPage />} />
-            <Route path="/courses/:id" element={<CourseDetail />} />
-            <Route path="/bundles/:id" element={<BundleDetail />} />
-            <Route path="/flagship/:id" element={<FlagshipDetail />} />
+            <Route path="/courses/:slug" element={<CourseDetail />} />
+            <Route path="/bundles/:slug" element={<BundleDetail />} />
+            <Route path="/flagship/:slug" element={<FlagshipDetail />} />
             <Route path={ROUTES.VERIFY_CERTIFICATE} element={<CertificateVerify />} />
             <Route path="/certificate/:id" element={<CertificateVerify />} />
 
@@ -340,9 +340,9 @@ function AppContent() {
             <Route path="/services" element={<Services />} />
             <Route path="/services/microbiology-research" element={<MicrobiologyResearch />} />
             <Route path="/services/certification" element={<CertificationService />} />
-            <Route path="/services/certification/:id" element={<CertificationDetail />} />
+            <Route path="/services/certification/:slug" element={<CertificationDetail />} />
             <Route path="/services/testing" element={<Testing />} />
-            <Route path="/services/testing/:id" element={<TestingDetail />} />
+            <Route path="/services/testing/:slug" element={<TestingDetail />} />
             <Route path="/services/clinical-research" element={<ClinicalResearch />} />
 
             <Route path="/about" element={<About />} />

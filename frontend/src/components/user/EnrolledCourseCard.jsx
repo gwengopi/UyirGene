@@ -47,7 +47,7 @@ function EnrolledCourseCard({
     : getImage('COURSE_PLACEHOLDER', IMAGES.COURSE_PLACEHOLDER);
 
   const handleContinue = () => {
-    navigate(ROUTES.COURSE_DETAIL(course.id), { state: { mode: 'learn' } });
+    navigate(ROUTES.COURSE_DETAIL(course.slug || course.id), { state: { mode: 'learn' } });
   };
 
   const handleDownloadCertificate = (e) => {

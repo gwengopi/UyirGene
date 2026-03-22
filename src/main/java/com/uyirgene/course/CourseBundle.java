@@ -22,6 +22,9 @@ public class CourseBundle {
     @Column(nullable = false)
     private String title;
 
+    @Column(unique = true, length = 200)
+    private String slug;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 

@@ -40,7 +40,6 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
     assessment: '',
     outcome: '',
     courseDurationText: '',
-    category: '',
     durationHours: '',
     price: '',
     published: false,
@@ -48,6 +47,9 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
     courseType: '',
     reminderDays: '',
   });
+
+  // Categories state - array of selected category strings
+  const [selectedCategories, setSelectedCategories] = useState([]);
 
   // Key Components state - array of {title, points[]}
   const [keyComponents, setKeyComponents] = useState([]);
@@ -97,7 +99,6 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
         assessment: course.assessment || '',
         outcome: course.outcome || '',
         courseDurationText: course.courseDurationText || '',
-        category: course.category || '',
         durationHours: course.durationHours?.toString() || '',
         price: course.price?.toString() || '',
         published: course.published || false,
@@ -105,6 +106,13 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
         courseType: course.courseType || '',
         reminderDays: course.reminderDays?.toString() || '',
       });
+
+      // Set existing categories (backend returns as List<String>)
+      if (Array.isArray(course.categories) && course.categories.length > 0) {
+        setSelectedCategories(course.categories);
+      } else {
+        setSelectedCategories([]);
+      }
 
       // Set existing key components
       if (Array.isArray(course.keyComponents) && course.keyComponents.length > 0) {
@@ -466,7 +474,6 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
     const schema = {
       title: { required: true, label: 'Course Title', minLength: 3, maxLength: 200 },
       description: { required: true, label: 'Description', minLength: 10 },
-      category: { required: true, label: 'Category' },
       durationHours: { positive: true, label: 'Duration' },
       price: { positive: true, label: 'Price' },
       displayOrder: { positive: true, label: 'Display Order' },
@@ -474,6 +481,10 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
     };
 
     const validationErrors = validateForm(schema, formData);
+
+    if (selectedCategories.length === 0) {
+      validationErrors.categories = 'At least one category is required';
+    }
 
     // Preserve image errors (they are set separately)
     if (errors.thumbnailImage) validationErrors.thumbnailImage = errors.thumbnailImage;
@@ -531,7 +542,7 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
       outcome: formData.outcome || null,
       courseDurationText: formData.courseDurationText || null,
       examDetails: validExamDetails,
-      category: formData.category,
+      categories: selectedCategories,
       durationHours: formData.durationHours ? parseInt(formData.durationHours, 10) : null,
       price: formData.price ? parseFloat(formData.price) : null,
       published: formData.published,
@@ -1001,15 +1012,31 @@ function CourseForm({ course, onSave, onCancel, loading = false }) {
         </Grid>
 
         <Grid item xs={12} sm={6}>
-          <Select
-            name="category"
-            label="Category"
-            value={formData.category}
-            onChange={handleChange}
-            error={errors.category}
+          <Autocomplete
+            multiple
             options={categoryOptions}
-            required
-            placeholder="Select a category"
+            getOptionLabel={(option) =>
+              typeof option === 'string'
+                ? (categoryOptions.find((o) => o.value === option)?.label || option)
+                : option.label
+            }
+            isOptionEqualToValue={(option, value) =>
+              option.value === (typeof value === 'string' ? value : value.value)
+            }
+            value={selectedCategories}
+            onChange={(_, newValue) => {
+              setSelectedCategories(newValue.map((v) => (typeof v === 'string' ? v : v.value)));
+              if (errors.categories) setErrors((prev) => ({ ...prev, categories: '' }));
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Categories"
+                required
+                error={!!errors.categories}
+                helperText={errors.categories || 'Select one or more categories'}
+              />
+            )}
           />
         </Grid>
 

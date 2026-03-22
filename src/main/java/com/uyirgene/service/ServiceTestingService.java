@@ -36,6 +36,23 @@ public class ServiceTestingService {
         return ServiceTestingDto.fromEntity(entity);
     }
 
+    public ServiceTestingDto getBySlug(String slug) {
+        ServiceTesting entity = repository.findBySlug(slug)
+                .orElseThrow(() -> new EntityNotFoundException("Service Testing not found"));
+        return ServiceTestingDto.fromEntity(entity);
+    }
+
+    private String generateUniqueSlug(String title, Long excludeId) {
+        String base = title.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("^-+|-+$", "");
+        if (base.isEmpty()) base = "testing";
+        String candidate = base;
+        int suffix = 2;
+        while (excludeId != null ? repository.existsBySlugAndIdNot(candidate, excludeId) : repository.existsBySlug(candidate)) {
+            candidate = base + "-" + suffix++;
+        }
+        return candidate;
+    }
+
     public ServiceTesting getEntityById(Long id) {
         return repository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Service Testing not found"));
@@ -58,6 +75,7 @@ public class ServiceTestingService {
     ) throws IOException {
         ServiceTesting entity = ServiceTesting.builder()
                 .title(title)
+                .slug(generateUniqueSlug(title, null))
                 .subtitle(subtitle)
                 .description(description)
                 .whatIs(whatIs)
@@ -104,6 +122,7 @@ public class ServiceTestingService {
         ServiceTesting entity = getEntityById(id);
 
         entity.setTitle(title);
+        entity.setSlug(generateUniqueSlug(title, id));
         entity.setSubtitle(subtitle);
         entity.setDescription(description);
         entity.setWhatIs(whatIs);

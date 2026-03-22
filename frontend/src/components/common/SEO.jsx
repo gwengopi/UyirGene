@@ -114,7 +114,7 @@ export function courseSchema(course) {
         name: course.trainerName,
       },
     }),
-    ...(course.category && { courseCategory: course.category }),
+    ...(course.categories?.[0] && { courseCategory: course.categories[0] }),
     ...(course.durationHours && {
       timeRequired: `PT${course.durationHours}H`,
     }),

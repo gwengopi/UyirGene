@@ -32,9 +32,9 @@ function CategoryPage() {
   const { categoryCode } = useParams();
   const { isAuthenticated } = useAuth();
   const { showSuccess, showError } = useToast();
-  const { getImage } = useConfig();
+  const { getImage, getCategoryLabel } = useConfig();
   const navigate = useNavigate();
-  // Decode URL-encoded category (category values are readable text, e.g. "Microbiology")
+  // Decode URL-encoded category code (e.g. "FOOD_SAFETY")
   const categoryValue = decodeURIComponent(categoryCode);
 
   const [bundles, setBundles] = useState([]);
@@ -46,8 +46,8 @@ function CategoryPage() {
   const [enrollingId, setEnrollingId] = useState(null);
   const [search, setSearch] = useState('');
 
-  // Category value IS the label (stored as readable text in Course.category)
-  const categoryLabel = categoryValue;
+  // Resolve code to human-readable label for display
+  const categoryLabel = getCategoryLabel(categoryValue);
 
   useEffect(() => {
     const load = async () => {
@@ -246,13 +246,16 @@ function CategoryPage() {
                           borderColor: 'divider',
                           borderRadius: 2,
                           overflow: 'hidden',
+                          height: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
                           '&:hover': {
                             boxShadow: 6,
                             transform: 'translateY(-2px)',
                             transition: 'all 0.2s ease-in-out',
                           },
                         }}
-                        onClick={() => navigate(ROUTES.BUNDLE_DETAIL(bundle.id))}
+                        onClick={() => navigate(ROUTES.BUNDLE_DETAIL(bundle.slug || bundle.id))}
                       >
                         <Box sx={{ display: 'flex', height: 140, overflow: 'hidden', position: 'relative' }}>
                           {bundle.thumbnailImageUrl ? (
@@ -312,7 +315,7 @@ function CategoryPage() {
                             }}
                           />
                         </Box>
-                        <CardContent sx={{ p: 2.5 }}>
+                        <CardContent sx={{ p: 2.5, flex: 1, display: 'flex', flexDirection: 'column' }}>
                           <Typography variant="h6" fontWeight={700} gutterBottom sx={{ mb: 0.5 }}>
                             {bundle.title}
                           </Typography>
@@ -323,18 +326,41 @@ function CategoryPage() {
                                 : bundle.description}
                             </Typography>
                           )}
-                          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 2 }}>
-                            {bundleCourses.map((c) => (
-                              <Chip
-                                key={c.id}
-                                label={c.title}
-                                size="small"
-                                variant="outlined"
-                                sx={{ fontSize: '0.7rem', height: 24 }}
-                              />
+                          <Grid container spacing={0.5} sx={{ mb: 2, flex: 1 }}>
+                            {bundleCourses.map((c, i) => (
+                              <Grid item xs={6} key={c.id}>
+                                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+                                  <Box
+                                    sx={{
+                                      minWidth: 18, height: 18,
+                                      borderRadius: '50%',
+                                      bgcolor: 'primary.main',
+                                      color: '#fff',
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      fontSize: '0.6rem', fontWeight: 700,
+                                      flexShrink: 0, mt: '1px',
+                                    }}
+                                  >
+                                    {i + 1}
+                                  </Box>
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{
+                                      lineHeight: 1.3,
+                                      overflow: 'hidden',
+                                      display: '-webkit-box',
+                                      WebkitLineClamp: 2,
+                                      WebkitBoxOrient: 'vertical',
+                                    }}
+                                  >
+                                    {c.title}
+                                  </Typography>
+                                </Box>
+                              </Grid>
                             ))}
-                          </Box>
-                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          </Grid>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 'auto' }}>
                             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
                               {(() => {
                                 const dp = getBundleCardPrice(bundle);
@@ -367,7 +393,7 @@ function CategoryPage() {
                                 variant="contained"
                                 size="small"
                                 endIcon={<ArrowForwardIcon />}
-                                onClick={(e) => { e.stopPropagation(); navigate(ROUTES.BUNDLE_DETAIL(bundle.id)); }}
+                                onClick={(e) => { e.stopPropagation(); navigate(ROUTES.BUNDLE_DETAIL(bundle.slug || bundle.id)); }}
                                 sx={{ textTransform: 'none', fontWeight: 600 }}
                               >
                                 View Offer
