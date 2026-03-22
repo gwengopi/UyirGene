@@ -332,26 +332,27 @@ function CourseDetail() {
   // Mark video as completed when user clicks play in the video player
   const handleVideoPlay = useCallback(async () => {
     if (!currentVideo) return;
+    // Update UI optimistically first
+    setProgressMap((prev) => {
+      if (prev[currentVideo.id]?.completed) return prev; // already marked
+      const updated = {
+        ...prev,
+        [currentVideo.id]: { ...(prev[currentVideo.id] || {}), completed: true },
+      };
+      const allDone = videos.length > 0 && videos.every((v) => updated[v.id]?.completed);
+      if (allDone) {
+        setEnrollmentStatus('COMPLETED');
+        showSuccess('Course completed! All videos finished.');
+      }
+      return updated;
+    });
+    // Persist to server silently
     try {
       await videoService.updateProgress(currentVideo.id, currentVideo.durationSeconds || 0, true);
-      setProgressMap((prev) => {
-        if (prev[currentVideo.id]?.completed) return prev; // already marked
-        const updated = {
-          ...prev,
-          [currentVideo.id]: { ...(prev[currentVideo.id] || {}), completed: true },
-        };
-        const allDone = videos.length > 0 && videos.every((v) => updated[v.id]?.completed);
-        if (allDone) {
-          setEnrollmentStatus('COMPLETED');
-          showSuccess('Course completed! All videos finished.');
-        }
-        return updated;
-      });
     } catch (err) {
       console.error('Failed to mark video complete:', err);
-      showError('Could not save video progress. Please check your connection.');
     }
-  }, [currentVideo, videos, showSuccess, showError]);
+  }, [currentVideo, videos, showSuccess]);
 
   // Handle video progress
   const handleVideoProgress = useCallback(
@@ -375,28 +376,31 @@ function CourseDetail() {
   const handleVideoComplete = useCallback(async () => {
     if (!currentVideo) return;
 
+    // Update UI optimistically first
+    const newProgressMap = {
+      ...progressMap,
+      [currentVideo.id]: { ...progressMap[currentVideo.id], completed: true },
+    };
+    setProgressMap(newProgressMap);
+
+    // Check if all videos are now completed
+    const allDone = videos.every((v) => newProgressMap[v.id]?.completed);
+    if (allDone) {
+      setEnrollmentStatus('COMPLETED');
+      showSuccess('Course completed! All videos finished.');
+    } else {
+      showSuccess('Video completed!');
+    }
+
+    // Auto-advance to next video
+    const currentIndex = videos.findIndex((v) => v.id === currentVideo.id);
+    if (currentIndex < videos.length - 1) {
+      setCurrentVideo(videos[currentIndex + 1]);
+    }
+
+    // Persist to server silently
     try {
       await videoService.updateProgress(currentVideo.id, currentVideo.durationSeconds || 0, true);
-      const newProgressMap = {
-        ...progressMap,
-        [currentVideo.id]: { ...progressMap[currentVideo.id], completed: true },
-      };
-      setProgressMap(newProgressMap);
-
-      // Check if all videos are now completed
-      const allDone = videos.every((v) => newProgressMap[v.id]?.completed);
-      if (allDone) {
-        setEnrollmentStatus('COMPLETED');
-        showSuccess('Course completed! All videos finished.');
-      } else {
-        showSuccess('Video completed!');
-      }
-
-      // Auto-advance to next video
-      const currentIndex = videos.findIndex((v) => v.id === currentVideo.id);
-      if (currentIndex < videos.length - 1) {
-        setCurrentVideo(videos[currentIndex + 1]);
-      }
     } catch (error) {
       console.error('Failed to mark video complete:', error);
     }
