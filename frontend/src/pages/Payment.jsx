@@ -67,9 +67,9 @@ function Payment() {
 
       await confirmPayment(paymentData);
       showSuccess(isMultiBundle
-        ? 'Payment successful! You are now enrolled in all selected bundle courses.'
+        ? 'Payment successful! You are now enrolled in all selected value pack courses.'
         : isBundle
-          ? 'Payment successful! You are now enrolled in all bundle courses.'
+          ? 'Payment successful! You are now enrolled in all value pack courses.'
           : 'Payment successful! Enrollment completed.');
       navigate(ROUTES.MY_COURSES);
     } catch (error) {

@@ -71,20 +71,20 @@ function AdminBundles() {
     if (!window.confirm(`Are you sure you want to delete "${bundle.title}"?`)) return;
     try {
       await bundleService.deleteBundle(bundle.id);
-      showSuccess('Bundle deleted successfully');
+      showSuccess('Value Pack deleted successfully');
       loadData();
     } catch (error) {
-      showError('Failed to delete bundle');
+      showError('Failed to delete value pack');
     }
   };
 
   const handleTogglePublish = async (bundle) => {
     try {
       await bundleService.togglePublish(bundle.id);
-      showSuccess(bundle.published ? 'Bundle unpublished' : 'Bundle published');
+      showSuccess(bundle.published ? 'Value Pack unpublished' : 'Value Pack published');
       loadData();
     } catch (error) {
-      showError('Failed to update bundle');
+      showError('Failed to update value pack');
     }
   };
 
@@ -93,16 +93,16 @@ function AdminBundles() {
     try {
       if (editingBundle) {
         await bundleService.updateBundle(editingBundle.id, bundleData, imageFile);
-        showSuccess('Bundle updated successfully');
+        showSuccess('Value Pack updated successfully');
       } else {
         await bundleService.createBundle(bundleData, imageFile);
-        showSuccess('Bundle created successfully');
+        showSuccess('Value Pack created successfully');
       }
       setIsFormOpen(false);
       setEditingBundle(null);
       loadData();
     } catch (error) {
-      showError(editingBundle ? 'Failed to update bundle' : 'Failed to create bundle');
+      showError(editingBundle ? 'Failed to update value pack' : 'Failed to create value pack');
     } finally {
       setSaving(false);
     }
@@ -116,7 +116,7 @@ function AdminBundles() {
   if (loading) {
     return (
       <AdminLayout>
-        <LoadingSpinner fullScreen text="Loading bundles..." />
+        <LoadingSpinner fullScreen text="Loading value packs..." />
       </AdminLayout>
     );
   }
@@ -127,27 +127,27 @@ function AdminBundles() {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
           <Box>
             <Typography variant="h4" component="h1" gutterBottom fontWeight={600}>
-              Bundle Management
+              Value Pack Management
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              Create combo offers to boost course purchases.
+              Create value packs to boost course purchases.
             </Typography>
           </Box>
           <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}>
-            Add Bundle
+            Add Value Pack
           </Button>
         </Box>
 
         {bundles.length === 0 ? (
           <Paper sx={{ p: 4, textAlign: 'center' }}>
             <Typography variant="h6" color="text.secondary" gutterBottom>
-              No bundles yet
+              No value packs yet
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Create your first combo offer to attract more enrollments.
+              Create your first value pack to attract more enrollments.
             </Typography>
             <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}>
-              Create Bundle
+              Create Value Pack
             </Button>
           </Paper>
         ) : (
@@ -155,7 +155,7 @@ function AdminBundles() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Bundle</TableCell>
+                  <TableCell>Value Pack</TableCell>
                   <TableCell>Courses</TableCell>
                   <TableCell>Price</TableCell>
                   <TableCell>Savings</TableCell>

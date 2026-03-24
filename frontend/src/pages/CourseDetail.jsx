@@ -243,7 +243,7 @@ function CourseDetail() {
       const result = await startMultiBundleEnrollment(bundleIds, selectedCountry, standaloneCourseId);
       const order = result?.order;
       if (order) {
-        const bundlePart = `${bundleIds.length} bundle${bundleIds.length > 1 ? 's' : ''}`;
+        const bundlePart = `${bundleIds.length} value pack${bundleIds.length > 1 ? 's' : ''}`;
         navigate(ROUTES.PAYMENT, {
           state: {
             bundleIds,

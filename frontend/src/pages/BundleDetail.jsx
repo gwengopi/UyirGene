@@ -56,7 +56,7 @@ function BundleDetail() {
         const data = await bundleService.getBundleBySlug(slug);
         setBundle(data);
       } catch (error) {
-        showError('Failed to load bundle details');
+        showError('Failed to load value pack details');
         navigate(ROUTES.COURSES);
       } finally {
         setLoading(false);
@@ -67,7 +67,7 @@ function BundleDetail() {
 
   const handleEnroll = async () => {
     if (!isAuthenticated()) {
-      showError('Please login to purchase this bundle');
+      showError('Please login to purchase this value pack');
       navigate(ROUTES.LOGIN, { state: { from: location } });
       return;
     }
@@ -77,7 +77,7 @@ function BundleDetail() {
       const result = await bundleService.startBundleEnrollment(bundle.id, selectedCountry);
 
       if (result.allOwned) {
-        setAllOwnedDialog({ open: true, message: result.message || 'You already own all courses in this bundle.' });
+        setAllOwnedDialog({ open: true, message: result.message || 'You already own all courses in this value pack.' });
         setEnrolling(false);
         return;
       }
@@ -159,8 +159,8 @@ function BundleDetail() {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <SEO
-        title={`${bundle.title} - Combo Offer`}
-        description={bundle.description || `Save ${bundle.savingsPercent}% with this combo offer. Includes ${bundleCourses.length} courses.`}
+        title={`${bundle.title} - Value Pack`}
+        description={bundle.description || `Save ${bundle.savingsPercent}% with this value pack. Includes ${bundleCourses.length} courses.`}
         path={`/bundles/${bundle.slug || slug}`}
       />
       <Breadcrumb items={breadcrumbItems} />
@@ -349,7 +349,7 @@ function BundleDetail() {
           {/* Why this bundle */}
           <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, mb: 3 }}>
             <Typography variant="h6" fontWeight={600} gutterBottom>
-              Why choose this bundle?
+              Why choose this value pack?
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               {originalPrice && originalPrice.amount > displayPrice.amount && (
@@ -479,7 +479,7 @@ function BundleDetail() {
         <DialogContent>
           <DialogContentText>{warningDialog.message}</DialogContentText>
           <Alert severity="info" sx={{ mt: 2 }}>
-            The bundle price remains the same. You will get access to the remaining courses.
+            The value pack price remains the same. You will get access to the remaining courses.
           </Alert>
         </DialogContent>
         <DialogActions>

@@ -33,7 +33,7 @@ function AdminLayout({ children, title }) {
     { subheader: 'Management' },
     { label: 'Courses', path: ROUTES.ADMIN.COURSES, icon: <SchoolIcon /> },
     { label: 'Flagship Programs', path: ROUTES.ADMIN.FLAGSHIP_PROGRAMS, icon: <StarIcon /> },
-    { label: 'Bundles', path: ROUTES.ADMIN.BUNDLES, icon: <LocalOfferIcon /> },
+    { label: 'Value Packs', path: ROUTES.ADMIN.BUNDLES, icon: <LocalOfferIcon /> },
     { label: 'Blogs', path: ROUTES.ADMIN.BLOGS, icon: <ArticleIcon /> },
     { label: 'Users', path: ROUTES.ADMIN.USERS, icon: <PeopleIcon /> },
     { label: 'Certificate Templates', path: ROUTES.ADMIN.CERTIFICATE_TEMPLATES, icon: <CardMembershipIcon /> },

@@ -185,7 +185,7 @@ function CategoryPage() {
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <SEO
         title={`${categoryLabel} Courses`}
-        description={`Browse ${categoryLabel} courses, combo offers and certifications at Uyirgene International.`}
+        description={`Browse ${categoryLabel} courses, value packs and certifications at Uyirgene International.`}
         path={`/courses/category/${categoryCode}`}
       />
       <Breadcrumb items={breadcrumbItems} />
@@ -195,7 +195,7 @@ function CategoryPage() {
           {categoryLabel}
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Explore combo offers and individual courses in {categoryLabel}.
+          Explore value packs and individual courses in {categoryLabel}.
         </Typography>
       </Box>
 
@@ -229,7 +229,7 @@ function CategoryPage() {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
                 <LocalOfferIcon color="error" />
                 <Typography variant="h5" component="h2" fontWeight={700}>
-                  Combo Offers
+                  Value Packs
                 </Typography>
                 <Chip label="Save More" color="error" size="small" />
               </Box>

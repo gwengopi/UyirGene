@@ -140,7 +140,7 @@ function EnrollmentUpsellDialog({
   if (nothingSelected) {
     confirmLabel = 'Select an option above';
   } else if (selectedIds.size > 0) {
-    const bundlePart = `${selectedIds.size} bundle${selectedIds.size > 1 ? 's' : ''}`;
+    const bundlePart = `${selectedIds.size} value pack${selectedIds.size > 1 ? 's' : ''}`;
     const totalStr = formatCurrency(grandTotal.amount, grandTotal.currency);
     confirmLabel = courseIsStandalone
       ? `Enroll in ${bundlePart} + this course — ${totalStr}`
@@ -167,7 +167,7 @@ function EnrollmentUpsellDialog({
       <DialogTitle sx={{ pb: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <LocalOfferIcon color="primary" />
-          <Typography variant="h6" fontWeight={700}>Bundle Deals Available</Typography>
+          <Typography variant="h6" fontWeight={700}>Value Pack Deals Available</Typography>
           <IconButton
             aria-label="Close dialog"
             onClick={onClose}
@@ -178,7 +178,7 @@ function EnrollmentUpsellDialog({
           </IconButton>
         </Box>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Save more by enrolling in a bundle that includes <strong>{course?.title}</strong>
+          Save more by enrolling in a value pack that includes <strong>{course?.title}</strong>
         </Typography>
       </DialogTitle>
 
@@ -218,7 +218,7 @@ function EnrollmentUpsellDialog({
                 />
                 {courseInSelectedBundles && (
                   <Chip
-                    label="Included in bundle"
+                    label="Included in value pack"
                     size="small"
                     color="success"
                     sx={{ height: 20, fontSize: '0.7rem' }}
@@ -239,7 +239,7 @@ function EnrollmentUpsellDialog({
                         : 'Free'}
                     </Typography>
                     <Typography variant="caption" color="success.main" fontWeight={600}>
-                      Free with bundle
+                      Free with value pack
                     </Typography>
                   </>
                 ) : (
@@ -259,7 +259,7 @@ function EnrollmentUpsellDialog({
 
         {bundles.length > 0 && (
           <Divider>
-            <Chip label="or upgrade to a bundle deal" size="small" sx={{ fontSize: '0.7rem' }} />
+            <Chip label="or upgrade to a value pack" size="small" sx={{ fontSize: '0.7rem' }} />
           </Divider>
         )}
 
@@ -393,9 +393,9 @@ function EnrollmentUpsellDialog({
           >
             <Typography variant="body2" fontWeight={600}>
               {selectedIds.size > 0 && courseIsStandalone
-                ? `${selectedIds.size} bundle${selectedIds.size > 1 ? 's' : ''} + this course`
+                ? `${selectedIds.size} value pack${selectedIds.size > 1 ? 's' : ''} + this course`
                 : selectedIds.size > 0
-                  ? `${selectedIds.size} bundle${selectedIds.size > 1 ? 's' : ''} selected`
+                  ? `${selectedIds.size} value pack${selectedIds.size > 1 ? 's' : ''} selected`
                   : 'This course'}
             </Typography>
             <Typography variant="h6" fontWeight={700}>

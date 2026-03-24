@@ -325,7 +325,7 @@ function BundleForm({ bundle, courses = [], onSave, onCancel, loading }) {
             fullWidth
             required
             type="number"
-            label="Bundle Price (INR)"
+            label="Value Pack Price (INR)"
             name="price"
             value={formData.price}
             onChange={handleChange}
@@ -547,7 +547,7 @@ function BundleForm({ bundle, courses = [], onSave, onCancel, loading }) {
               loading={loading}
               disabled={loading || selectedCourseIds.length < 2 || !formData.title.trim() || !formData.price}
             >
-              {bundle ? 'Update Bundle' : 'Create Bundle'}
+              {bundle ? 'Update Value Pack' : 'Create Value Pack'}
             </Button>
           </Box>
         </Grid>
