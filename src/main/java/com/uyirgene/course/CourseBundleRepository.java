@@ -22,7 +22,9 @@ public interface CourseBundleRepository extends JpaRepository<CourseBundle, Long
     @Query("SELECT DISTINCT b FROM CourseBundle b JOIN b.courses c WHERE c.id = :courseId AND b.published = true ORDER BY b.displayOrder ASC, b.id ASC")
     List<CourseBundle> findPublishedBundlesByCourseId(@Param("courseId") Long courseId);
 
-    /** Bundles that contain at least one course with the given category */
-    @Query("SELECT DISTINCT b FROM CourseBundle b JOIN b.courses c WHERE c.category = :category AND b.published = true ORDER BY b.displayOrder ASC, b.id ASC")
+    /** Bundles that contain at least one course with the given category.
+     *  course.category stores a JSON array string e.g. ["HACCP","Food Safety"],
+     *  so we use LIKE to check for the quoted value within the JSON string. */
+    @Query("SELECT DISTINCT b FROM CourseBundle b JOIN b.courses c WHERE c.category LIKE CONCAT('%\"', :category, '\"%') AND b.published = true ORDER BY b.displayOrder ASC, b.id ASC")
     List<CourseBundle> findPublishedBundlesByCourseCategory(@Param("category") String category);
 }
