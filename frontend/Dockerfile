@@ -18,8 +18,8 @@ ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 RUN NODE_OPTIONS=--max-old-space-size=1024 npm run build
 
-# Production stage with Nginx
-FROM nginx:alpine
+# Production stage with Nginx (using AWS ECR Public to avoid Docker Hub pull timeouts on EC2)
+FROM public.ecr.aws/nginx/nginx:alpine
 WORKDIR /usr/share/nginx/html
 
 # Remove default nginx static content
