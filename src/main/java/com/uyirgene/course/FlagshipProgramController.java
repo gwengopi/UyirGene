@@ -235,7 +235,7 @@ public class FlagshipProgramController {
         String imageContentType = null;
         if (backgroundImage != null && !backgroundImage.isEmpty()) {
             String err = validateImage(backgroundImage);
-            if (err != null) return ResponseEntity.badRequest().build();
+            if (err != null) return ResponseEntity.badRequest().body(java.util.Map.of("error", err));
             imageBytes = backgroundImage.getBytes();
             imageContentType = backgroundImage.getContentType();
         }
@@ -286,7 +286,7 @@ public class FlagshipProgramController {
         String imageContentType = null;
         if (backgroundImage != null && !backgroundImage.isEmpty()) {
             String err = validateImage(backgroundImage);
-            if (err != null) return ResponseEntity.badRequest().build();
+            if (err != null) return ResponseEntity.badRequest().body(java.util.Map.of("error", err));
             imageBytes = backgroundImage.getBytes();
             imageContentType = backgroundImage.getContentType();
         }

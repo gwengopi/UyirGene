@@ -273,6 +273,17 @@ function FlagshipProgramForm({ open, program, onClose, onSaved, courses = [] }) 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      showError('Invalid file type. Allowed formats: JPEG, PNG, GIF, WebP.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      showError('Image is too large. Maximum size is 25 MB.');
+      e.target.value = '';
+      return;
+    }
     set('backgroundImage', file);
     set('backgroundImagePreview', URL.createObjectURL(file));
     set('removeBackgroundImage', false);
@@ -691,6 +702,9 @@ function FlagshipProgramForm({ open, program, onClose, onSaved, courses = [] }) 
           <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>Background Image</Typography>
           <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp"
             style={{ display: 'none' }} onChange={handleImageChange} />
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+            Accepted: JPEG, PNG, GIF, WebP &bull; Max 25 MB
+          </Typography>
           {form.backgroundImagePreview ? (
             <Box sx={{ position: 'relative', display: 'inline-block' }}>
               <Box component="img" src={form.backgroundImagePreview} alt="Background preview"
