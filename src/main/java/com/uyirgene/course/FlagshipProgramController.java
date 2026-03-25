@@ -204,7 +204,7 @@ public class FlagshipProgramController {
 
     @PostMapping(value = "/admin", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<FlagshipProgramDto> createProgram(
+    public ResponseEntity<?> createProgram(
             @RequestParam("title") String title,
             @RequestParam(value = "tagline", required = false) String tagline,
             @RequestParam(value = "cardDescription", required = false) String cardDescription,
@@ -253,7 +253,7 @@ public class FlagshipProgramController {
 
     @PutMapping(value = "/admin/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<FlagshipProgramDto> updateProgram(
+    public ResponseEntity<?> updateProgram(
             @PathVariable("id") Long id,
             @RequestParam("title") String title,
             @RequestParam(value = "tagline", required = false) String tagline,
