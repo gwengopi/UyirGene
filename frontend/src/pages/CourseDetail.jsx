@@ -32,7 +32,7 @@ import QuizIcon from '@mui/icons-material/Quiz';
 import { Button, Breadcrumb, LoadingSpinner, SEO } from '../components/common';
 import { courseSchema } from '../components/common/SEO';
 import { VideoPlayer, VideoList, ManualSection, EnrollmentUpsellDialog } from '../components/course';
-import { getBundlesByCourseCategory, startMultiBundleEnrollment } from '../services/bundleService';
+import { getPublishedBundlesByCategory, startMultiBundleEnrollment } from '../services/bundleService';
 import { ProgressTracker } from '../components/user';
 import { courseService, enrollmentService, videoService, certificateService } from '../services';
 import { useAuth, useToast, useConfig } from '../store';
@@ -106,14 +106,13 @@ function CourseDetail() {
         setCourse(courseData);
         setCourseId(courseData.id);
 
-        // Fetch value packs for ALL categories this course belongs to, then deduplicate.
+        // Fetch value packs matching the course's categories (by bundle's own category field), deduplicate
         const categories = courseData?.categories || [];
         let bundles = [];
         if (categories.length > 0) {
           const results = await Promise.all(
-            categories.map((cat) => getBundlesByCourseCategory(cat).catch(() => []))
+            categories.map((cat) => getPublishedBundlesByCategory(cat).catch(() => []))
           );
-          // Flatten and deduplicate by bundle id
           const seen = new Set();
           for (const list of results) {
             for (const b of (list || [])) {
