@@ -703,7 +703,9 @@ function FlagshipProgramForm({ open, program, onClose, onSaved, courses = [] }) 
           <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp"
             style={{ display: 'none' }} onChange={handleImageChange} />
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-            Accepted: JPEG, PNG, GIF, WebP &bull; Max 25 MB
+            Formats: JPEG, PNG, GIF, WebP &bull; Max 25 MB<br />
+            Recommended: 1280&times;400 px or larger (16:5 landscape) &bull; Used as the full-width hero banner<br />
+            Keep important content centred — left/right edges may be cropped on mobile
           </Typography>
           {form.backgroundImagePreview ? (
             <Box sx={{ position: 'relative', display: 'inline-block' }}>
