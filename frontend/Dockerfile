@@ -22,6 +22,9 @@ RUN NODE_OPTIONS=--max-old-space-size=1024 npm run build
 FROM public.ecr.aws/nginx/nginx:alpine
 WORKDIR /usr/share/nginx/html
 
+# Install curl for health check (not included in ECR nginx:alpine by default)
+RUN apk add --no-cache curl
+
 # Remove default nginx static content
 RUN rm -rf ./*
 
@@ -35,8 +38,8 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -q --spider http://localhost:80 || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 \
+  CMD curl -sf http://localhost/ -o /dev/null || exit 1
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
