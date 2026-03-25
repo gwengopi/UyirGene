@@ -106,12 +106,22 @@ function CourseDetail() {
         setCourse(courseData);
         setCourseId(courseData.id);
 
-        // Fetch combo deals for ALL courses in the same category.
-        // Uses course-category lookup: finds bundles whose member courses share this category.
-        const bundles = courseData?.categories?.[0]
-          ? await getBundlesByCourseCategory(courseData.categories[0]).catch(() => [])
-          : [];
-        setAvailableBundles(bundles || []);
+        // Fetch value packs for ALL categories this course belongs to, then deduplicate.
+        const categories = courseData?.categories || [];
+        let bundles = [];
+        if (categories.length > 0) {
+          const results = await Promise.all(
+            categories.map((cat) => getBundlesByCourseCategory(cat).catch(() => []))
+          );
+          // Flatten and deduplicate by bundle id
+          const seen = new Set();
+          for (const list of results) {
+            for (const b of (list || [])) {
+              if (!seen.has(b.id)) { seen.add(b.id); bundles.push(b); }
+            }
+          }
+        }
+        setAvailableBundles(bundles);
 
         if (enrolled) {
           // Collect all enrolled course IDs for ownership check in upsell dialog
