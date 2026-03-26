@@ -1,11 +1,11 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Box, Typography, CircularProgress } from '@mui/material';
 import * as pdfjsLib from 'pdfjs-dist';
-import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-// Configure PDF.js worker — use ?url import so Vite includes the worker
-// file in the production build with the correct resolved path
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
+// Use CDN worker URL — avoids MIME type issues in production nginx where
+// .mjs files may be served as application/octet-stream, causing browsers
+// to block the worker under X-Content-Type-Options: nosniff
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 // A4 PDF dimensions in points
 const PDF_WIDTH = 595;
