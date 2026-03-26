@@ -418,7 +418,7 @@ function CourseDetail() {
   // Download certificate
   const handleDownloadCertificate = async () => {
     try {
-      await certificateService.downloadAndSaveCertificate(id, course?.title);
+      await certificateService.downloadAndSaveCertificate(courseId, course?.title);
       showSuccess('Certificate downloaded!');
     } catch (error) {
       if (error.response?.status === 403) {

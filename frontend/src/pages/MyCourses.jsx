@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container, Typography, Box, Grid,
+  Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
 } from '@mui/material';
-import { Breadcrumb, LoadingSpinner, EmptyState } from '../components/common';
+import { Breadcrumb, LoadingSpinner, EmptyState, Button } from '../components/common';
 import { EnrolledCourseCard } from '../components/user';
 import { enrollmentService, certificateService, courseService, videoService } from '../services';
 import { useToast, useConfig } from '../store';
@@ -17,6 +18,8 @@ function MyCourses() {
   const [courses, setCourses] = useState([]);
   const [progressData, setProgressData] = useState({});
   const [loading, setLoading] = useState(true);
+  const [certificateErrorOpen, setCertificateErrorOpen] = useState(false);
+  const [certificateError, setCertificateError] = useState('');
 
   useEffect(() => {
     const loadCourses = async () => {
@@ -47,14 +50,14 @@ function MyCourses() {
       await certificateService.downloadAndSaveCertificate(courseId, courseName);
       showSuccess('Certificate downloaded!');
     } catch (error) {
-      // Check if it's a result not published error
       if (error.response?.status === 403) {
-        showError('Results not yet published. Certificate download will be available after results are published.');
+        setCertificateError('Please ensure you have completed both the Pre-Assessment and Assessment. Your result will be reviewed and the certificate will be issued within 24–48 hours after completion of both assessments.');
       } else if (error.response?.status === 404) {
-        showError('Certificate not found. Please wait for admin to generate your certificate.');
+        setCertificateError('Your certificate is being prepared. Please ensure you have completed both the Pre-Assessment and Assessment. The certificate will be issued within 24–48 hours after your results are reviewed.');
       } else {
-        showError(error.message || 'Certificate not available yet');
+        setCertificateError('Please ensure you have completed both the Pre-Assessment and Assessment. Your result will be reviewed and the certificate will be issued within 24–48 hours.');
       }
+      setCertificateErrorOpen(true);
     }
   };
 
@@ -125,6 +128,7 @@ function MyCourses() {
   }
 
   return (
+    <>
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Breadcrumb items={[{ label: 'My Courses', path: ROUTES.MY_COURSES }]} />
 
@@ -169,6 +173,18 @@ function MyCourses() {
         </Grid>
       )}
     </Container>
+
+    {/* Certificate Error Dialog */}
+      <Dialog open={certificateErrorOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') setCertificateErrorOpen(false); }} disableEscapeKeyDown aria-labelledby="certificate-error-title">
+        <DialogTitle id="certificate-error-title">Certificate Not Yet Available</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{certificateError}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCertificateErrorOpen(false)} variant="contained">OK</Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
 
