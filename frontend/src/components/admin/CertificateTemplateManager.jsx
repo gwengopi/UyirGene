@@ -47,7 +47,7 @@ import { LoadingSpinner } from '../common';
 import { useToast } from '../../store';
 import certificateTemplateService, { CERTIFICATE_TYPES, DEFAULT_TEMPLATE_CONFIG } from '../../services/certificateTemplateService';
 import { courseService } from '../../services';
-import { getApiBaseUrl } from '../../services/api';
+import api from '../../services/api';
 import CertificatePreview from './CertificatePreview';
 
 function CertificateTemplateManager() {
@@ -167,9 +167,15 @@ function CertificateTemplateManager() {
       } else {
         setTemplateConfig(DEFAULT_TEMPLATE_CONFIG);
       }
-      // Set preview if template has background image
+      // Fetch background image via authenticated Axios call (avoids 401 from plain img.src)
       if (template.hasBackgroundImage) {
-        setBackgroundPreview(`${getApiBaseUrl()}${template.backgroundImageUrl}`);
+        api.get(template.backgroundImageUrl, { responseType: 'blob' })
+          .then((res) => {
+            const reader = new FileReader();
+            reader.onloadend = () => setBackgroundPreview(reader.result);
+            reader.readAsDataURL(res.data);
+          })
+          .catch(() => setBackgroundPreview(null));
       } else {
         setBackgroundPreview(null);
       }
