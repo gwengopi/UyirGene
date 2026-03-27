@@ -11,10 +11,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLi
 const PDF_WIDTH = 595;
 const PDF_HEIGHT = 842;
 
-// Sample data for preview
+// Sample data for preview — intentionally long to expose wrapping behaviour
 const SAMPLE_DATA = {
-  studentName: 'John Doe',
-  courseTitle: 'Advanced Web Development',
+  studentName: 'JOHNSON PHILIP OLIVEIRA',
+  courseTitle: 'LC - MS/ MS TECHNIQUES Liquid Chromatography - Mass Spectrometry',
   courseCode: 'AWD-101',
   trainerName: 'Dr. Jane Smith',
   issueDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' }),
@@ -194,7 +194,26 @@ function CertificatePreview({
     // Helper: convert PDF Y (bottom-origin) to canvas Y (top-origin)
     const toCanvasY = (pdfY) => canvasHeight - (pdfY * scale);
 
-    // Helper: draw a text element
+    // Helper: split text into lines that fit within maxWidth
+    const wrapTextToLines = (text, maxWidth) => {
+      const words = text.split(' ');
+      const lines = [];
+      let current = '';
+      for (const word of words) {
+        if (!word) continue;
+        const test = current ? `${current} ${word}` : word;
+        if (ctx.measureText(test).width > maxWidth && current) {
+          lines.push(current);
+          current = word;
+        } else {
+          current = test;
+        }
+      }
+      if (current) lines.push(current);
+      return lines.length ? lines : [text];
+    };
+
+    // Helper: draw a text element (with automatic line wrapping)
     const drawTextElement = (key, elem, sampleText) => {
       if (!elem || !elem.visible) return;
 
@@ -211,15 +230,21 @@ function CertificatePreview({
       ctx.textBaseline = 'middle';
 
       const text = elem.text || sampleText;
-      let x = elem.x * scale;
+      const maxWidth = canvasWidth - 80 * scale; // 40pt margin each side (matches backend)
+      const lineHeight = fontSize * 1.3;
 
-      if (elem.centered) {
-        const textWidth = ctx.measureText(text).width;
-        x = (canvasWidth - textWidth) / 2;
-      }
+      const lines = wrapTextToLines(text, maxWidth);
+      const baseY = toCanvasY(elem.y);
 
-      const y = toCanvasY(elem.y);
-      ctx.fillText(text, x, y);
+      lines.forEach((line, i) => {
+        let x = elem.x * scale;
+        if (elem.centered) {
+          const textWidth = ctx.measureText(line).width;
+          x = (canvasWidth - textWidth) / 2;
+        }
+        // Canvas y goes down; each subsequent line is further down
+        ctx.fillText(line, x, baseY + i * lineHeight);
+      });
     };
 
     // Determine dynamic text based on certificate type

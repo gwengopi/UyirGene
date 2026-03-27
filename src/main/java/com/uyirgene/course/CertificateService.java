@@ -549,6 +549,7 @@ public class CertificateService {
 
         // TTF fonts — look up in extraFonts map
         switch (family) {
+            case "anton":
             case "oswald": case "playfair": case "cinzel":
             case "montserrat": case "lato": case "raleway":
             case "merriweather": case "garamond": case "roboto": {
@@ -557,6 +558,7 @@ public class CertificateService {
                 // Fallback to regular variant of the same family
                 PDFont reg = extraFonts.get(family + "-regular");
                 if (reg != null) return reg;
+                // TTF unavailable — fall through to Helvetica with configured style below
                 break;
             }
             // Built-in Type1 fonts
@@ -570,25 +572,23 @@ public class CertificateService {
                 if (bold)   return PDType1Font.COURIER_BOLD;
                 if (italic) return PDType1Font.COURIER_OBLIQUE;
                 return PDType1Font.COURIER;
-            case "helvetica":
-            default:
-                if (bold && italic) return PDType1Font.HELVETICA_BOLD_OBLIQUE;
-                if (bold)   return PDType1Font.HELVETICA_BOLD;
-                if (italic) return PDType1Font.HELVETICA_OBLIQUE;
-                return PDType1Font.HELVETICA;
         }
-        // Final fallback
-        return fallback;
+        // Helvetica — for explicit "helvetica" family, unrecognised family, or TTF unavailable.
+        // Always respects the element's configured fontStyle (never uses caller's hardcoded fallback).
+        if (bold && italic) return PDType1Font.HELVETICA_BOLD_OBLIQUE;
+        if (bold)   return PDType1Font.HELVETICA_BOLD;
+        if (italic) return PDType1Font.HELVETICA_OBLIQUE;
+        return PDType1Font.HELVETICA;
     }
 
     /**
-     * Draw text on the PDF at the specified position
+     * Draw text on the PDF, wrapping to multiple lines if the text exceeds the available width.
+     * Each wrapped line is drawn separately at a decreasing Y offset (PDF origin is bottom-left).
      */
     private void drawText(PDPageContentStream contentStream, String text,
                           TemplateConfigDto.TextElement elem, PDFont fallbackFont,
                           float pageWidth, java.util.Map<String, PDFont> extraFonts) throws IOException {
-        // Strip control characters (\r \n \t etc.) that PDFBox Type1/WinAnsiEncoding cannot encode.
-        // These can appear when template text was copy-pasted or entered with line breaks.
+        // Strip control characters (\r \n \t etc.) that PDFBox cannot encode.
         if (text == null) return;
         text = text.replace("\r\n", " ").replace('\r', ' ').replace('\n', ' ')
                    .replaceAll("\\p{Cntrl}", "").trim();
@@ -596,20 +596,62 @@ public class CertificateService {
 
         PDFont font = resolveFont(elem, fallbackFont, extraFonts);
         float[] color = TemplateConfigDto.parseColor(elem.getFontColor());
+        float fontSize = elem.getFontSize();
+        float maxWidth = pageWidth - 80f; // 40pt margin on each side
+        float lineHeight = fontSize * 1.3f;
 
-        contentStream.beginText();
-        contentStream.setFont(font, elem.getFontSize());
-        contentStream.setNonStrokingColor(color[0], color[1], color[2]);
+        java.util.List<String> lines = wrapTextToLines(text, font, fontSize, maxWidth);
 
-        float x = elem.getX();
-        if (elem.isCentered()) {
-            float textWidth = font.getStringWidth(text) / 1000 * elem.getFontSize();
-            x = (pageWidth - textWidth) / 2;
+        // The canvas preview draws text with textBaseline='middle', meaning the EM box centre
+        // is at the configured Y.  PDFBox places the text BASELINE at Y, which is below the
+        // EM box centre by roughly (ascent - descent) / 2 ≈ fontSize * 0.30.
+        // Adding this offset moves the PDF baseline up so the visual text centre matches the preview.
+        float baselineAdjust = fontSize * 0.30f;
+
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i);
+            float x = elem.getX();
+            // PDF y-axis goes up: each subsequent line is lower; baseline shifted up to match preview
+            float y = elem.getY() + baselineAdjust - (i * lineHeight);
+
+            if (elem.isCentered()) {
+                float textWidth = font.getStringWidth(line) / 1000 * fontSize;
+                x = (pageWidth - textWidth) / 2;
+            }
+
+            contentStream.beginText();
+            contentStream.setFont(font, fontSize);
+            contentStream.setNonStrokingColor(color[0], color[1], color[2]);
+            contentStream.newLineAtOffset(x, y);
+            contentStream.showText(line);
+            contentStream.endText();
         }
+    }
 
-        contentStream.newLineAtOffset(x, elem.getY());
-        contentStream.showText(text);
-        contentStream.endText();
+    /**
+     * Split text into lines that each fit within maxWidth using the given font and size.
+     */
+    private java.util.List<String> wrapTextToLines(String text, PDFont font, float fontSize,
+                                                    float maxWidth) throws IOException {
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        String[] words = text.split(" ");
+        StringBuilder currentLine = new StringBuilder();
+
+        for (String word : words) {
+            if (word.isEmpty()) continue;
+            String testLine = currentLine.length() == 0 ? word : currentLine + " " + word;
+            float width = font.getStringWidth(testLine) / 1000 * fontSize;
+            if (width > maxWidth && currentLine.length() > 0) {
+                lines.add(currentLine.toString());
+                currentLine = new StringBuilder(word);
+            } else {
+                currentLine = new StringBuilder(testLine);
+            }
+        }
+        if (currentLine.length() > 0) {
+            lines.add(currentLine.toString());
+        }
+        return lines.isEmpty() ? java.util.Collections.singletonList(text) : lines;
     }
 
     /**
