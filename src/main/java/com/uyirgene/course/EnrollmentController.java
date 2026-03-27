@@ -15,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/courses")
@@ -72,13 +73,13 @@ public class EnrollmentController {
             @ApiResponse(responseCode = "404", description = "Course or enrollment not found")
     })
     public ResponseEntity<?> confirmEnrollment(@PathVariable("id") Long id, @Valid @RequestBody PaymentConfirmDto dto) {
-        Enrollment enrollment = enrollmentService.confirmEnrollmentPayment(
+        enrollmentService.confirmEnrollmentPayment(
                 id,
                 dto.getRazorpayPaymentId(),
                 dto.getRazorpayOrderId(),
                 dto.getRazorpaySignature()
         );
-        return ResponseEntity.ok(new EnrollmentResponse(enrollment, null, false, "Payment confirmed and enrolled successfully"));
+        return ResponseEntity.ok(Map.of("status", "enrolled", "message", "Payment confirmed and enrolled successfully"));
     }
 
     @GetMapping("/enrolled")

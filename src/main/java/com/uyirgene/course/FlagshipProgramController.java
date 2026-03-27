@@ -93,13 +93,13 @@ public class FlagshipProgramController {
 
     @PostMapping("/{id}/enroll/confirm")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Enrollment> confirmPayment(
+    public ResponseEntity<?> confirmPayment(
             @PathVariable("id") Long id,
             @RequestBody PaymentConfirmDto body) {
 
-        Enrollment e = enrollmentService.confirmFlagshipEnrollmentPayment(
+        enrollmentService.confirmFlagshipEnrollmentPayment(
                 id, body.getRazorpayPaymentId(), body.getRazorpayOrderId(), body.getRazorpaySignature());
-        return ResponseEntity.ok(e);
+        return ResponseEntity.ok(Map.of("status", "enrolled", "message", "Payment confirmed and enrolled successfully"));
     }
 
     @DeleteMapping("/{id}/enroll")
