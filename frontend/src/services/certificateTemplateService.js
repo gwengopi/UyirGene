@@ -69,11 +69,7 @@ export async function getTemplatesForCourse(courseId) {
  * @returns {Promise<Object>} Created template
  */
 export async function createTemplate(formData) {
-  const response = await api.post(TEMPLATE_ENDPOINTS.LIST, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  const response = await api.post(TEMPLATE_ENDPOINTS.LIST, formData);
   return response.data;
 }
 
@@ -84,11 +80,7 @@ export async function createTemplate(formData) {
  * @returns {Promise<Object>} Updated template
  */
 export async function updateTemplate(id, formData) {
-  const response = await api.put(TEMPLATE_ENDPOINTS.DETAIL(id), formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  const response = await api.put(TEMPLATE_ENDPOINTS.DETAIL(id), formData);
   return response.data;
 }
 
