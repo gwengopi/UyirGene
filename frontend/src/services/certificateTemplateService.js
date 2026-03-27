@@ -179,10 +179,12 @@ export const DEFAULT_TEMPLATE_CONFIG = {
   courseCode: {
     x: 297.5, y: 395, fontSize: 10, fontColor: '#969696',
     centered: true, visible: true, fontStyle: 'normal', fontFamily: 'oswald',
+    label: 'Course Number :',
   },
   trainerName: {
     x: 297.5, y: 280, fontSize: 12, fontColor: '#636363',
     centered: true, visible: true, fontStyle: 'normal', fontFamily: 'oswald',
+    label: 'Lead Trainer :',
   },
   shortDescription: {
     x: 297.5, y: 260, fontSize: 10, fontColor: '#636363',
@@ -191,14 +193,17 @@ export const DEFAULT_TEMPLATE_CONFIG = {
   trainingDuration: {
     x: 297.5, y: 242, fontSize: 10, fontColor: '#636363',
     centered: true, visible: false, fontStyle: 'normal', fontFamily: 'oswald',
+    label: 'Duration of Training :',
   },
   issueDate: {
     x: 297.5, y: 350, fontSize: 12, fontColor: '#636363',
     centered: true, visible: true, fontStyle: 'italic', fontFamily: 'oswald',
+    label: 'Issued Date :',
   },
   certificateId: {
     x: 297.5, y: 320, fontSize: 10, fontColor: '#969696',
     centered: true, visible: true, fontStyle: 'normal', fontFamily: 'oswald',
+    label: 'Certificate Number :',
   },
   marks: {
     x: 297.5, y: 380, fontSize: 12, fontColor: '#636363',

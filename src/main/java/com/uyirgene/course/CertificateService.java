@@ -396,12 +396,12 @@ public class CertificateService {
 
             // Draw course code
             if (config.getCourseCode() != null && config.getCourseCode().isVisible() && courseCode != null) {
-                drawText(contentStream, courseCode, config.getCourseCode(), fontRegular, pageWidth, extraFonts);
+                drawText(contentStream, applyLabel(config.getCourseCode().getLabel(), courseCode), config.getCourseCode(), fontRegular, pageWidth, extraFonts);
             }
 
             // Draw trainer name
             if (config.getTrainerName() != null && config.getTrainerName().isVisible() && trainerName != null) {
-                drawText(contentStream, trainerName, config.getTrainerName(), fontRegular, pageWidth, extraFonts);
+                drawText(contentStream, applyLabel(config.getTrainerName().getLabel(), trainerName), config.getTrainerName(), fontRegular, pageWidth, extraFonts);
             }
 
             // Draw short description
@@ -411,7 +411,7 @@ public class CertificateService {
 
             // Draw training duration
             if (config.getTrainingDuration() != null && config.getTrainingDuration().isVisible() && trainingDuration != null) {
-                drawText(contentStream, trainingDuration, config.getTrainingDuration(), fontRegular, pageWidth, extraFonts);
+                drawText(contentStream, applyLabel(config.getTrainingDuration().getLabel(), trainingDuration), config.getTrainingDuration(), fontRegular, pageWidth, extraFonts);
             }
 
             // Draw marks if available
@@ -423,12 +423,12 @@ public class CertificateService {
             // Draw issue date
             if (config.getIssueDate().isVisible()) {
                 String dateText = issuedAt.format(DATE_FORMATTER);
-                drawText(contentStream, dateText, config.getIssueDate(), fontItalic, pageWidth, extraFonts);
+                drawText(contentStream, applyLabel(config.getIssueDate().getLabel(), dateText), config.getIssueDate(), fontItalic, pageWidth, extraFonts);
             }
 
             // Draw certificate ID
             if (config.getCertificateId().isVisible()) {
-                drawText(contentStream, certificateId, config.getCertificateId(), fontRegular, pageWidth, extraFonts);
+                drawText(contentStream, applyLabel(config.getCertificateId().getLabel(), certificateId), config.getCertificateId(), fontRegular, pageWidth, extraFonts);
             }
 
             // Draw QR code
@@ -579,6 +579,16 @@ public class CertificateService {
         if (bold)   return PDType1Font.HELVETICA_BOLD;
         if (italic) return PDType1Font.HELVETICA_OBLIQUE;
         return PDType1Font.HELVETICA;
+    }
+
+    /**
+     * Prepend label to value if label is set, e.g. "Certificate Number : AWD-101"
+     */
+    private String applyLabel(String label, String value) {
+        if (label != null && !label.isBlank()) {
+            return label + " " + value;
+        }
+        return value;
     }
 
     /**

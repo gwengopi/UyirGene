@@ -262,7 +262,8 @@ function CertificateTemplateManager() {
   };
 
   // Render a text element configuration section
-  const renderTextElementConfig = (label, elementKey, config) => (
+  // showLabel: whether to show a Label prefix input for this element
+  const renderTextElementConfig = (label, elementKey, config, showLabel = false) => (
     <Box sx={{ mb: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
         <Typography variant="subtitle2">{label}</Typography>
@@ -277,6 +278,18 @@ function CertificateTemplateManager() {
           label="Visible"
         />
       </Box>
+      {config?.visible !== false && showLabel && (
+        <TextField
+          size="small"
+          fullWidth
+          label="Label Prefix"
+          value={config?.label ?? ''}
+          onChange={(e) => updateTemplateConfig(elementKey, 'label', e.target.value)}
+          placeholder='e.g. "Certificate Number :"'
+          helperText="Text shown before the value on the certificate (leave blank for no label)"
+          sx={{ mb: 1 }}
+        />
+      )}
       {config?.visible !== false && (
         <Grid container spacing={1} alignItems="flex-end">
           <Grid item xs={6} sm={2}>
@@ -880,13 +893,13 @@ function CertificateTemplateManager() {
                       {renderTextElementConfig('Student Name', 'studentName', templateConfig.studentName)}
                       {renderTextElementConfig('Completed Text', 'completedText', templateConfig.completedText)}
                       {renderTextElementConfig('Course Title', 'courseTitle', templateConfig.courseTitle)}
-                      {renderTextElementConfig('Course Code', 'courseCode', templateConfig.courseCode)}
-                      {renderTextElementConfig('Trainer Name', 'trainerName', templateConfig.trainerName)}
+                      {renderTextElementConfig('Course Code', 'courseCode', templateConfig.courseCode, true)}
+                      {renderTextElementConfig('Trainer Name', 'trainerName', templateConfig.trainerName, true)}
                       {renderTextElementConfig('Short Description', 'shortDescription', templateConfig.shortDescription)}
-                      {renderTextElementConfig('Duration of Training', 'trainingDuration', templateConfig.trainingDuration)}
+                      {renderTextElementConfig('Duration of Training', 'trainingDuration', templateConfig.trainingDuration, true)}
                       {renderTextElementConfig('Score/Marks', 'marks', templateConfig.marks)}
-                      {renderTextElementConfig('Issue Date', 'issueDate', templateConfig.issueDate)}
-                      {renderTextElementConfig('Certificate ID', 'certificateId', templateConfig.certificateId)}
+                      {renderTextElementConfig('Issue Date', 'issueDate', templateConfig.issueDate, true)}
+                      {renderTextElementConfig('Certificate ID', 'certificateId', templateConfig.certificateId, true)}
                       {renderQRCodeConfig(templateConfig.qrCode)}
                       {renderTextElementConfig('Scan to Verify Text', 'scanText', templateConfig.scanText)}
 

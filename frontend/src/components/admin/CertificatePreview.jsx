@@ -229,7 +229,8 @@ function CertificatePreview({
       ctx.fillStyle = elem.fontColor || '#000000';
       ctx.textBaseline = 'middle';
 
-      const text = elem.text || sampleText;
+      const baseText = elem.text || sampleText;
+      const text = (elem.label && elem.label.trim()) ? `${elem.label} ${baseText}` : baseText;
       const maxWidth = canvasWidth - 80 * scale; // 40pt margin each side (matches backend)
       const lineHeight = fontSize * 1.3;
 

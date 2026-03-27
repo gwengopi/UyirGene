@@ -232,6 +232,7 @@ public class TemplateConfigDto {
         private String text;  // Optional fixed text (for certifyText, etc.)
         private String fontStyle;  // "normal", "bold", "italic", or "bold-italic"
         private String fontFamily; // "helvetica", "times", or "courier"
+        private String label;  // Optional label prefix, e.g. "Certificate Number :"
     }
 
     /**
@@ -278,6 +279,7 @@ public class TemplateConfigDto {
         if (this.courseCode == null) this.courseCode = defaults.getCourseCode();
         if (this.trainerName == null) this.trainerName = defaults.getTrainerName();
         if (this.shortDescription == null) this.shortDescription = defaults.getShortDescription();
+        if (this.trainingDuration == null) this.trainingDuration = defaults.getTrainingDuration();
         if (this.issueDate == null) this.issueDate = defaults.getIssueDate();
         if (this.certificateId == null) this.certificateId = defaults.getCertificateId();
         if (this.marks == null) this.marks = defaults.getMarks();
