@@ -383,10 +383,16 @@ public class CertificateService {
 
             // Draw "has successfully completed" text
             if (config.getCompletedText().isVisible()) {
-                String text = type == Certificate.CertificateType.COMPLETION
-                        ? "has successfully completed the course"
-                        : "has participated in the course";
-                drawText(contentStream, text, config.getCompletedText(), fontRegular, pageWidth, extraFonts);
+                TemplateConfigDto.TextElement elem = config.getCompletedText();
+                String text;
+                if (elem.getText() != null && !elem.getText().isBlank()) {
+                    text = elem.getText();
+                } else {
+                    text = type == Certificate.CertificateType.COMPLETION
+                            ? "has successfully completed the course"
+                            : "has participated in the course";
+                }
+                drawText(contentStream, text, elem, fontRegular, pageWidth, extraFonts);
             }
 
             // Draw course title

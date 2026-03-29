@@ -176,14 +176,24 @@ public class CertificateController {
                 ? cert.getIssuedAt().format(DATE_FORMATTER)
                 : "Unknown";
 
-        return ResponseEntity.ok(Map.of(
-                "valid", true,
-                "certificateId", cert.getCertificateId(),
-                "studentName", cert.getUser().getName(),
-                "courseName", cert.getCourse().getTitle(),
-                "issuedAt", issuedDate,
-                "message", "This certificate is valid and was issued by UyirGene."
-        ));
+        String programName;
+        if (cert.getCourse() != null) {
+            programName = cert.getCourse().getTitle();
+        } else if (cert.getFlagshipProgram() != null) {
+            programName = cert.getFlagshipProgram().getTitle();
+        } else {
+            programName = "Unknown Program";
+        }
+
+        Map<String, Object> verifyResponse = new HashMap<>();
+        verifyResponse.put("valid", true);
+        verifyResponse.put("certificateId", cert.getCertificateId());
+        verifyResponse.put("studentName", cert.getUser().getName());
+        verifyResponse.put("courseName", programName);
+        verifyResponse.put("issuedAt", issuedDate);
+        verifyResponse.put("certificateType", cert.getType() != null ? cert.getType().name() : Certificate.CertificateType.COMPLETION.name());
+        verifyResponse.put("message", "This certificate is valid and was issued by UyirGene.");
+        return ResponseEntity.ok(verifyResponse);
     }
 
     @GetMapping("/courses/{id}/certificate")

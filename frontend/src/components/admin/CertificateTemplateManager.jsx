@@ -263,7 +263,8 @@ function CertificateTemplateManager() {
 
   // Render a text element configuration section
   // showLabel: whether to show a Label prefix input for this element
-  const renderTextElementConfig = (label, elementKey, config, showLabel = false) => (
+  // showText: whether to show a custom text input (for certifyText, completedText)
+  const renderTextElementConfig = (label, elementKey, config, showLabel = false, showText = false, textPlaceholder = '', textHelperText = '') => (
     <Box sx={{ mb: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
         <Typography variant="subtitle2">{label}</Typography>
@@ -278,6 +279,18 @@ function CertificateTemplateManager() {
           label="Visible"
         />
       </Box>
+      {config?.visible !== false && showText && (
+        <TextField
+          size="small"
+          fullWidth
+          label="Text"
+          value={config?.text ?? ''}
+          onChange={(e) => updateTemplateConfig(elementKey, 'text', e.target.value)}
+          placeholder={textPlaceholder}
+          helperText={textHelperText}
+          sx={{ mb: 1 }}
+        />
+      )}
       {config?.visible !== false && showLabel && (
         <TextField
           size="small"
@@ -889,9 +902,9 @@ function CertificateTemplateManager() {
                       </Alert>
 
                       {renderTextElementConfig('Certificate Type ("Completion / Participation")', 'certificateType', templateConfig.certificateType)}
-                      {renderTextElementConfig('Certify Text ("This is to certify that")', 'certifyText', templateConfig.certifyText)}
+                      {renderTextElementConfig('Certify Text', 'certifyText', templateConfig.certifyText, false, true, 'This is to certify that', 'Custom text shown above the student name (default: "This is to certify that")')}
                       {renderTextElementConfig('Student Name', 'studentName', templateConfig.studentName)}
-                      {renderTextElementConfig('Completed Text', 'completedText', templateConfig.completedText)}
+                      {renderTextElementConfig('Completed Text', 'completedText', templateConfig.completedText, false, true, 'e.g. has successfully completed the course', 'Leave blank to auto-set based on certificate type (Completion / Participation)')}
                       {renderTextElementConfig('Course Title', 'courseTitle', templateConfig.courseTitle)}
                       {renderTextElementConfig('Course Code', 'courseCode', templateConfig.courseCode, true)}
                       {renderTextElementConfig('Trainer Name', 'trainerName', templateConfig.trainerName, true)}
