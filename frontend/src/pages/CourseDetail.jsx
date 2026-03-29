@@ -687,6 +687,49 @@ function CourseDetail() {
                     <ManualSection courseId={course.id} title="Course Materials" />
                   </Box>
                 )}
+
+                {/* Assessment Links */}
+                {(() => {
+                  let links = [];
+                  try { if (course.assessmentLinks) links = JSON.parse(course.assessmentLinks); } catch {}
+                  if (links.length === 0 && course.testLink && isValidUrl(course.testLink)) {
+                    links = [{ title: 'Take Assessment', url: course.testLink }];
+                  }
+                  const validLinks = links.filter(l => l.url && isValidUrl(l.url));
+                  if (validLinks.length === 0) return null;
+                  return (
+                    <Paper variant="outlined" sx={{ p: 3, mt: 3, borderRadius: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                        <AssignmentIcon color="primary" />
+                        <Typography variant="h6" fontWeight={600}>Course Assessment</Typography>
+                      </Box>
+                      {course.testDescription && links.length === 1 && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{course.testDescription}</Typography>
+                      )}
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {validLinks.map((link, i) => (
+                          <Button
+                            key={i}
+                            variant="contained"
+                            fullWidth
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            startIcon={<AssignmentIcon />}
+                          >
+                            {link.title || 'Take Assessment'}
+                          </Button>
+                        ))}
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mt: 2 }}>
+                        <InfoOutlinedIcon sx={{ fontSize: 18, color: 'text.secondary', mt: 0.2 }} />
+                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
+                          Please complete both the Pre-Assessment and Assessment. Your result will be reviewed and the certificate will be issued within 24–48 hours after completion of both assessments.
+                        </Typography>
+                      </Box>
+                    </Paper>
+                  );
+                })()}
               </>
             ) : (isEnrolled || isAdmin) && learnMode && currentVideo && !currentVideoUrl ? (
               <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 3 }}>
@@ -850,12 +893,14 @@ function CourseDetail() {
                     </Typography>
                   </Box>
                   <Divider />
-                  <VideoList
-                    videos={videos}
-                    currentVideoId={currentVideo?.id}
-                    progressMap={progressMap}
-                    onVideoSelect={setCurrentVideo}
-                  />
+                  <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+                    <VideoList
+                      videos={videos}
+                      currentVideoId={currentVideo?.id}
+                      progressMap={progressMap}
+                      onVideoSelect={setCurrentVideo}
+                    />
+                  </Box>
                 </Paper>
 
                 {/* Progress */}
@@ -889,49 +934,6 @@ function CourseDetail() {
 
                 {/* Certificate Name */}
                 <CertificateNameCard />
-
-                {/* Assessment Links */}
-                {(() => {
-                  let links = [];
-                  try { if (course.assessmentLinks) links = JSON.parse(course.assessmentLinks); } catch {}
-                  if (links.length === 0 && course.testLink && isValidUrl(course.testLink)) {
-                    links = [{ title: 'Take Assessment', url: course.testLink }];
-                  }
-                  const validLinks = links.filter(l => l.url && isValidUrl(l.url));
-                  if (validLinks.length === 0) return null;
-                  return (
-                    <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                        <AssignmentIcon color="primary" />
-                        <Typography variant="h6" fontWeight={600}>Course Assessment</Typography>
-                      </Box>
-                      {course.testDescription && links.length === 1 && (
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{course.testDescription}</Typography>
-                      )}
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        {validLinks.map((link, i) => (
-                          <Button
-                            key={i}
-                            variant="contained"
-                            fullWidth
-                            href={link.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            startIcon={<AssignmentIcon />}
-                          >
-                            {link.title || 'Take Assessment'}
-                          </Button>
-                        ))}
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mt: 2 }}>
-                        <InfoOutlinedIcon sx={{ fontSize: 18, color: 'text.secondary', mt: 0.2 }} />
-                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-                          Please complete both the Pre-Assessment and Assessment. Your result will be reviewed and the certificate will be issued within 24–48 hours after completion of both assessments.
-                        </Typography>
-                      </Box>
-                    </Paper>
-                  );
-                })()}
 
               </>
             ) : null}
