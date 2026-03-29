@@ -31,7 +31,7 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import QuizIcon from '@mui/icons-material/Quiz';
 import { Button, Breadcrumb, LoadingSpinner, SEO } from '../components/common';
 import { courseSchema } from '../components/common/SEO';
-import { VideoPlayer, VideoList, ManualSection, EnrollmentUpsellDialog } from '../components/course';
+import { VideoPlayer, VideoList, ManualSection, EnrollmentUpsellDialog, CertificateNameCard } from '../components/course';
 import { getPublishedBundlesByCategory, startMultiBundleEnrollment } from '../services/bundleService';
 import { ProgressTracker } from '../components/user';
 import { courseService, enrollmentService, videoService, certificateService } from '../services';
@@ -886,6 +886,9 @@ function CourseDetail() {
                     </Button>
                   </Box>
                 </Paper>
+
+                {/* Certificate Name */}
+                <CertificateNameCard />
 
                 {/* Assessment Links */}
                 {(() => {

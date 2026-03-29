@@ -16,6 +16,7 @@ import QuizIcon from '@mui/icons-material/Quiz';
 import DownloadIcon from '@mui/icons-material/Download';
 import CardMembershipIcon from '@mui/icons-material/CardMembership';
 import { SEO, Breadcrumb } from '../components/common';
+import { CertificateNameCard } from '../components/course';
 import { flagshipService } from '../services/flagshipService';
 import { useAuth, useToast } from '../store';
 import { formatCurrency } from '../utils/formatters';
@@ -570,6 +571,9 @@ function FlagshipDetail() {
 
           {/* Right: sidebar */}
           <Grid item xs={12} md={4}>
+            {/* Certificate Name — shown when enrolled */}
+            {isEnrolled && <CertificateNameCard />}
+
             {/* Enrollment sidebar */}
             <Paper sx={{ p: 3, borderRadius: 2, position: { md: 'sticky' }, top: { md: 80 } }}>
               <Typography variant="h6" gutterBottom fontWeight={700}>
