@@ -147,6 +147,7 @@ const CourseCard = memo(function CourseCard({
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
             minHeight: 56,
+            fontWeight: 700,
           }}
         >
           {course.title}
