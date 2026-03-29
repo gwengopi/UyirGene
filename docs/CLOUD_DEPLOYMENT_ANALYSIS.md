@@ -493,5 +493,131 @@ Don't over-engineer now — scale only when you actually need it.
 
 ---
 
-*Document prepared based on live server audit conducted on March 25, 2026.*
+## 13. Staging + Production Two-Environment Setup
+
+Run EC2 (free) as staging and Lightsail as production simultaneously — same codebase, two isolated environments.
+
+### Environment Overview
+
+| | Staging | Production |
+|--|---------|-----------|
+| Server | EC2 t2.micro (free tier) | Lightsail $10 |
+| Domain | `staging.uyirgene.com` | `learn.uyirgene.com` |
+| Razorpay | Test keys (`rzp_test_`) | Live keys (`rzp_live_`) |
+| Spring Profile | prod | prod |
+| Purpose | Test new features safely | Real users |
+| Cost | ₹0 (free till March 2027) | ~₹830/month |
+
+---
+
+### Setup Steps
+
+#### Step 1 — Add Staging DNS Record
+In your DNS provider (GoDaddy / Namecheap / Route 53 — wherever `uyirgene.com` is managed):
+
+| Type | Name | Value |
+|------|------|-------|
+| A | `staging` | `43.205.114.234` (EC2 IP) |
+| A | `learn` | Lightsail static IP (existing) |
+
+This creates:
+- `staging.uyirgene.com` → EC2 (testing)
+- `learn.uyirgene.com` → Lightsail (production)
+
+#### Step 2 — Update EC2 `.env` for Staging
+SSH into EC2 and update `/home/ubuntu/UyirGene/.env`:
+```bash
+APP_BASE_URL=https://staging.uyirgene.com
+CORS_ALLOWED_ORIGINS=https://staging.uyirgene.com
+RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxx       # keep test keys
+RAZORPAY_KEY_SECRET=xxxxxxxxxxxxxxxxxxxx
+VITE_GOOGLE_CLIENT_ID=<your-google-client-id>
+```
+
+#### Step 3 — Issue SSL Certificate for Staging Domain
+On EC2, update Nginx config and get SSL cert for the new subdomain:
+
+```bash
+# Update server_name in nginx config
+docker exec uyirgene-frontend sed -i 's/learn.uyirgene.com/staging.uyirgene.com/g' /etc/nginx/conf.d/default.conf
+
+# Issue new SSL certificate
+docker exec uyirgene-certbot certbot certonly \
+  --webroot -w /var/www/certbot \
+  -d staging.uyirgene.com \
+  --email your@email.com --agree-tos --non-interactive
+
+# Reload nginx
+docker exec uyirgene-frontend nginx -s reload
+```
+
+Or better — update `frontend/nginx.conf` in the repo with `staging.uyirgene.com`
+and rebuild the frontend container:
+```bash
+cd /home/ubuntu/UyirGene
+docker-compose -f docker-compose.prod.yml up -d --build frontend
+```
+
+#### Step 4 — Update Google OAuth for Staging
+In **Google Cloud Console → APIs & Services → Credentials**:
+- Select your OAuth 2.0 Client
+- Add to **Authorized JavaScript origins**: `https://staging.uyirgene.com`
+- Add to **Authorized redirect URIs**: `https://staging.uyirgene.com`
+- Save
+
+#### Step 5 — Restart Containers on EC2
+```bash
+cd /home/ubuntu/UyirGene
+docker-compose -f docker-compose.prod.yml down
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+---
+
+### Deployment Workflow
+
+```
+Developer makes code change
+         ↓
+    git push to main
+         ↓
+  Pull on EC2 (staging)
+  docker-compose up -d --build
+         ↓
+   Test on staging.uyirgene.com
+         ↓
+  If OK → Pull on Lightsail (production)
+  docker-compose up -d --build
+         ↓
+  Live on learn.uyirgene.com ✅
+```
+
+---
+
+### Benefits
+
+| Benefit | Detail |
+|---------|--------|
+| Free staging server | EC2 free tier until March 2027 |
+| Safe testing | New features tested before real users see them |
+| Isolated payments | Test transactions never mix with real ones |
+| Same codebase | Identical Docker Compose on both servers |
+| Real SSL | Both domains get proper HTTPS via Let's Encrypt |
+| Google OAuth | Works on both domains independently |
+
+---
+
+### Things to Keep in Mind
+
+| Item | Detail |
+|------|--------|
+| Nginx config | Has hardcoded domain — needs separate build per environment |
+| SSL certificates | Separate cert per domain — auto-renewed by Certbot |
+| Database | Each server has its own DB — data is not shared |
+| File uploads | Each server has its own uploads volume — not shared |
+| Razorpay webhook | Register separate webhook URLs for test and live in Razorpay dashboard |
+
+---
+
+*Document prepared based on live server audit conducted on March 29, 2026.*
 *Server: ubuntu@ip-172-31-38-116 | Region: ap-south-1 (Mumbai)*
