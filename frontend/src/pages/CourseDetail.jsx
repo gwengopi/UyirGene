@@ -17,6 +17,8 @@ import {
   DialogActions,
   TextField,
   Autocomplete,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CategoryIcon from '@mui/icons-material/Category';
@@ -55,6 +57,8 @@ function CourseDetail() {
   const { showSuccess, showError } = useToast();
   const { getCategoryLabel } = useConfig();
   const isAdmin = user?.role === 'ADMIN';
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   // Learn mode: only show video player when navigated from My Courses page
   const [learnMode, setLearnMode] = useState(location.state?.mode === 'learn');
@@ -631,37 +635,72 @@ function CourseDetail() {
           </Box>
         )}
 
-        <Grid container spacing={4} sx={{ mt: 0.5 }}>
-          {/* ── Main content ── */}
-          <Grid item xs={12} md={8}>
-            {(isEnrolled || isAdmin) && learnMode && currentVideo && currentVideoUrl ? (
-              <>
-                <VideoPlayer
-                  src={currentVideoUrl}
-                  title={currentVideo.title}
-                  initialPosition={progressMap[currentVideo.id]?.lastPositionSeconds || 0}
-                  onProgress={handleVideoProgress}
-                  onComplete={handleVideoComplete}
-                  onPlay={handleVideoPlay}
-                  userEmail={user?.email}
-                />
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2, mb: 1 }}>
-                  <Typography variant="h5" fontWeight={600} sx={{ flex: 1 }}>{currentVideo.title}</Typography>
-                  {progressMap[currentVideo.id]?.completed && (
-                    <Chip icon={<CheckCircleOutlineIcon />} label="Completed" color="success" variant="outlined" size="small" />
-                  )}
+        <Grid container spacing={4} sx={{ mt: 0.5 }} alignItems="flex-start">
+          {(isEnrolled || isAdmin) && learnMode ? (
+            isMobile ? (
+              /* ── Mobile learn mode: single column, sections in order 1-9 ── */
+              <Grid item xs={12}>
+                {/* 1. Video */}
+                <Box sx={{ mb: 3 }}>
+                  {currentVideo && currentVideoUrl ? (
+                    <>
+                      <VideoPlayer
+                        src={currentVideoUrl}
+                        title={currentVideo.title}
+                        initialPosition={progressMap[currentVideo.id]?.lastPositionSeconds || 0}
+                        onProgress={handleVideoProgress}
+                        onComplete={handleVideoComplete}
+                        onPlay={handleVideoPlay}
+                        userEmail={user?.email}
+                      />
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2, mb: 1 }}>
+                        <Typography variant="h5" fontWeight={600} sx={{ flex: 1 }}>{currentVideo.title}</Typography>
+                        {progressMap[currentVideo.id]?.completed && (
+                          <Chip icon={<CheckCircleOutlineIcon />} label="Completed" color="success" variant="outlined" size="small" />
+                        )}
+                      </Box>
+                    </>
+                  ) : currentVideo && !currentVideoUrl ? (
+                    <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 3 }}>
+                      <CircularProgress size={36} sx={{ display: 'block', mx: 'auto', mb: 2 }} />
+                      <Typography color="text.secondary">Loading video...</Typography>
+                    </Paper>
+                  ) : null}
                 </Box>
 
-                {/* Pre-Assessment Section */}
+                {/* 2. Course Content */}
+                <Paper sx={{ mb: 3, borderRadius: 2, overflow: 'hidden' }}>
+                  <Box sx={{ p: 2, pb: 1.5, background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.primary.dark})` }}>
+                    <Typography variant="h6" sx={{ color: '#fff', fontWeight: 600 }}>Course Content</Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.85)' }}>{completedVideos} of {totalVideos} completed</Typography>
+                  </Box>
+                  <Divider />
+                  <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+                    <VideoList videos={videos} currentVideoId={currentVideo?.id} progressMap={progressMap} onVideoSelect={setCurrentVideo} />
+                  </Box>
+                </Paper>
+
+                {/* 3. Course Materials */}
+                {course?.id && (
+                  <Box sx={{ mb: 3 }}>
+                    <ManualSection courseId={course.id} title="Course Materials" />
+                  </Box>
+                )}
+
+                {/* 4. Certificate Name */}
+                <Box sx={{ mb: 3 }}>
+                  <CertificateNameCard />
+                </Box>
+
+                {/* 5. Pre-Assessment */}
                 {(() => {
                   let links = [];
                   try { if (course.preAssessmentLinks) links = JSON.parse(course.preAssessmentLinks); } catch {}
                   const validLinks = links.filter(l => l.url && isValidUrl(l.url));
                   if (validLinks.length === 0) return null;
-                  const instructions = course.preAssessmentInstructions?.trim()
-                    || 'Complete the pre-assessment before starting your learning journey. This helps us understand your baseline knowledge.';
+                  const instructions = course.preAssessmentInstructions?.trim() || 'Complete the pre-assessment before starting your learning journey. This helps us understand your baseline knowledge.';
                   return (
-                    <Paper variant="outlined" sx={{ p: 3, mt: 3, borderRadius: 2, borderColor: 'primary.light', bgcolor: 'rgba(25,118,210,0.04)' }}>
+                    <Paper variant="outlined" sx={{ p: 3, mb: 3, borderRadius: 2, borderColor: 'primary.light', bgcolor: 'rgba(25,118,210,0.04)' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                         <AssignmentIcon color="primary" />
                         <Typography variant="h6" fontWeight={700} color="primary">Pre-Assessment</Typography>
@@ -681,24 +720,15 @@ function CourseDetail() {
                   );
                 })()}
 
-                {/* Manuals & Documents — below pre-assessment */}
-                {course?.id && (
-                  <Box sx={{ mt: 3 }}>
-                    <ManualSection courseId={course.id} title="Course Materials" />
-                  </Box>
-                )}
-
-                {/* Assessment Links */}
+                {/* 6. Course Assessments */}
                 {(() => {
                   let links = [];
                   try { if (course.assessmentLinks) links = JSON.parse(course.assessmentLinks); } catch {}
-                  if (links.length === 0 && course.testLink && isValidUrl(course.testLink)) {
-                    links = [{ title: 'Take Assessment', url: course.testLink }];
-                  }
+                  if (links.length === 0 && course.testLink && isValidUrl(course.testLink)) links = [{ title: 'Take Assessment', url: course.testLink }];
                   const validLinks = links.filter(l => l.url && isValidUrl(l.url));
                   if (validLinks.length === 0) return null;
                   return (
-                    <Paper variant="outlined" sx={{ p: 3, mt: 3, borderRadius: 2 }}>
+                    <Paper variant="outlined" sx={{ p: 3, mb: 3, borderRadius: 2 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                         <AssignmentIcon color="primary" />
                         <Typography variant="h6" fontWeight={600}>Course Assessment</Typography>
@@ -708,15 +738,7 @@ function CourseDetail() {
                       )}
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                         {validLinks.map((link, i) => (
-                          <Button
-                            key={i}
-                            variant="contained"
-                            fullWidth
-                            href={link.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            startIcon={<AssignmentIcon />}
-                          >
+                          <Button key={i} variant="contained" fullWidth href={link.url} target="_blank" rel="noopener noreferrer" startIcon={<AssignmentIcon />}>
                             {link.title || 'Take Assessment'}
                           </Button>
                         ))}
@@ -730,13 +752,202 @@ function CourseDetail() {
                     </Paper>
                   );
                 })()}
-              </>
-            ) : (isEnrolled || isAdmin) && learnMode && currentVideo && !currentVideoUrl ? (
-              <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 3 }}>
-                <CircularProgress size={36} sx={{ display: 'block', mx: 'auto', mb: 2 }} />
-                <Typography color="text.secondary">Loading video...</Typography>
-              </Paper>
+
+                {/* 7. Your Progress */}
+                <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom fontWeight={600}>Your Progress</Typography>
+                  <ProgressTracker
+                    value={completedVideos}
+                    max={totalVideos}
+                    label={`${completedVideos} of ${totalVideos} videos completed`}
+                    variant="circular"
+                    size="medium"
+                    color={isCompleted ? 'success' : 'primary'}
+                  />
+                  <Box sx={{ mt: 2 }}>
+                    <Button variant="text" color="error" fullWidth startIcon={<ExitToAppIcon />} onClick={() => setUnenrollDialogOpen(true)}>
+                      Unenroll from Course
+                    </Button>
+                  </Box>
+                </Paper>
+
+                {/* 8. Certificate Download — only when completed */}
+                {isCompleted && (
+                  <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                    <Typography variant="h6" gutterBottom fontWeight={600}>Certificate</Typography>
+                    <Button variant="outlined" fullWidth onClick={handleDownloadCertificate}>
+                      Download Certificate
+                    </Button>
+                  </Paper>
+                )}
+
+                {/* 9. Course Access */}
+                <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom fontWeight={700}>Course Access</Typography>
+                  <Divider sx={{ mb: 2 }} />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CategoryIcon color="action" fontSize="small" />
+                      <Typography variant="body2">Category: <strong>{course.categories?.map(getCategoryLabel).join(', ') || 'General'}</strong></Typography>
+                    </Box>
+                    {course.courseType && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <ComputerIcon color="action" fontSize="small" />
+                        <Typography variant="body2">Mode: <strong>{COURSE_TYPE_LABELS[course.courseType] || course.courseType}</strong></Typography>
+                      </Box>
+                    )}
+                    {course.durationHours && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <AccessTimeIcon color="action" fontSize="small" />
+                        <Typography variant="body2">Duration: <strong>{formatDurationHours(course.durationHours)}</strong></Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Paper>
+              </Grid>
             ) : (
+              /* ── Desktop learn mode: original two-column layout ── */
+              <>
+                <Grid item md={8}>
+                  {currentVideo && currentVideoUrl ? (
+                    <>
+                      <VideoPlayer
+                        src={currentVideoUrl}
+                        title={currentVideo.title}
+                        initialPosition={progressMap[currentVideo.id]?.lastPositionSeconds || 0}
+                        onProgress={handleVideoProgress}
+                        onComplete={handleVideoComplete}
+                        onPlay={handleVideoPlay}
+                        userEmail={user?.email}
+                      />
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2, mb: 1 }}>
+                        <Typography variant="h5" fontWeight={600} sx={{ flex: 1 }}>{currentVideo.title}</Typography>
+                        {progressMap[currentVideo.id]?.completed && (
+                          <Chip icon={<CheckCircleOutlineIcon />} label="Completed" color="success" variant="outlined" size="small" />
+                        )}
+                      </Box>
+                    </>
+                  ) : currentVideo && !currentVideoUrl ? (
+                    <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 3 }}>
+                      <CircularProgress size={36} sx={{ display: 'block', mx: 'auto', mb: 2 }} />
+                      <Typography color="text.secondary">Loading video...</Typography>
+                    </Paper>
+                  ) : null}
+
+                  {/* Pre-Assessment */}
+                  {(() => {
+                    let links = [];
+                    try { if (course.preAssessmentLinks) links = JSON.parse(course.preAssessmentLinks); } catch {}
+                    const validLinks = links.filter(l => l.url && isValidUrl(l.url));
+                    if (validLinks.length === 0) return null;
+                    const instructions = course.preAssessmentInstructions?.trim() || 'Complete the pre-assessment before starting your learning journey. This helps us understand your baseline knowledge.';
+                    return (
+                      <Paper variant="outlined" sx={{ p: 3, mt: 3, borderRadius: 2, borderColor: 'primary.light', bgcolor: 'rgba(25,118,210,0.04)' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                          <AssignmentIcon color="primary" />
+                          <Typography variant="h6" fontWeight={700} color="primary">Pre-Assessment</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 2 }}>
+                          <InfoOutlinedIcon sx={{ fontSize: 17, color: 'primary.main', mt: 0.2, flexShrink: 0 }} />
+                          <Typography variant="body2" color="text.secondary">{instructions}</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          {validLinks.map((link, i) => (
+                            <Button key={i} variant="outlined" color="primary" href={link.url} target="_blank" rel="noopener noreferrer" startIcon={<AssignmentIcon />}>
+                              {link.title || 'Take Pre-Assessment'}
+                            </Button>
+                          ))}
+                        </Box>
+                      </Paper>
+                    );
+                  })()}
+
+                  {/* Course Materials */}
+                  {course?.id && (
+                    <Box sx={{ mt: 3 }}>
+                      <ManualSection courseId={course.id} title="Course Materials" />
+                    </Box>
+                  )}
+
+                  {/* Assessment Links */}
+                  {(() => {
+                    let links = [];
+                    try { if (course.assessmentLinks) links = JSON.parse(course.assessmentLinks); } catch {}
+                    if (links.length === 0 && course.testLink && isValidUrl(course.testLink)) links = [{ title: 'Take Assessment', url: course.testLink }];
+                    const validLinks = links.filter(l => l.url && isValidUrl(l.url));
+                    if (validLinks.length === 0) return null;
+                    return (
+                      <Paper variant="outlined" sx={{ p: 3, mt: 3, borderRadius: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                          <AssignmentIcon color="primary" />
+                          <Typography variant="h6" fontWeight={600}>Course Assessment</Typography>
+                        </Box>
+                        {course.testDescription && links.length === 1 && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{course.testDescription}</Typography>
+                        )}
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          {validLinks.map((link, i) => (
+                            <Button key={i} variant="contained" fullWidth href={link.url} target="_blank" rel="noopener noreferrer" startIcon={<AssignmentIcon />}>
+                              {link.title || 'Take Assessment'}
+                            </Button>
+                          ))}
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mt: 2 }}>
+                          <InfoOutlinedIcon sx={{ fontSize: 18, color: 'text.secondary', mt: 0.2 }} />
+                          <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
+                            Please complete both the Pre-Assessment and Assessment. Your result will be reviewed and the certificate will be issued within 24–48 hours after completion of both assessments.
+                          </Typography>
+                        </Box>
+                      </Paper>
+                    );
+                  })()}
+                </Grid>
+
+                <Grid item md={4}>
+                  {/* Course Content */}
+                  <Paper sx={{ mb: 3, borderRadius: 2, overflow: 'hidden' }}>
+                    <Box sx={{ p: 2, pb: 1.5, background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.primary.dark})` }}>
+                      <Typography variant="h6" sx={{ color: '#fff', fontWeight: 600 }}>Course Content</Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.85)' }}>{completedVideos} of {totalVideos} completed</Typography>
+                    </Box>
+                    <Divider />
+                    <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+                      <VideoList videos={videos} currentVideoId={currentVideo?.id} progressMap={progressMap} onVideoSelect={setCurrentVideo} />
+                    </Box>
+                  </Paper>
+
+                  {/* Progress */}
+                  <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                    <Typography variant="h6" gutterBottom fontWeight={600}>Your Progress</Typography>
+                    <ProgressTracker
+                      value={completedVideos}
+                      max={totalVideos}
+                      label={`${completedVideos} of ${totalVideos} videos completed`}
+                      variant="circular"
+                      size="medium"
+                      color={isCompleted ? 'success' : 'primary'}
+                    />
+                    {isCompleted && (
+                      <Button variant="outlined" fullWidth sx={{ mt: 2 }} onClick={handleDownloadCertificate}>
+                        Download Certificate
+                      </Button>
+                    )}
+                    <Box sx={{ mt: 2 }}>
+                      <Button variant="text" color="error" fullWidth startIcon={<ExitToAppIcon />} onClick={() => setUnenrollDialogOpen(true)}>
+                        Unenroll from Course
+                      </Button>
+                    </Box>
+                  </Paper>
+
+                  {/* Certificate Name */}
+                  <CertificateNameCard />
+                </Grid>
+              </>
+            )
+          ) : (
+            <>
+              {/* ── Non-learn mode: two-column layout ── */}
+              <Grid item xs={12} md={8}>
               <Box>
                 {/* Short description callout */}
                 {course.shortDescription && (
@@ -870,76 +1081,11 @@ function CourseDetail() {
                   )}
                 </Box>
               </Box>
-            )}
-          </Grid>
+              </Grid>
 
-          {/* ── Sidebar ── */}
-          <Grid item xs={12} md={4}>
-            {(isEnrolled || isAdmin) && learnMode ? (
-              <>
-                {/* Course Content */}
-                <Paper sx={{ mb: 3, borderRadius: 2, overflow: 'hidden' }}>
-                  <Box
-                    sx={{
-                      p: 2,
-                      pb: 1.5,
-                      background: (theme) =>
-                        `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
-                    }}
-                  >
-                    <Typography variant="h6" sx={{ color: '#fff', fontWeight: 600 }}>Course Content</Typography>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.85)' }}>
-                      {completedVideos} of {totalVideos} completed
-                    </Typography>
-                  </Box>
-                  <Divider />
-                  <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
-                    <VideoList
-                      videos={videos}
-                      currentVideoId={currentVideo?.id}
-                      progressMap={progressMap}
-                      onVideoSelect={setCurrentVideo}
-                    />
-                  </Box>
-                </Paper>
-
-                {/* Progress */}
-                <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
-                  <Typography variant="h6" gutterBottom fontWeight={600}>Your Progress</Typography>
-                  <ProgressTracker
-                    value={completedVideos}
-                    max={totalVideos}
-                    label={`${completedVideos} of ${totalVideos} videos completed`}
-                    variant="circular"
-                    size="medium"
-                    color={isCompleted ? 'success' : 'primary'}
-                  />
-                  {isCompleted && (
-                    <Button variant="outlined" fullWidth sx={{ mt: 2 }} onClick={handleDownloadCertificate}>
-                      Download Certificate
-                    </Button>
-                  )}
-                  <Box sx={{ mt: 2 }}>
-                    <Button
-                      variant="text"
-                      color="error"
-                      fullWidth
-                      startIcon={<ExitToAppIcon />}
-                      onClick={() => setUnenrollDialogOpen(true)}
-                    >
-                      Unenroll from Course
-                    </Button>
-                  </Box>
-                </Paper>
-
-                {/* Certificate Name */}
-                <CertificateNameCard />
-
-              </>
-            ) : null}
-
-            {/* Enrollment Card — always shown */}
-            <Paper sx={{ p: 3, mb: 3, borderRadius: 2, position: { md: 'sticky' }, top: { md: 80 } }}>
+              {/* Non-learn mode sidebar */}
+              <Grid item xs={12} md={4}>
+                <Paper sx={{ p: 3, mb: 3, borderRadius: 2, position: { md: 'sticky' }, top: { md: 80 } }}>
               <Typography variant="h6" gutterBottom fontWeight={700}>
                 {isEnrolled ? 'Course Access' : 'Enroll in This Course'}
               </Typography>
@@ -1015,8 +1161,10 @@ function CourseDetail() {
                   </Button>
                 )}
               </Box>
-            </Paper>
-          </Grid>
+                </Paper>
+              </Grid>
+            </>
+          )}
         </Grid>
 
         {/* Bundle Upsell Dialog */}
