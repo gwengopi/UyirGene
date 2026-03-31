@@ -290,22 +290,22 @@ export const IMAGES = {
 
   // Hero images
   HERO_MAIN: 'https://img1.wsimg.com/isteam/ip/1026513f-a4fe-4205-ac72-b744196cbd6f/blob-91a7f99.png/:/rs=w:1920,h:1080,cg:true,m/qt=q:95',
-  HERO_STUDENTS: 'https://img1.wsimg.com/isteam/getty/1392049389/:/rs=w:1280,h:720,cg:true,m/qt=q:90',
-  HERO_LEARNING: 'https://img1.wsimg.com/isteam/getty/2246976642/:/rs=w:1280,h:720,cg:true,m/qt=q:90',
-  HERO_TECHNOLOGY: 'https://img1.wsimg.com/isteam/getty/2217587857/:/rs=w:1280,h:720,cg:true,m/qt=q:90',
+  HERO_STUDENTS: 'https://img1.wsimg.com/isteam/getty/1392049389/:/rs=w:960,h:540,cg:true,m/qt=q:90',
+  HERO_LEARNING: 'https://img1.wsimg.com/isteam/getty/2246976642/:/rs=w:960,h:540,cg:true,m/qt=q:90',
+  HERO_TECHNOLOGY: 'https://img1.wsimg.com/isteam/getty/2217587857/:/rs=w:960,h:540,cg:true,m/qt=q:90',
 
   // Course feature images
-  COURSE_REGULATORY: 'https://img1.wsimg.com/isteam/getty/2165387046/:/rs=w:600,h:400,cg:true,m/qt=q:90',
-  COURSE_TRAINERS: 'https://img1.wsimg.com/isteam/getty/2156390491/:/rs=w:600,h:400,cg:true,m/qt=q:90',
-  COURSE_PRACTICAL: 'https://img1.wsimg.com/isteam/getty/1938554573/:/rs=w:600,h:400,cg:true,m/qt=q:90',
-  COURSE_CERTIFICATION: 'https://img1.wsimg.com/isteam/getty/1341288264/:/rs=w:600,h:400,cg:true,m/qt=q:90',
+  COURSE_REGULATORY: 'https://img1.wsimg.com/isteam/getty/2165387046/:/rs=w:380,h:254,cg:true,m/qt=q:90',
+  COURSE_TRAINERS: 'https://img1.wsimg.com/isteam/getty/2156390491/:/rs=w:380,h:254,cg:true,m/qt=q:90',
+  COURSE_PRACTICAL: 'https://img1.wsimg.com/isteam/getty/1938554573/:/rs=w:380,h:254,cg:true,m/qt=q:90',
+  COURSE_CERTIFICATION: 'https://img1.wsimg.com/isteam/getty/1341288264/:/rs=w:380,h:254,cg:true,m/qt=q:90',
 
   // Service images (configurable via admin)
-  SERVICE_MICROBIOLOGY: 'https://images.unsplash.com/photo-1576086213369-97a306d36557?w=600&h=400&fit=crop&q=80',
-  SERVICE_CERTIFICATION: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&h=400&fit=crop&q=80',
-  SERVICE_GMO_TESTING: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=600&h=400&fit=crop&q=80',
-  SERVICE_CLINICAL_DIAGNOSTICS: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=600&h=400&fit=crop&q=80',
-  SERVICE_LEARNING: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600&h=400&fit=crop&q=80',
+  SERVICE_MICROBIOLOGY: 'https://images.unsplash.com/photo-1576086213369-97a306d36557?w=600&h=400&fit=crop&q=80&fm=webp',
+  SERVICE_CERTIFICATION: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&h=400&fit=crop&q=80&fm=webp',
+  SERVICE_GMO_TESTING: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=600&h=400&fit=crop&q=80&fm=webp',
+  SERVICE_CLINICAL_DIAGNOSTICS: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=600&h=400&fit=crop&q=80&fm=webp',
+  SERVICE_LEARNING: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600&h=400&fit=crop&q=80&fm=webp',
 
   // About section images
   ABOUT_TEAM: 'https://img1.wsimg.com/isteam/getty/1754192862/:/rs=w:800,h:600,cg:true,m/qt=q:90',

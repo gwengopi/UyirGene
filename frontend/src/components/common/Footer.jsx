@@ -61,7 +61,7 @@ function Footer() {
   const { isDarkMode } = useUI();
   const { getImage } = useConfig();
   const currentYear = new Date().getFullYear();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [config, setConfig] = useState({
     tagline: DEFAULT_TAGLINE,
     copyright: DEFAULT_COPYRIGHT,
@@ -239,7 +239,9 @@ function Footer() {
                 component="img"
                 src={getImage('LOGO_MAIN', IMAGES.LOGO)}
                 alt="Uyirgene International"
-                sx={{ height: 50, filter: 'brightness(0.9)' }}
+                width={319}
+                height={80}
+                sx={{ height: 50, width: 'auto', filter: 'brightness(0.9)' }}
               />
             </Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>

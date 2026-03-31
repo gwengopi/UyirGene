@@ -11,6 +11,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -18,9 +19,17 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -68,14 +77,31 @@ public class FlagshipProgramService {
             if (program.getBackgroundImage() == null || program.getBackgroundImage().length == 0) {
                 return ResponseEntity.notFound().<byte[]>build();
             }
+            byte[] imageData = program.getBackgroundImage();
+            String contentType = "image/jpeg";
+            try {
+                BufferedImage img = ImageIO.read(new ByteArrayInputStream(imageData));
+                if (img != null) {
+                    ByteArrayOutputStream out = new ByteArrayOutputStream();
+                    ImageWriter writer = ImageIO.getImageWritersByFormatName("jpeg").next();
+                    ImageWriteParam param = writer.getDefaultWriteParam();
+                    param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                    param.setCompressionQuality(0.80f);
+                    writer.setOutput(ImageIO.createImageOutputStream(out));
+                    writer.write(null, new IIOImage(img, null, null), param);
+                    writer.dispose();
+                    imageData = out.toByteArray();
+                }
+            } catch (Exception e) {
+                // Fall back to original bytes if compression fails
+                contentType = program.getBackgroundImageContentType() != null
+                        ? program.getBackgroundImageContentType() : "image/jpeg";
+            }
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.parseMediaType(
-                    program.getBackgroundImageContentType() != null
-                            ? program.getBackgroundImageContentType()
-                            : "image/jpeg"));
-            headers.setContentLength(program.getBackgroundImage().length);
-            headers.setCacheControl("no-cache");
-            return new ResponseEntity<>(program.getBackgroundImage(), headers, HttpStatus.OK);
+            headers.setContentType(MediaType.parseMediaType(contentType));
+            headers.setContentLength(imageData.length);
+            headers.setCacheControl(CacheControl.maxAge(7, TimeUnit.DAYS).cachePublic());
+            return new ResponseEntity<>(imageData, headers, HttpStatus.OK);
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 

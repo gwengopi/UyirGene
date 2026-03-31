@@ -322,8 +322,12 @@ function Home() {
                   component="img"
                   src={getImage('LOGO_MAIN', IMAGES.LOGO)}
                   alt="Uyirgene International"
+                  width={319}
+                  height={80}
+                  fetchPriority="high"
                   sx={{
                     height: { xs: 40, md: 55 },
+                    width: 'auto',
                     mb: 3,
                     filter: 'brightness(1.3) drop-shadow(0 2px 8px rgba(0,0,0,0.3))',
                     animation: 'heroFadeUp 0.8s ease-out both',

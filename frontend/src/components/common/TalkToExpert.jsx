@@ -97,32 +97,45 @@ function TalkToExpert() {
             </Typography>
           </Box>
         )}
-        <Tooltip title="Talk to an Expert on WhatsApp" placement="left">
-          <Fab
-            onClick={handleClick}
-            aria-label="Talk to an expert on WhatsApp"
+        <Box sx={{ position: 'relative' }}>
+          {/* Pulse ring — uses transform+opacity (GPU-composited, no repaint) */}
+          <Box
+            aria-hidden="true"
             sx={{
-              width: 56,
-              height: 56,
-              backgroundColor: '#25D366',
-              color: '#fff',
-              '&:hover': {
-                backgroundColor: '#128C7E',
-                transform: 'scale(1.1)',
-              },
-              transition: 'transform 0.2s ease, background-color 0.2s ease',
-              boxShadow: '0 4px 12px rgba(37, 211, 102, 0.4)',
+              position: 'absolute',
+              inset: 0,
+              borderRadius: '50%',
+              border: '2px solid rgba(37, 211, 102, 0.7)',
               '@keyframes talkToExpertPulse': {
-                '0%': { boxShadow: '0 0 0 0 rgba(37, 211, 102, 0.4)' },
-                '70%': { boxShadow: '0 0 0 12px rgba(37, 211, 102, 0)' },
-                '100%': { boxShadow: '0 0 0 0 rgba(37, 211, 102, 0)' },
+                '0%': { transform: 'scale(1)', opacity: 0.8 },
+                '70%': { transform: 'scale(1.7)', opacity: 0 },
+                '100%': { transform: 'scale(1.7)', opacity: 0 },
               },
               animation: 'talkToExpertPulse 2s infinite',
+              pointerEvents: 'none',
             }}
-          >
-            <WhatsAppIcon sx={{ fontSize: 28 }} />
-          </Fab>
-        </Tooltip>
+          />
+          <Tooltip title="Talk to an Expert on WhatsApp" placement="left">
+            <Fab
+              onClick={handleClick}
+              aria-label="Talk to an expert on WhatsApp"
+              sx={{
+                width: 56,
+                height: 56,
+                backgroundColor: '#25D366',
+                color: '#fff',
+                '&:hover': {
+                  backgroundColor: '#128C7E',
+                  transform: 'scale(1.1)',
+                },
+                transition: 'transform 0.2s ease, background-color 0.2s ease',
+                boxShadow: '0 4px 12px rgba(37, 211, 102, 0.4)',
+              }}
+            >
+              <WhatsAppIcon sx={{ fontSize: 28 }} />
+            </Fab>
+          </Tooltip>
+        </Box>
       </Box>
     </Zoom>
   );
