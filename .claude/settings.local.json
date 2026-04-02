@@ -1,7 +1,38 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:uyirgene.com)"
+      "WebFetch(domain:uyirgene.com)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npm install:*)",
+      "Bash(npx vite build:*)",
+      "Bash(mvn compile:*)",
+      "Bash(mvn spring-boot:run:*)",
+      "Bash(mvn clean spring-boot:run:*)",
+      "Bash(findstr:*)",
+      "Bash(mvn clean compile:*)",
+      "Bash(mvn test-compile:*)",
+      "Bash(grep:*)",
+      "Bash(sort:*)",
+      "Bash(cat:*)",
+      "Bash(which node:*)",
+      "Bash(node:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(rm:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(git:*)",
+      "Bash(python3:*)",
+      "Bash(powershell:*)",
+      "Bash(net start:*)",
+      "Bash(pip3 install:*)",
+      "Bash(ls:*)",
+      "Bash(cd:*)",
+      "Bash(find:*)",
+      "Bash(wc -l /d/Project/UyirGene/src/main/java/com/uyirgene/**/*.java)",
+      "Bash(netstat -ano)",
+      "Read(//c/Users/LavanyaP/UyirGene/**)",
+      "Bash(ssh ubuntu@43.205.114.234 \"cat ~/UyirGene/docker-compose.prod.yml\")"
     ]
   }
 }
