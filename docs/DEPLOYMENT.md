@@ -1,566 +1,524 @@
-# Uyirgene Learning Platform - Deployment Guide
+# UyirGene — Complete Deployment Guide (From Zero to Live)
 
-## Quick Start (Docker Compose)
-
-### Prerequisites
-- Docker (v20.10+)
-- Docker Compose (v2.0+)
-- 2GB RAM minimum
-- 10GB disk space
-
-### Local Development Setup
-
-1. **Clone and navigate to project**:
-   ```bash
-   cd "D:\Java Practise\uyirgene-backend"
-   ```
-
-2. **Start all services**:
-   ```bash
-   docker-compose up
-   ```
-
-3. **Access the application**:
-   - Frontend: http://localhost:5173
-   - Backend API: http://localhost:8080
-   - Health Check: http://localhost:8080/actuator/health
-   - API Docs: http://localhost:8080/swagger-ui.html
-
-4. **Stop services**:
-   ```bash
-   docker-compose down
-   ```
+Follow every step in order. Do not skip anything.
 
 ---
 
-## Production Deployment
+## Part 0 — Create AWS Account
 
-### Step 1: Environment Configuration
+1. Go to https://aws.amazon.com
+2. Click **Create an AWS Account**
+3. Fill in email, password, account name
+4. Enter credit/debit card (required, but won't charge for free tier usage)
+5. Verify phone number
+6. Choose **Basic Support** (free)
+7. Login to https://console.aws.amazon.com
 
-1. **Copy environment template**:
-   ```bash
-   cp .env.example .env
+---
+
+## Part 1 — Create EC2 Server
+
+### Step 1 — Go to EC2
+1. In AWS Console, search **EC2** in the top search bar
+2. Click EC2
+3. Click **Launch Instance** (orange button)
+
+### Step 2 — Configure the Server
+
+| Field | What to select |
+|-------|---------------|
+| Name | `uyirgene-server` |
+| OS | Ubuntu → **Ubuntu Server 22.04 LTS** |
+| Architecture | 64-bit (x86) |
+| Instance type | `t3.small` (2GB RAM — minimum for Spring Boot) |
+| Key pair | Create new — see Step 3 |
+
+### Step 3 — Create Key Pair (.pem file)
+1. Click **Create new key pair**
+2. Name: `uyirgene-key`
+3. Type: RSA
+4. Format: `.pem`
+5. Click **Create key pair**
+6. A file `uyirgene-key.pem` downloads automatically
+7. **Move it to a safe place** — Desktop or Documents
+8. **Never delete this file** — you cannot recover it
+
+### Step 4 — Network Settings
+1. Click **Edit** next to Network settings
+2. Set the following:
+   - Allow SSH traffic from → **My IP** (only you can connect)
+   - Allow HTTPS traffic from → **Anywhere** (0.0.0.0/0)
+   - Allow HTTP traffic from → **Anywhere** (0.0.0.0/0)
+
+### Step 5 — Storage
+- Change disk size to **20 GB** (default 8 GB is not enough)
+
+### Step 6 — Launch
+1. Click **Launch Instance**
+2. Wait 2 minutes
+3. Click **View all instances**
+4. Copy your **Public IPv4 address** (looks like `13.x.x.x`)
+5. Save this IP — you will use it everywhere
+
+---
+
+## Part 2 — Set Up Google OAuth (Sign in with Google)
+
+### Step 1 — Create a Google Cloud Project
+1. Go to https://console.cloud.google.com
+2. Sign in with your Gmail
+3. Top left → click the project dropdown → **New Project**
+4. Name: `UyirGene` → click **Create**
+
+### Step 2 — Configure OAuth Consent Screen
+1. Left menu → **APIs & Services** → **OAuth consent screen**
+2. User Type → **External** → click **Create**
+3. Fill in:
+   - App name: `UyirGene`
+   - User support email: your Gmail
+   - Developer contact email: your Gmail
+4. Click **Save and Continue** through all remaining steps
+
+### Step 3 — Create OAuth Credentials
+1. Left menu → **APIs & Services** → **Credentials**
+2. Click **+ Create Credentials** → **OAuth Client ID**
+3. Application type → **Web application**
+4. Name: `UyirGene Web`
+5. Under **Authorized JavaScript origins** → click **Add URI** → add:
    ```
-
-2. **Edit `.env` with production values**:
-   ```bash
-   # Required Configuration
-   DB_NAME=UyirGene
-   DB_USERNAME=your_db_user
-   DB_PASSWORD=your_secure_password
-
-   # Frontend API URL (your production domain)
-   API_URL=https://api.yourdomain.com
-   CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
-
-   # Mail Configuration
-   MAIL_HOST=smtp.gmail.com
-   MAIL_PORT=587
-   MAIL_USERNAME=your_email@gmail.com
-   MAIL_PASSWORD=your_app_password
-
-   # Spring Profile
-   SPRING_PROFILES_ACTIVE=prod
-
-   # Payment (use mock for now)
-   PAYMENT_PROVIDER=mock
+   http://localhost:5173
    ```
+6. Click **Create**
+7. A popup shows your **Client ID** — copy it. Looks like:
+   ```
+   812345678901-abcdefghijk.apps.googleusercontent.com
+   ```
+8. Save this — you will need it in your `.env` file
 
-### Step 2: Build and Deploy
+---
 
-**Option A: Docker Compose (Recommended for single server)**
+## Part 3 — Decide Subdomain & Set Up DNS on GoDaddy
 
+### Step 1 — Decide your subdomain name
+Pick one (you cannot easily change it later):
+- `learn.uyirgene.com`
+- `app.uyirgene.com`
+- `www.uyirgene.com`
+
+### Step 2 — Add DNS A Record on GoDaddy
+1. Login to GoDaddy
+2. Profile (top right) → **My Products**
+3. Find `uyirgene.com` → click **DNS**
+4. Scroll down → click **Add New Record**
+5. Fill in:
+
+| Field | Value |
+|-------|-------|
+| Type | A |
+| Name | `learn` (or `app` or `www`) |
+| Value | Your EC2 IP from Part 1 |
+| TTL | 600 seconds |
+
+6. Click **Save**
+
+### Step 3 — Wait for DNS to Propagate
+DNS takes 10–30 minutes to work globally.
+
+Verify it is ready by running this on your laptop:
 ```bash
-# Build images
-docker-compose -f docker-compose.prod.yml build
-
-# Start services
-docker-compose -f docker-compose.prod.yml up -d
-
-# Check status
-docker-compose -f docker-compose.prod.yml ps
-
-# View logs
-docker-compose -f docker-compose.prod.yml logs -f backend
+nslookup learn.uyirgene.com
+# Must show your EC2 IP address before continuing
 ```
 
-**Option B: Individual Containers**
+Or check at https://dnschecker.org — type your subdomain, wait for green ticks.
 
-```bash
-# Build backend
-docker build -t uyirgene-backend .
+**Do not continue to Part 4 until this shows your EC2 IP.**
 
-# Build frontend
-docker build -t uyirgene-frontend \
-  --build-arg VITE_API_URL=https://api.yourdomain.com \
-  ./frontend
+---
 
-# Run PostgreSQL
-docker run -d \
-  --name uyirgene-db \
-  -e POSTGRES_DB=UyirGene \
-  -e POSTGRES_USER=${DB_USERNAME} \
-  -e POSTGRES_PASSWORD=${DB_PASSWORD} \
-  -v postgres_data:/var/lib/postgresql/data \
-  postgres:15-alpine
+## Part 4 — Update nginx.conf With Your Subdomain
 
-# Run Backend
-docker run -d \
-  --name uyirgene-backend \
-  -p 8080:8080 \
-  --link uyirgene-db:db \
-  -e SPRING_PROFILES_ACTIVE=prod \
-  -e DATABASE_URL=jdbc:postgresql://db:5432/UyirGene \
-  -e DB_USERNAME=${DB_USERNAME} \
-  -e DB_PASSWORD=${DB_PASSWORD} \
-  uyirgene-backend
+Do this on your **laptop** before deploying.
 
-# Run Frontend
-docker run -d \
-  --name uyirgene-frontend \
-  -p 80:80 \
-  --link uyirgene-backend:backend \
-  uyirgene-frontend
+Open `frontend/nginx.conf` in your code editor.
+Replace all occurrences of `app.uyirgene.com` with your subdomain.
+
+Lines to change (search and replace all):
+```
+server_name app.uyirgene.com;                                        → your subdomain
+ssl_certificate /etc/letsencrypt/live/app.uyirgene.com/fullchain.pem → your subdomain
+ssl_certificate_key /etc/letsencrypt/live/app.uyirgene.com/privkey.pem → your subdomain
 ```
 
-### Step 3: Database Migration
-
-Flyway will automatically run migrations on startup. To verify:
-
+After changing, commit and push:
 ```bash
-# Check backend logs for migration success
-docker-compose -f docker-compose.prod.yml logs backend | grep -i flyway
-
-# You should see: "Successfully applied 1 migration(s)"
-```
-
-### Step 4: Health Checks
-
-```bash
-# Backend health
-curl http://localhost:8080/actuator/health
-
-# Expected response:
-# {"status":"UP"}
-
-# Frontend health
-curl http://localhost:80
-
-# Should return HTML content
+git add frontend/nginx.conf
+git commit -m "Set production subdomain in nginx config"
+git push origin main
 ```
 
 ---
 
-## AWS EC2 Deployment (Step-by-Step)
+## Part 5 — Connect to Your EC2 Server
 
-> This section covers the full deployment workflow for the live server at `ubuntu@ip-172-31-38-116`.
+Open Terminal on your laptop:
 
-### Swap Management
-
-#### One-time swap setup (first time only)
+**Mac / Linux:**
 ```bash
-# Check if swap exists
-free -h
-swapon --show
+# Fix key file permissions (required)
+chmod 400 ~/Desktop/uyirgene-key.pem
 
-# If no swap or swap < 2GB, create 2GB swap
-sudo fallocate -l 2G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-
-# Make it persistent across reboots
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-
-# Verify
-free -h
+# Connect to server
+ssh -i ~/Desktop/uyirgene-key.pem ubuntu@YOUR_EC2_IP
 ```
 
-#### Increase existing swap (e.g. 1GB → 2GB)
+**Windows (Command Prompt):**
 ```bash
-# Step 1: Create new 2GB swapfile
-sudo fallocate -l 2G /swapfile2
-sudo chmod 600 /swapfile2
-sudo mkswap /swapfile2
-sudo swapon /swapfile2
-
-# Step 2: Turn off old swapfile (now safe — new swap absorbs pages)
-sudo swapoff /swapfile
-
-# Step 3: Delete old swapfile
-sudo rm /swapfile
-
-# Step 4: Turn off new swap, rename, re-enable
-sudo swapoff /swapfile2
-sudo mv /swapfile2 /swapfile
-sudo swapon /swapfile
-
-# Step 5: Update fstab
-sudo sed -i 's|/swapfile2|/swapfile|g' /etc/fstab
-# If no entry exists yet:
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-
-# Verify
-free -h
+ssh -i C:\Users\YourName\Desktop\uyirgene-key.pem ubuntu@YOUR_EC2_IP
 ```
 
-> **Note:** If `swapoff` gets **Killed**, the server is too low on RAM to absorb swap pages.
-> In that case, create the new swapfile first (steps 1–2), then retry `swapoff` on the old one.
+You will see a prompt like this — you are now inside the server:
+```
+ubuntu@ip-13-xxx-xxx-xxx:~$
+```
+
+If you get "Permission denied":
+- Check the key file path is correct
+- On Mac/Linux, make sure you ran `chmod 400`
 
 ---
 
-### Deploy Latest Code
+## Part 6 — Install Docker on EC2
 
-#### Step 1: SSH into server
+Run these commands one by one inside the EC2 server:
+
 ```bash
-ssh ubuntu@ip-172-31-38-116
-cd ~/UyirGene
+# Update the server packages
+sudo apt update && sudo apt upgrade -y
+
+# Install Docker (official script)
+curl -fsSL https://get.docker.com | sh
+
+# Allow your user to run Docker without sudo
+sudo usermod -aG docker $USER
+
+# Log out — required for the group change to take effect
+exit
 ```
 
-#### Step 2: Pull latest code
+SSH back in:
 ```bash
-git pull origin main
+ssh -i ~/Desktop/uyirgene-key.pem ubuntu@YOUR_EC2_IP
 ```
 
-#### Step 3: Check resources before building
+Verify Docker is working:
 ```bash
-free -h           # RAM + swap
-df -h /           # disk space
-docker system df  # docker disk usage
+docker --version
+# Should show: Docker version 24.x.x
+
+docker compose version
+# Should show: Docker Compose version v2.x.x
 ```
 
-#### Step 4: Free up space/memory (if needed)
-```bash
-# Remove unused docker images, containers, networks
-docker system prune -f
+---
 
-# Remove old build cache (aggressive — frees most space)
-docker builder prune -f
+## Part 7 — Clone Repository & Generate Secrets
+
+```bash
+# Install git
+sudo apt install git -y
+
+# Clone your project
+git clone https://github.com/gwengopi/UyirGene.git
+cd UyirGene
 ```
 
-#### Step 5: Rebuild and restart backend + frontend
+Generate the 3 secret keys you will need:
 ```bash
-docker compose -f docker-compose.prod.yml up -d --build backend frontend
+# 1. JWT Secret (copy the output — you need it in .env)
+openssl rand -hex 64
+
+# 2. Video Encryption Key (copy the output)
+openssl rand -hex 32
+
+# 3. Webhook Secret (copy the output)
+openssl rand -hex 32
 ```
-> Leaves `db` and `certbot` containers untouched.
 
-#### Step 6: Watch logs to confirm startup
+**Write down all 3 outputs. They will not be shown again.**
+
+---
+
+## Part 8 — Create .env File on EC2
+
 ```bash
-# Both services
-docker compose -f docker-compose.prod.yml logs -f backend frontend
+cp .env.example .env
+nano .env
+```
 
-# Backend only (watch for "Started UyirgeneApplication" message)
+Fill in every value:
+
+```env
+# App
+APP_BASE_URL=https://learn.uyirgene.com
+CORS_ALLOWED_ORIGINS=https://learn.uyirgene.com
+
+# Database
+DB_NAME=UyirGene
+DB_USERNAME=uyirgene_user
+DB_PASSWORD=StrongPassword123!
+
+# Security — paste your generated secrets here
+JWT_SECRET=<paste openssl rand -hex 64 output>
+VIDEO_ENCRYPTION_KEY=<paste openssl rand -hex 32 output>
+
+# Google OAuth
+GOOGLE_CLIENT_ID=<your Client ID from Part 2>
+VITE_GOOGLE_CLIENT_ID=<same Client ID>
+
+# Email
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your@gmail.com
+MAIL_PASSWORD=<Gmail App Password — see below>
+MAIL_FROM=UyirGene <your@gmail.com>
+
+# Marketing email (leave blank to use MAIL_* above)
+MARKETING_MAIL_HOST=
+MARKETING_MAIL_PORT=
+MARKETING_MAIL_USERNAME=
+MARKETING_MAIL_PASSWORD=
+
+# Payment
+PAYMENT_PROVIDER=razorpay
+RAZORPAY_KEY_ID=rzp_live_XXXX
+RAZORPAY_KEY_SECRET=XXXX
+RAZORPAY_WEBHOOK_SECRET=<paste openssl rand -hex 32 output>
+
+SPRING_PROFILES_ACTIVE=prod
+```
+
+**How to get Gmail App Password:**
+1. Go to https://myaccount.google.com
+2. Security → **2-Step Verification** → turn it ON first
+3. Security → **App Passwords**
+4. Select app: **Mail** → click **Generate**
+5. Copy the 16-character password shown → paste as `MAIL_PASSWORD`
+
+Save the file: `Ctrl+O` → Enter → `Ctrl+X`
+
+---
+
+## Part 9 — Get SSL Certificate (Free HTTPS)
+
+This runs once to get your Let's Encrypt certificate.
+
+```bash
+chmod +x init-ssl.sh
+
+# Replace with your actual subdomain and email
+./init-ssl.sh learn.uyirgene.com your@gmail.com
+```
+
+This takes about 1 minute. Success looks like:
+```
+Successfully received certificate.
+SSL setup complete!
+Your site is now live at https://learn.uyirgene.com
+```
+
+**If it fails** with "domain not found" or "connection refused":
+- DNS has not propagated yet — wait 10 more minutes and retry
+- Make sure ports 80 and 443 are open in AWS (Part 1, Step 4)
+
+---
+
+## Part 10 — Start Everything
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+First build takes 5–8 minutes. Watch it:
+```bash
 docker compose -f docker-compose.prod.yml logs -f backend
 ```
-> Backend takes ~60–90 seconds to start (Spring Boot + Flyway migrations).
 
-#### Step 7: Verify all containers are running
+Wait until you see:
+```
+Started UyirgeneApplication in X.XXX seconds
+```
+
+Press `Ctrl+C` to stop watching (containers keep running).
+
+Check all containers are healthy:
 ```bash
 docker compose -f docker-compose.prod.yml ps
 ```
-All containers should show `healthy` or `Up`.
 
-#### Step 8: Health check
-```bash
-curl -s http://localhost:8080/actuator/health | python3 -m json.tool
-```
-Expected: `{"status": "UP"}`
+All should show `healthy` or `Up`.
 
 ---
 
-### Rollback (if something breaks)
-```bash
-# Check recent commits
-git log --oneline -5
+## Part 11 — Verify Site is Live
 
-# Roll back to a previous commit
-git checkout <previous-commit-hash>
+Open your browser and go to: `https://learn.uyirgene.com`
 
-# Rebuild with old code
-docker compose -f docker-compose.prod.yml up -d --build backend frontend
+You should see:
+- Padlock icon in the address bar (HTTPS working)
+- UyirGene website loading correctly
+
+Test the backend health:
 ```
+https://learn.uyirgene.com/api/actuator/health
+```
+Should return: `{"status":"UP"}`
 
----
-
-### Useful Commands
+If the site does not load:
 ```bash
-# Restart a single service without rebuild
-docker compose -f docker-compose.prod.yml restart backend
-
-# Stop everything
-docker compose -f docker-compose.prod.yml down
-
-# View backend logs (last 100 lines)
-docker compose -f docker-compose.prod.yml logs --tail=100 backend
-
-# Get a shell inside the backend container
-docker exec -it uyirgene-backend sh
-
-# Connect to the database
-docker exec -it uyirgene-db psql -U $DB_USERNAME -d UyirGene
+docker compose -f docker-compose.prod.yml logs backend
+docker compose -f docker-compose.prod.yml logs frontend
 ```
 
 ---
 
-## Cloud Platform Specific Instructions
+## Part 12 — Configure Razorpay Webhook
 
-### AWS Deployment
+Now that your server is live, set up the webhook so payments are confirmed even if a user's browser closes.
 
-**Using EC2 + RDS:**
+1. Login to https://dashboard.razorpay.com
+2. Go to **Settings** → **Webhooks**
+3. Click **Add New Webhook**
+4. Fill in:
 
-1. **Set up RDS PostgreSQL**:
-   - Create PostgreSQL 15 database
-   - Note endpoint, username, password
-   - Configure security group to allow EC2 access
+| Field | Value |
+|-------|-------|
+| Webhook URL | `https://learn.uyirgene.com/api/payment/webhook` |
+| Secret | Paste your `RAZORPAY_WEBHOOK_SECRET` from `.env` |
+| Active Events | Tick **payment.captured** |
 
-2. **Launch EC2 instance**:
-   - Ubuntu 22.04 LTS
-   - t2.medium or larger
-   - Install Docker and Docker Compose:
-     ```bash
-     sudo apt update
-     sudo apt install -y docker.io docker-compose
-     sudo usermod -aG docker ubuntu
-     ```
+5. Click **Save**
 
-3. **Deploy application**:
-   ```bash
-   # Clone repository
-   git clone <your-repo>
-   cd uyirgene-backend
+**Test the webhook:**
+In Razorpay Dashboard → Webhooks → click your webhook → **Send Test Webhook**
 
-   # Configure environment
-   cp .env.example .env
-   nano .env  # Set RDS credentials
+Then check backend logs:
+```bash
+docker compose -f docker-compose.prod.yml logs -f backend
+# Look for: Razorpay webhook received: event=payment.captured
+```
 
-   # Update docker-compose.prod.yml to use RDS
-   # Comment out the 'db' service
-   # Update DATABASE_URL to RDS endpoint
+---
 
-   # Deploy
-   docker-compose -f docker-compose.prod.yml up -d
+## Part 13 — Update Google OAuth With Live Domain
+
+Your Google OAuth needs to know about your live domain to allow login.
+
+1. Go to https://console.cloud.google.com
+2. **APIs & Services** → **Credentials** → click your OAuth Client
+3. Under **Authorized JavaScript origins** → **Add URI**:
    ```
-
-4. **Configure security groups**:
-   - Allow ports 80, 8080
-   - Configure Load Balancer for HTTPS
-
-### Google Cloud Platform
-
-**Using Cloud Run:**
-
-```bash
-# Build and push images
-gcloud builds submit --tag gcr.io/PROJECT_ID/uyirgene-backend
-gcloud builds submit --tag gcr.io/PROJECT_ID/uyirgene-frontend
-
-# Deploy backend
-gcloud run deploy uyirgene-backend \
-  --image gcr.io/PROJECT_ID/uyirgene-backend \
-  --platform managed \
-  --region us-central1 \
-  --set-env-vars SPRING_PROFILES_ACTIVE=prod,DATABASE_URL=<cloud-sql-url>
-
-# Deploy frontend
-gcloud run deploy uyirgene-frontend \
-  --image gcr.io/PROJECT_ID/uyirgene-frontend \
-  --platform managed \
-  --region us-central1
-```
-
-### DigitalOcean / Generic VPS
-
-```bash
-# SSH to server
-ssh root@your-server-ip
-
-# Install Docker
-curl -fsSL https://get.docker.com -o get-docker.sh
-sh get-docker.sh
-
-# Install Docker Compose
-sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
-
-# Clone and deploy
-git clone <your-repo>
-cd uyirgene-backend
-cp .env.example .env
-nano .env  # Configure
-docker-compose -f docker-compose.prod.yml up -d
-```
+   https://learn.uyirgene.com
+   ```
+4. Click **Save**
 
 ---
 
-## Monitoring and Maintenance
+## Part 14 — Test End-to-End
 
-### View Logs
+1. Go to `https://learn.uyirgene.com`
+2. Register a test account
+3. Try Google login
+4. Buy a course using Razorpay test card:
 
-```bash
-# All services
-docker-compose logs -f
-
-# Specific service
-docker-compose logs -f backend
-docker-compose logs -f frontend
-docker-compose logs -f db
-
-# Last 100 lines
-docker-compose logs --tail=100 backend
+```
+Card Number : 4111 1111 1111 1111
+Expiry      : Any future date (e.g. 12/26)
+CVV         : Any 3 digits (e.g. 123)
+OTP         : 1234
 ```
 
-### Database Backup
+5. Verify the course appears in My Courses after payment
+6. Check that enrollment email is received
+
+---
+
+## Ongoing — How to Deploy New Code
+
+Whenever you push code changes and want to update the live site:
 
 ```bash
-# Create backup
-docker-compose exec db pg_dump -U postgres UyirGene > backup_$(date +%Y%m%d).sql
+# SSH into EC2
+ssh -i ~/Desktop/uyirgene-key.pem ubuntu@YOUR_EC2_IP
+cd UyirGene
 
-# Restore backup
-docker-compose exec -T db psql -U postgres UyirGene < backup_20260109.sql
-```
-
-### Update Application
-
-```bash
 # Pull latest code
-git pull origin main
+git pull
 
 # Rebuild and restart
-docker-compose -f docker-compose.prod.yml build
-docker-compose -f docker-compose.prod.yml up -d
-
-# Remove old images
-docker image prune -f
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-### Scale Services
+---
+
+## To deploy future code updates
 
 ```bash
-# Scale backend to 3 instances
-docker-compose -f docker-compose.prod.yml up -d --scale backend=3
+ssh -i uyirgene-key.pem ubuntu@YOUR_EC2_IP
+cd UyirGene
+git pull
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 ---
 
-## Troubleshooting
+## Useful Commands
 
-### Backend won't start
+```bash
+# View all running containers
+docker compose -f docker-compose.prod.yml ps
 
-1. Check logs:
-   ```bash
-   docker-compose logs backend
-   ```
+# Watch live logs
+docker compose -f docker-compose.prod.yml logs -f backend
+docker compose -f docker-compose.prod.yml logs -f frontend
 
-2. Common issues:
-   - **Database connection**: Verify DATABASE_URL, username, password
-   - **Port conflict**: Check if port 8080 is in use
-   - **Flyway migration fails**: Check database is empty or has correct schema
+# Restart one service
+docker compose -f docker-compose.prod.yml restart backend
 
-### Frontend can't connect to backend
+# Stop everything (keeps data)
+docker compose -f docker-compose.prod.yml down
 
-1. Check CORS configuration:
-   ```bash
-   # Verify in application-prod.yml
-   cors:
-     allowed-origins: https://yourdomain.com
-   ```
+# Database backup
+docker exec uyirgene-db pg_dump -U uyirgene_user UyirGene > backup_$(date +%Y%m%d).sql
 
-2. Check frontend API URL:
-   ```bash
-   # Rebuild frontend with correct API URL
-   docker build -t uyirgene-frontend \
-     --build-arg VITE_API_URL=https://api.yourdomain.com \
-     ./frontend
-   ```
-
-### Database connection refused
-
-1. Check database is running:
-   ```bash
-   docker-compose ps db
-   ```
-
-2. Test database connection:
-   ```bash
-   docker-compose exec db psql -U postgres -c "SELECT 1"
-   ```
-
-### Mock payment not working
-
-1. Check profile is set to 'dev' or 'prod':
-   ```bash
-   docker-compose exec backend env | grep SPRING_PROFILES_ACTIVE
-   ```
-
-2. Verify MockPaymentService is loaded:
-   ```bash
-   docker-compose logs backend | grep -i "mock"
-   # Should see: "MockPaymentService" bean created
-   ```
-
----
-
-## Performance Tuning
-
-### Backend JVM Settings
-
-Add to docker-compose.prod.yml:
-
-```yaml
-backend:
-  environment:
-    JAVA_OPTS: "-Xms512m -Xmx1024m"
+# Check SSL certificate expiry date
+openssl s_client -connect learn.uyirgene.com:443 2>/dev/null | openssl x509 -noout -dates
 ```
 
-### Database Connection Pool
+---
 
-Update application-prod.yml:
+## SSL Auto-Renewal
 
-```yaml
-spring:
-  datasource:
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      connection-timeout: 30000
-```
-
-### Nginx Caching (Frontend)
-
-Already configured in nginx.conf:
-- Static assets: 1 year cache
-- index.html: no cache
+SSL certificates expire every 90 days but **renew automatically**.
+The `certbot` container runs every 12 hours and renews when less than 30 days remain.
+You do not need to do anything.
 
 ---
 
-## Security Checklist
+## Final Checklist
 
-Before going live:
-
-- [ ] Change all default passwords
-- [ ] Enable HTTPS (use Let's Encrypt)
-- [ ] Set CORS to your domain only
-- [ ] Configure firewall rules
-- [ ] Enable database backups
-- [ ] Set up monitoring/alerts
-- [ ] Review exposed ports
-- [ ] Update mail credentials
-- [ ] Test mock payment flow
-- [ ] Verify error handling works
-
----
-
-## Support
-
-For issues:
-1. Check logs first
-2. Review troubleshooting section
-3. Check health endpoints
-4. Verify environment variables
-
-## Additional Resources
-
-- Spring Boot Docs: https://spring.io/projects/spring-boot
-- Docker Compose: https://docs.docker.com/compose/
-- PostgreSQL: https://www.postgresql.org/docs/
-- Material-UI: https://mui.com/
+- [ ] Part 0  — AWS account created
+- [ ] Part 1  — EC2 instance launched, IP noted, .pem file saved
+- [ ] Part 2  — Google OAuth Client ID created
+- [ ] Part 3  — GoDaddy A record added, DNS shows EC2 IP
+- [ ] Part 4  — nginx.conf updated with subdomain, pushed to GitHub
+- [ ] Part 5  — SSH into EC2 working
+- [ ] Part 6  — Docker installed and verified
+- [ ] Part 7  — Repo cloned, 3 secrets generated and saved
+- [ ] Part 8  — .env file created with all values
+- [ ] Part 9  — SSL certificate obtained successfully
+- [ ] Part 10 — All Docker containers running and healthy
+- [ ] Part 11 — Site opens in browser with padlock icon
+- [ ] Part 12 — Razorpay webhook configured and tested
+- [ ] Part 13 — Google OAuth URL updated with live domain
+- [ ] Part 14 — Test payment completed successfully
