@@ -16,3 +16,4 @@ export { default as Sidebar } from './Sidebar';
 export { default as EmptyState } from './EmptyState';
 export { default as TalkToExpert } from './TalkToExpert';
 export { default as SEO } from './SEO';
+export { default as RichTextEditor } from './RichTextEditor';

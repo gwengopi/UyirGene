@@ -229,9 +229,11 @@ function AdminBlogs() {
           open={isFormOpen}
           onClose={handleCloseForm}
           title={editingBlog ? 'Edit Blog Post' : 'Create New Blog Post'}
-          maxWidth="md"
+          maxWidth="lg"
+          fullWidth
         >
           <BlogForm
+            key={editingBlog?.id ?? 'new'}
             blog={editingBlog}
             onSave={handleSave}
             onCancel={handleCloseForm}

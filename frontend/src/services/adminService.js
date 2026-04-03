@@ -7,6 +7,8 @@ const ADMIN_ENDPOINTS = {
   USER_STATUS: (id) => `/api/admin/users/${id}/status`,
   USER_ENROLLMENTS: (id) => `/api/admin/users/${id}/enrollments`,
   USER_GRANT_ACCESS: (id) => `/api/admin/users/${id}/grant-access`,
+  USER_CREATE: '/api/admin/users',
+  USERS_EXPORT: '/api/admin/users/export',
   ANALYTICS: '/api/admin/analytics',
   ENROLLMENTS: '/api/admin/enrollments',
   ENROLLMENT_DETAIL: (id) => `/api/admin/enrollments/${id}`,
@@ -25,6 +27,23 @@ const ADMIN_ENDPOINTS = {
 export async function getAllUsers() {
   const response = await api.get(ADMIN_ENDPOINTS.USERS);
   return response.data;
+}
+
+export async function createUser(userData) {
+  const response = await api.post(ADMIN_ENDPOINTS.USER_CREATE, userData);
+  return response.data;
+}
+
+export async function exportUsers() {
+  const response = await api.get(ADMIN_ENDPOINTS.USERS_EXPORT, { responseType: 'blob' });
+  const url = window.URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', 'users.csv');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
 }
 
 /**
@@ -229,6 +248,8 @@ export function calculateEnrollmentStats(enrollments) {
 
 export default {
   getAllUsers,
+  createUser,
+  exportUsers,
   getUser,
   updateUserRole,
   updateUserStatus,

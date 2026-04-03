@@ -151,6 +151,7 @@ public class BlogService {
         existing.setTitle(blogData.getTitle());
         existing.setShortDescription(blogData.getShortDescription());
         existing.setContent(blogData.getContent());
+        existing.setSections(blogData.getSections());
         existing.setAuthorName(blogData.getAuthorName());
         existing.setCategory(blogData.getCategory());
         existing.setTags(blogData.getTags());

@@ -21,9 +21,13 @@ public class Blog {
     @Column(length = 300)
     private String shortDescription;
 
-    // Blog Content - Full content with HTML formatting
+    // Blog Content - Legacy HTML formatting (kept for backward compatibility)
     @Column(columnDefinition = "TEXT")
     private String content;
+
+    // Structured sections - JSON array of section objects
+    @Column(columnDefinition = "TEXT")
+    private String sections;
 
     // Author Name - Default "Editorial Team"
     @Column(length = 100)

@@ -5,6 +5,7 @@ import com.uyirgene.course.*;
 import com.uyirgene.user.Role;
 import com.uyirgene.user.User;
 import com.uyirgene.user.UserRepository;
+import com.uyirgene.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -36,6 +38,7 @@ import java.util.stream.Collectors;
 public class AdminController {
 
     private final UserRepository userRepository;
+    private final UserService userService;
     private final CourseRepository courseRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final CertificateService certificateService;
@@ -964,5 +967,125 @@ public class AdminController {
         private Long courseId;
         private Long flagshipProgramId;
         private Long bundleId;
+    }
+
+    // ── Create user manually ─────────────────────────────────────────────────────
+
+    @PostMapping("/users")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Admin: create a user account manually")
+    public ResponseEntity<?> createUser(@RequestBody CreateUserRequest req) {
+        try {
+            Role role = req.getRole() != null ? req.getRole() : Role.STUDENT;
+            User user = userService.register(req.getName(), req.getEmail(), req.getPassword(), role);
+            return ResponseEntity.status(201).body(user);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @Data
+    static class CreateUserRequest {
+        private String name;
+        private String email;
+        private String password;
+        private Role role;
+    }
+
+    // ── Export users as CSV ──────────────────────────────────────────────────────
+
+    @GetMapping("/users/export")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Admin: download all users with enrollment & certificate details as CSV (one row per enrollment)")
+    public ResponseEntity<byte[]> exportUsers() {
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+        // Fetch all data in bulk to avoid N+1
+        List<User> users = userRepository.findAll();
+        List<Enrollment> allEnrollments = enrollmentRepository.findAll().stream()
+                .filter(e -> e.getStatus() != Enrollment.Status.PENDING)
+                .collect(Collectors.toList());
+        List<Certificate> allCerts = certificateRepository.findAll();
+
+        // Build lookup: userId -> enrollments
+        Map<Long, List<Enrollment>> enrollmentsByUser = allEnrollments.stream()
+                .collect(Collectors.groupingBy(e -> e.getUser().getId()));
+
+        // Build lookup: (userId + courseId) or (userId + flagshipId) -> certificate
+        Map<String, Certificate> certLookup = new HashMap<>();
+        for (Certificate c : allCerts) {
+            Long uid = c.getUser().getId();
+            if (c.getCourse() != null)
+                certLookup.put(uid + "_c_" + c.getCourse().getId(), c);
+            else if (c.getFlagshipProgram() != null)
+                certLookup.put(uid + "_f_" + c.getFlagshipProgram().getId(), c);
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("User ID,Name,Email,Role,Account Status,Auth Provider,Joined,")
+          .append("Enrollment ID,Course / Program,Program Type,Enrolled At,Enrollment Status,")
+          .append("Marks (%),Certificate Type,Trainer,Certificate Number,Certificate Issued\n");
+
+        for (User u : users) {
+            String userPrefix = u.getId() + "," +
+                    escapeCsv(u.getName()) + "," +
+                    escapeCsv(u.getEmail()) + "," +
+                    (u.getRole() != null ? u.getRole().name() : "") + "," +
+                    (u.isEnabled() ? "Active" : "Disabled") + "," +
+                    (u.getAuthProvider() != null ? u.getAuthProvider() : "LOCAL") + "," +
+                    (u.getCreatedAt() != null ? u.getCreatedAt().format(fmt) : "");
+
+            List<Enrollment> userEnrollments = enrollmentsByUser.getOrDefault(u.getId(), List.of());
+
+            if (userEnrollments.isEmpty()) {
+                sb.append(userPrefix).append(",,,,,,,,,\n");
+            } else {
+                for (Enrollment e : userEnrollments) {
+                    String programName;
+                    String programType;
+                    Certificate cert = null;
+
+                    if (e.getCourse() != null) {
+                        programName = e.getCourse().getTitle();
+                        programType = "Course";
+                        cert = certLookup.get(u.getId() + "_c_" + e.getCourse().getId());
+                    } else if (e.getFlagshipProgram() != null) {
+                        programName = e.getFlagshipProgram().getTitle();
+                        programType = "Flagship";
+                        cert = certLookup.get(u.getId() + "_f_" + e.getFlagshipProgram().getId());
+                    } else {
+                        programName = "";
+                        programType = "";
+                    }
+
+                    sb.append(userPrefix).append(",")
+                      .append(e.getId()).append(",")
+                      .append(escapeCsv(programName)).append(",")
+                      .append(programType).append(",")
+                      .append(e.getEnrolledAt() != null ? e.getEnrolledAt().format(fmt) : "").append(",")
+                      .append(e.getStatus() != null ? e.getStatus().name() : "").append(",")
+                      .append(e.getMarks() != null ? e.getMarks() : "").append(",")
+                      .append(e.getCertificateType() != null ? e.getCertificateType().name() : "").append(",")
+                      .append(escapeCsv(e.getTrainerName())).append(",")
+                      .append(cert != null ? escapeCsv(cert.getCertificateId()) : "").append(",")
+                      .append(cert != null && cert.getIssuedAt() != null ? cert.getIssuedAt().format(fmt) : "")
+                      .append("\n");
+                }
+            }
+        }
+
+        byte[] csvBytes = sb.toString().getBytes(StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"users_export.csv\"")
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .body(csvBytes);
+    }
+
+    private String escapeCsv(String value) {
+        if (value == null) return "";
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
     }
 }

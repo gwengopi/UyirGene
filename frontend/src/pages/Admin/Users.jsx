@@ -55,6 +55,26 @@ function AdminUsers() {
     }
   };
 
+  const handleCreateUser = async (userData) => {
+    try {
+      await adminService.createUser(userData);
+      showSuccess('User created successfully');
+      loadUsers();
+      return true;
+    } catch (error) {
+      showError(error?.response?.data?.message || 'Failed to create user');
+      return false;
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      await adminService.exportUsers();
+    } catch (error) {
+      showError('Failed to export users');
+    }
+  };
+
   const handleUnenroll = async (enrollmentId) => {
     try {
       await adminService.adminUnenroll(enrollmentId);
@@ -101,6 +121,8 @@ function AdminUsers() {
           onUnenroll={handleUnenroll}
           onCompleteEnrollment={handleCompleteEnrollment}
           onRefresh={loadUsers}
+          onCreateUser={handleCreateUser}
+          onExport={handleExport}
         />
       </Container>
     </AdminLayout>
