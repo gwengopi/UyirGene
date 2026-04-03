@@ -53,6 +53,7 @@ services:
       PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-mock}
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
     volumes:
       - uploads_data:/app/uploads
       - logs_data:/var/log/uyirgene
