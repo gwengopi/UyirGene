@@ -53,6 +53,7 @@ const AdminCertSettings = lazy(() => import('./pages/Admin/CertSettings'));
 const AdminVisitorStats = lazy(() => import('./pages/Admin/VisitorStats'));
 const Standards = lazy(() => import('./pages/Standards'));
 const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
+const MagicLinkPage = lazy(() => import('./pages/MagicLinkPage'));
 const BundleDetail = lazy(() => import('./pages/BundleDetail'));
 const FlagshipPage = lazy(() => import('./pages/FlagshipPage'));
 const FlagshipDetail = lazy(() => import('./pages/FlagshipDetail'));
@@ -204,14 +205,10 @@ function AppContent() {
               }
             />
 
-            {/* Payment page for paid enrollments */}
+            {/* Payment page — accessible to guests (guest enrollment) and authenticated users */}
             <Route
               path={ROUTES.PAYMENT}
-              element={
-                <ProtectedRoute>
-                  <Payment />
-                </ProtectedRoute>
-              }
+              element={<Payment />}
             />
             <Route
               path={ROUTES.PROFILE}
@@ -361,6 +358,7 @@ function AppContent() {
             <Route path="/refund" element={<Refund />} />
             <Route path={ROUTES.STANDARDS} element={<Standards />} />
             <Route path={ROUTES.UNSUBSCRIBE} element={<Unsubscribe />} />
+            <Route path={ROUTES.MAGIC_LOGIN} element={<MagicLinkPage />} />
 
             {/* Error pages */}
             <Route path={ROUTES.UNAUTHORIZED} element={<Unauthorized />} />

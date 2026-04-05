@@ -316,11 +316,25 @@ public class EnrollmentService {
     }
 
     private void enrollInFlagshipCourses(User u, FlagshipProgram program) {
+        List<String> courseTitles = enrollInFlagshipLinkedCourses(u, program);
+        if (courseTitles.isEmpty()) {
+            mailService.sendEnrollmentSuccess(u, program);
+        } else {
+            mailService.sendBundleEnrollmentSuccess(u.getEmail(),
+                    u.getName() != null ? u.getName() : u.getEmail(),
+                    program.getTitle(), courseTitles);
+        }
+    }
+
+    /**
+     * Enrolls the user in all courses linked to the flagship program.
+     * Returns the list of course titles enrolled (empty if no linked courses).
+     * Does NOT send any email — callers are responsible for that.
+     */
+    List<String> enrollInFlagshipLinkedCourses(User u, FlagshipProgram program) {
         List<Course> linkedCourses = program.getCourses();
         if (linkedCourses == null || linkedCourses.isEmpty()) {
-            // No linked courses — fall back to flagship-only enrollment email
-            mailService.sendEnrollmentSuccess(u, program);
-            return;
+            return List.of();
         }
         List<String> courseTitles = new java.util.ArrayList<>();
         for (Course course : linkedCourses) {
@@ -332,21 +346,19 @@ public class EnrollmentService {
                     continue;
                 }
                 e.setStatus(Enrollment.Status.ENROLLED);
-                e.setEnrolledAt(java.time.LocalDateTime.now());
+                e.setEnrolledAt(LocalDateTime.now());
                 enrollmentRepo.save(e);
             } else {
                 enrollmentRepo.save(Enrollment.builder()
                         .user(u)
                         .course(course)
-                        .enrolledAt(java.time.LocalDateTime.now())
+                        .enrolledAt(LocalDateTime.now())
                         .status(Enrollment.Status.ENROLLED)
                         .build());
             }
             courseTitles.add(course.getTitle());
         }
-        mailService.sendBundleEnrollmentSuccess(u.getEmail(),
-                u.getName() != null ? u.getName() : u.getEmail(),
-                program.getTitle(), courseTitles);
+        return courseTitles;
     }
 
     public boolean isFlagshipEnrolled(User u, FlagshipProgram program) {

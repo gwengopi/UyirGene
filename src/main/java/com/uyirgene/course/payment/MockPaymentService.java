@@ -1,5 +1,6 @@
 package com.uyirgene.course.payment;
 
+import com.uyirgene.course.payment.dto.PaymentContactDetails;
 import com.uyirgene.course.payment.dto.PaymentOrder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -58,5 +59,11 @@ public class MockPaymentService implements PaymentProvider {
     @Override
     public String getKeyId() {
         return "mock_key_id";
+    }
+
+    @Override
+    public PaymentContactDetails fetchPaymentDetails(String paymentId) {
+        log.info("Fetching mock payment details for paymentId: {}", paymentId);
+        return new PaymentContactDetails("mock.guest@example.com", "+919999999999", "Mock Guest", 0L, "INR");
     }
 }

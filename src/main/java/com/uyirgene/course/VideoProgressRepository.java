@@ -9,4 +9,5 @@ public interface VideoProgressRepository extends JpaRepository<VideoProgress, Lo
     Optional<VideoProgress> findByUserAndVideo(User user, Video video);
     Optional<VideoProgress> findByUserAndFlagshipVideo(User user, FlagshipVideo flagshipVideo);
     void deleteByVideo(Video video);
+    void deleteByUser(User user);
 }

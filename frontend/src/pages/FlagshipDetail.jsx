@@ -16,7 +16,7 @@ import QuizIcon from '@mui/icons-material/Quiz';
 import DownloadIcon from '@mui/icons-material/Download';
 import CardMembershipIcon from '@mui/icons-material/CardMembership';
 import { SEO, Breadcrumb } from '../components/common';
-import { CertificateNameCard } from '../components/course';
+import { CertificateNameCard, GuestEnrollModal } from '../components/course';
 import { flagshipService } from '../services/flagshipService';
 import { useAuth, useToast } from '../store';
 import { formatCurrency } from '../utils/formatters';
@@ -209,6 +209,7 @@ function FlagshipDetail() {
   const [selectedCountry, setSelectedCountry] = useState('US');
   const [enrolling, setEnrolling] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
+  const [guestModalOpen, setGuestModalOpen] = useState(false);
   const [enrollmentStatus, setEnrollmentStatus] = useState(null);
   const [enrolledProgramData, setEnrolledProgramData] = useState(null); // includes canDownloadCertificate
 
@@ -246,9 +247,63 @@ function FlagshipDetail() {
     return () => { cancelled = true; };
   }, [slug, isAuthenticated]);
 
+  const handleGuestEnroll = useCallback(async (guestInfo) => {
+    setEnrolling(true);
+    try {
+      const result = await flagshipService.startGuestEnrollment(
+        program.id,
+        guestInfo,
+        selectedCountry !== 'IN' ? selectedCountry : null
+      );
+      const order = result?.orderId ? result : null;
+      setGuestModalOpen(false);
+      if (order) {
+        navigate(ROUTES.PAYMENT, {
+          state: {
+            flagshipProgramId: program.id,
+            courseName: program.title,
+            order,
+            guestEmail: guestInfo.email,
+          },
+        });
+        return;
+      }
+      setIsEnrolled(true);
+      setEnrollmentStatus('ENROLLED');
+      showSuccess('Successfully enrolled! Check your email for your access link.');
+    } catch (err) {
+      if (err.response?.status === 409) {
+        setGuestModalOpen(false);
+        showError('You are already enrolled. Please log in to access your program.');
+      } else {
+        showError(err.response?.data?.message || err.message || 'Failed to enroll');
+      }
+    } finally {
+      setEnrolling(false);
+    }
+  }, [program, selectedCountry, navigate, showError, showSuccess]);
+
   const handleEnroll = useCallback(async () => {
     if (!isAuthenticated()) {
-      navigate(ROUTES.LOGIN, { state: { from: { pathname: `/flagship/${slug}` } } });
+      // Paid program: skip popup — Razorpay collects email/phone
+      const countryCode = selectedCountry !== 'IN' ? selectedCountry : null;
+      const isPaid = program?.price > 0;
+      if (isPaid) {
+        setEnrolling(true);
+        try {
+          const order = await flagshipService.startAnonEnrollment(program.id, countryCode);
+          navigate(ROUTES.PAYMENT, {
+            state: { flagshipProgramId: program.id, courseName: program.title, order, anonymous: true },
+          });
+        } catch (err) {
+          showError(err.response?.data?.message || err.message || 'Failed to start enrollment');
+        } finally {
+          setEnrolling(false);
+        }
+        return;
+      }
+      // Free program: still need contact details
+      setGuestModalOpen(true);
       return;
     }
     if (isEnrolled) {
@@ -655,6 +710,15 @@ function FlagshipDetail() {
         </Grid>
 
       </Container>
+
+      {/* Guest Enrollment Modal */}
+      <GuestEnrollModal
+        open={guestModalOpen}
+        onClose={() => setGuestModalOpen(false)}
+        onSubmit={handleGuestEnroll}
+        loading={enrolling}
+        courseName={program?.title}
+      />
     </>
   );
 }

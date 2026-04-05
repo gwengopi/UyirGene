@@ -72,6 +72,102 @@ public class MailService {
     }
 
     /**
+     * Send enrollment success email for guest-enrolled users (includes magic link to access account).
+     * The magic link is used as the CTA so users can access their course without setting a password first.
+     * The "Set Password" prompt is surfaced after they log in via the link.
+     */
+    @Async
+    public void sendGuestEnrollmentSuccess(User user, Course course, String magicLink, boolean isNewAccount) {
+        try {
+            log.info("Sending guest enrollment email for course: {} (newAccount={})", course.getTitle(), isNewAccount);
+            MailTemplate tpl = mailTemplateService.findByKey("enrollment-success").orElse(null);
+            String subject = tpl != null
+                    ? applyVars(tpl.getSubject(), Map.of("courseTitle", safe(course.getTitle())))
+                    : "Welcome! You're enrolled in: " + safe(course.getTitle());
+
+            String content = buildGuestEnrollmentContent(user, isNewAccount, "course");
+
+            String baseHtml = (tpl != null && tpl.getHtmlBody() != null && !tpl.getHtmlBody().isBlank())
+                    ? tpl.getHtmlBody()
+                    : loadTemplate("enrollment-success.html");
+
+            String html = buildEnrollmentHtmlWithUrl(user, course, content, baseHtml, magicLink, "Access Your Course");
+
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setTo(user.getEmail());
+            setFrom(helper);
+            helper.setSubject(subject);
+            helper.setText(html, true);
+            mailSender.send(msg);
+            log.info("Guest enrollment email sent to {}", user.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to send guest enrollment email for course {}: {}", course.getTitle(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Send enrollment success email for guest-enrolled users for a flagship program.
+     * Uses the admin-configurable enrollment-success template with the magic link as the CTA.
+     */
+    @Async
+    public void sendGuestEnrollmentSuccess(User user, FlagshipProgram program, String magicLink, boolean isNewAccount) {
+        try {
+            log.info("Sending guest enrollment email for flagship: {} (newAccount={})", program.getTitle(), isNewAccount);
+            MailTemplate tpl = mailTemplateService.findByKey("enrollment-success").orElse(null);
+            String subject = tpl != null
+                    ? applyVars(tpl.getSubject(), Map.of("courseTitle", safe(program.getTitle())))
+                    : "Welcome! You're enrolled in: " + safe(program.getTitle());
+            String content = buildGuestEnrollmentContent(user, isNewAccount, "program");
+            String baseHtml = (tpl != null && tpl.getHtmlBody() != null && !tpl.getHtmlBody().isBlank())
+                    ? tpl.getHtmlBody()
+                    : loadTemplate("enrollment-success.html");
+
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setTo(user.getEmail());
+            setFrom(helper);
+            helper.setSubject(subject);
+            helper.setText(buildEnrollmentHtmlForFlagshipWithUrl(user, program, content, baseHtml, magicLink, "Access Your Program"), true);
+            mailSender.send(msg);
+            log.info("Guest enrollment email sent for flagship: {}", program.getTitle());
+        } catch (Exception e) {
+            log.error("Failed to send guest enrollment email for flagship {}: {}", program.getTitle(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Admin: resend magic link access email to a guest-enrolled user.
+     */
+    @Async
+    public void sendMagicLinkResend(User user, String magicLink) {
+        try {
+            String html = "<div style='font-family:sans-serif;max-width:600px;margin:40px auto;padding:32px;border:1px solid #e0e0e0;border-radius:8px'>"
+                    + "<h2 style='color:#2980B9;margin-top:0'>Your " + safe(appName) + " Access Link</h2>"
+                    + "<p>Hi <strong>" + safe(user.getName() != null ? user.getName() : user.getEmail()) + "</strong>,</p>"
+                    + "<p>Here is your access link to " + safe(appName) + ". Click the button below to log in to your account and access your enrolled courses.</p>"
+                    + "<p style='margin:32px 0'><a href='" + safe(magicLink) + "' style='background:#2980B9;color:#fff;padding:13px 28px;border-radius:6px;text-decoration:none;font-weight:600;font-size:15px'>Access My Courses</a></p>"
+                    + "<p style='color:#666;font-size:14px'>Or copy this link into your browser:</p>"
+                    + "<p style='color:#2980B9;font-size:13px;word-break:break-all'>" + safe(magicLink) + "</p>"
+                    + "<p style='color:#666;font-size:14px'>Once logged in, we recommend setting a password from your profile page.</p>"
+                    + "<hr style='border:none;border-top:1px solid #eee;margin:24px 0'/>"
+                    + "<p style='color:#999;font-size:12px'>&copy; " + safe(appName) + ". All rights reserved.</p>"
+                    + "</div>";
+
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, false, "UTF-8");
+            helper.setTo(user.getEmail());
+            setFrom(helper);
+            helper.setSubject("Your " + appName + " access link");
+            helper.setText(html, true);
+            mailSender.send(msg);
+            log.info("Magic link resend email sent to {}", user.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to send magic link resend email to {}: {}", user.getEmail(), e.getMessage(), e);
+        }
+    }
+
+    /**
      * Send course completion email
      */
     @Async
@@ -384,10 +480,10 @@ public class MailService {
             MailTemplate tpl = mailTemplateService.findByKey("bundle-enrollment-success").orElse(null);
             String subject = tpl != null
                     ? applyVars(tpl.getSubject(), Map.of("bundleTitle", safe(bundleTitle)))
-                    : "Welcome! You're enrolled in the bundle: " + safe(bundleTitle);
+                    : "Welcome! You're enrolled in the value pack: " + safe(bundleTitle);
             String content = (tpl != null && tpl.getContent() != null && !tpl.getContent().isBlank())
                     ? tpl.getContent()
-                    : "Congratulations! You have successfully enrolled in the course bundle. You now have access to all included courses and can start learning right away.";
+                    : "Congratulations! You have successfully enrolled in the value pack. You now have access to all included courses and can start learning right away.";
             String baseHtml = (tpl != null && tpl.getHtmlBody() != null && !tpl.getHtmlBody().isBlank())
                     ? tpl.getHtmlBody()
                     : loadTemplate("bundle-enrollment-success.html");
@@ -397,11 +493,42 @@ public class MailService {
             helper.setTo(userEmail);
             setFrom(helper);
             helper.setSubject(subject);
-            helper.setText(buildBundleEnrollmentHtml(userEmail, userName, bundleTitle, courseTitles, content, baseHtml), true);
+            helper.setText(buildBundleEnrollmentHtmlWithUrl(userEmail, userName, bundleTitle, courseTitles, content, baseHtml, baseUrl + "/my-courses"), true);
             mailSender.send(msg);
             log.info("Bundle enrollment success email sent successfully to {} for bundle: {}", userEmail, bundleTitle);
         } catch (Exception e) {
             log.error("Failed to send bundle enrollment email to {} for bundle {}: {}", userEmail, bundleTitle, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Send bundle enrollment success email for guest users — uses the standard template
+     * but replaces the CTA URL with the magic link so guests can access their courses.
+     */
+    @Async
+    public void sendGuestBundleEnrollmentSuccess(User user, String bundleTitle,
+                                                  List<String> courseTitles, String magicLink, boolean isNewAccount) {
+        try {
+            log.info("Sending guest bundle enrollment success email to {} for value pack: {} (newAccount={})", user.getEmail(), bundleTitle, isNewAccount);
+            MailTemplate tpl = mailTemplateService.findByKey("bundle-enrollment-success").orElse(null);
+            String subject = tpl != null
+                    ? applyVars(tpl.getSubject(), Map.of("bundleTitle", safe(bundleTitle)))
+                    : "Welcome! You're enrolled in the value pack: " + safe(bundleTitle);
+            String content = buildGuestBundleEnrollmentContent(user, isNewAccount);
+            String baseHtml = (tpl != null && tpl.getHtmlBody() != null && !tpl.getHtmlBody().isBlank())
+                    ? tpl.getHtmlBody()
+                    : loadTemplate("bundle-enrollment-success.html");
+
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setTo(user.getEmail());
+            setFrom(helper);
+            helper.setSubject(subject);
+            helper.setText(buildBundleEnrollmentHtmlWithUrl(user.getEmail(), user.getName(), bundleTitle, courseTitles, content, baseHtml, magicLink), true);
+            mailSender.send(msg);
+            log.info("Guest bundle enrollment success email sent to {}", user.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to send guest bundle enrollment email to {} for value pack {}: {}", user.getEmail(), bundleTitle, e.getMessage(), e);
         }
     }
 
@@ -441,6 +568,44 @@ public class MailService {
         helper.setFrom(getFromEmail(), appName);
     }
 
+    private String buildGuestEnrollmentContent(User user, boolean isNewAccount, String itemType) {
+        if (isNewAccount) {
+            return "Congratulations! You have successfully enrolled. We've created an account for you — "
+                    + "click the button below to access your " + itemType + " right away. "
+                    + "You can set a password anytime from your profile page."
+                    + "<br/><br/><strong>Registered email:</strong> " + safe(user.getEmail())
+                    + "<br/><small style=\"color:#888\">If you can't find this email later, use the "
+                    + "<a href=\"" + baseUrl + "/forgot-password\" style=\"color:#2980B9\">Forgot Password</a> "
+                    + "link on the login page to regain access.</small>";
+        } else {
+            return "Congratulations! You have successfully enrolled. Click the button below to access your "
+                    + itemType + " right away."
+                    + "<br/><br/><strong>Your registered email:</strong> " + safe(user.getEmail())
+                    + "<br/><small style=\"color:#888\">Use the "
+                    + "<a href=\"" + baseUrl + "/forgot-password\" style=\"color:#2980B9\">Forgot Password</a> "
+                    + "link on the login page if you ever need to reset access.</small>";
+        }
+    }
+
+    private String buildGuestBundleEnrollmentContent(User user, boolean isNewAccount) {
+        if (isNewAccount) {
+            return "Congratulations! You have successfully enrolled in the value pack. "
+                    + "We've created an account for you — click the button below to access your courses right away. "
+                    + "You can set a password anytime from your profile page."
+                    + "<br/><br/><strong>Registered email:</strong> " + safe(user.getEmail())
+                    + "<br/><small style=\"color:#888\">If you can't find this email later, use the "
+                    + "<a href=\"" + baseUrl + "/forgot-password\" style=\"color:#2980B9\">Forgot Password</a> "
+                    + "link on the login page to regain access.</small>";
+        } else {
+            return "Congratulations! You have successfully enrolled in the value pack. "
+                    + "Click the button below to access your courses right away."
+                    + "<br/><br/><strong>Your registered email:</strong> " + safe(user.getEmail())
+                    + "<br/><small style=\"color:#888\">Use the "
+                    + "<a href=\"" + baseUrl + "/forgot-password\" style=\"color:#2980B9\">Forgot Password</a> "
+                    + "link on the login page if you ever need to reset access.</small>";
+        }
+    }
+
     private String safe(String val) {
         return val != null ? val : "";
     }
@@ -466,6 +631,10 @@ public class MailService {
     }
 
     private String buildEnrollmentHtml(User user, Course course, String content, String baseHtml) {
+        return buildEnrollmentHtmlWithUrl(user, course, content, baseHtml, baseUrl + "/my-courses", "Start Learning");
+    }
+
+    private String buildEnrollmentHtmlWithUrl(User user, Course course, String content, String baseHtml, String ctaUrl, String ctaLabel) {
         String tpl = baseHtml != null ? baseHtml : loadTemplate("enrollment-success.html");
         if (tpl == null) {
             return buildFallbackEnrollmentHtml(user, course);
@@ -476,7 +645,8 @@ public class MailService {
                 (course.getDescription() == null ? "" : truncate(course.getDescription(), 200)));
         tpl = tpl.replace("{{courseCode}}", course.getCourseCode() != null ? course.getCourseCode() : "");
         tpl = tpl.replace("{{trainerName}}", course.getTrainerName() != null ? course.getTrainerName() : "");
-        tpl = tpl.replace("{{courseUrl}}", baseUrl + "/my-courses");
+        tpl = tpl.replace("{{courseUrl}}", ctaUrl);
+        tpl = tpl.replace("Start Learning", ctaLabel);
         tpl = tpl.replace("{{appName}}", appName);
         tpl = tpl.replace("{{content}}", content != null ? content : "");
         return tpl;
@@ -519,6 +689,10 @@ public class MailService {
     }
 
     private String buildBundleEnrollmentHtml(String userEmail, String userName, String bundleTitle, List<String> courseTitles, String content, String baseHtml) {
+        return buildBundleEnrollmentHtmlWithUrl(userEmail, userName, bundleTitle, courseTitles, content, baseHtml, baseUrl + "/my-courses");
+    }
+
+    private String buildBundleEnrollmentHtmlWithUrl(String userEmail, String userName, String bundleTitle, List<String> courseTitles, String content, String baseHtml, String ctaUrl) {
         String tpl = baseHtml != null ? baseHtml : loadTemplate("bundle-enrollment-success.html");
         if (tpl == null) {
             return buildFallbackBundleEnrollmentHtml(userEmail, userName, bundleTitle, courseTitles);
@@ -532,7 +706,7 @@ public class MailService {
         tpl = tpl.replace("{{name}}", displayName);
         tpl = tpl.replace("{{bundleTitle}}", bundleTitle != null ? bundleTitle : "");
         tpl = tpl.replace("{{courseList}}", courseListHtml);
-        tpl = tpl.replace("{{dashboardUrl}}", baseUrl + "/my-courses");
+        tpl = tpl.replace("{{dashboardUrl}}", ctaUrl != null ? ctaUrl : baseUrl + "/my-courses");
         tpl = tpl.replace("{{appName}}", appName);
         tpl = tpl.replace("{{content}}", content != null ? content : "");
         return tpl;
@@ -629,7 +803,7 @@ public class MailService {
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
                 <h2 style="color: #8E44AD;">Welcome to %s!</h2>
                 <p>Hi %s,</p>
-                <p>You have successfully enrolled in the <strong>%s</strong> bundle!</p>
+                <p>You have successfully enrolled in the <strong>%s</strong> value pack!</p>
                 <p>You now have access to the following courses:</p>
                 <ul>%s</ul>
                 <p><a href="%s" style="background-color: #8E44AD; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Go to My Courses</a></p>
@@ -686,18 +860,23 @@ public class MailService {
     }
 
     private String buildEnrollmentHtmlForFlagship(User user, FlagshipProgram program, String content, String baseHtml) {
+        return buildEnrollmentHtmlForFlagshipWithUrl(user, program, content, baseHtml, baseUrl + "/my-courses", "Start Learning");
+    }
+
+    private String buildEnrollmentHtmlForFlagshipWithUrl(User user, FlagshipProgram program, String content, String baseHtml, String ctaUrl, String ctaLabel) {
         String tpl = baseHtml != null ? baseHtml : loadTemplate("enrollment-success.html");
         if (tpl == null) {
             return String.format("""
                 <html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;">
                 <h2 style="color:#2980B9;">Welcome to %s!</h2>
                 <p>Hi %s,</p>
+                <p>%s</p>
                 <p>You have successfully enrolled in <strong>%s</strong>.</p>
-                <p><a href="%s" style="background:#2980B9;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;">Go to Program</a></p>
+                <p><a href="%s" style="background:#2980B9;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;">%s</a></p>
                 <p>Happy learning!<br>The %s Team</p>
                 </body></html>
                 """, appName, user.getName() != null ? user.getName() : user.getEmail(),
-                program.getTitle(), baseUrl + "/my-courses", appName);
+                content != null ? content : "", program.getTitle(), ctaUrl, ctaLabel, appName);
         }
         tpl = tpl.replace("{{name}}", user.getName() == null ? user.getEmail() : user.getName());
         tpl = tpl.replace("{{courseTitle}}", safe(program.getTitle()));
@@ -705,7 +884,8 @@ public class MailService {
                 (program.getCardDescription() != null ? program.getCardDescription() : ""));
         tpl = tpl.replace("{{courseCode}}", safe(program.getProgramCode()));
         tpl = tpl.replace("{{trainerName}}", program.getTrainerName() != null ? program.getTrainerName() : "");
-        tpl = tpl.replace("{{courseUrl}}", baseUrl + "/my-courses");
+        tpl = tpl.replace("{{courseUrl}}", ctaUrl);
+        tpl = tpl.replace("Start Learning", ctaLabel);
         tpl = tpl.replace("{{appName}}", appName);
         tpl = tpl.replace("{{content}}", content != null ? content : "");
         return tpl;

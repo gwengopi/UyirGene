@@ -7,6 +7,7 @@ const ADMIN_ENDPOINTS = {
   USER_STATUS: (id) => `/api/admin/users/${id}/status`,
   USER_ENROLLMENTS: (id) => `/api/admin/users/${id}/enrollments`,
   USER_GRANT_ACCESS: (id) => `/api/admin/users/${id}/grant-access`,
+  USER_RESEND_ACCESS_LINK: (id) => `/api/admin/users/${id}/resend-access-link`,
   USER_CREATE: '/api/admin/users',
   USERS_EXPORT: '/api/admin/users/export',
   ANALYTICS: '/api/admin/analytics',
@@ -205,6 +206,14 @@ export async function grantAccess(userId, payload) {
 }
 
 /**
+ * Resend magic link access email to a guest-enrolled user (Admin only).
+ */
+export async function resendAccessLink(userId) {
+  const response = await api.post(ADMIN_ENDPOINTS.USER_RESEND_ACCESS_LINK(userId));
+  return response.data;
+}
+
+/**
  * Get analytics dashboard data (Admin only)
  * @param {Object} [params] - Optional query params (from, to) for date filtering
  * @returns {Promise<Object>} Analytics data
@@ -267,4 +276,5 @@ export default {
   getAllEnrollments,
   calculateEnrollmentStats,
   grantAccess,
+  resendAccessLink,
 };

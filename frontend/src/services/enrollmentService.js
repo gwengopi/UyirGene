@@ -162,6 +162,50 @@ export async function processRazorpayPayment(options) {
   });
 }
 
+// ── Guest enrollment (unauthenticated) ───────────────────────────────────────
+
+/**
+ * Start enrollment for a guest (unauthenticated) user.
+ * @param {number|string} courseId
+ * @param {Object} guestInfo - { name, email, phone }
+ * @param {string} [countryCode]
+ */
+export async function startGuestEnrollment(courseId, guestInfo, countryCode) {
+  const response = await api.post(`/api/guest/courses/${courseId}/enroll`, {
+    ...guestInfo,
+    countryCode: countryCode || null,
+  });
+  return response.data;
+}
+
+/**
+ * Confirm payment for a guest course enrollment.
+ * @param {number|string} courseId
+ * @param {Object} paymentData - { razorpayPaymentId, razorpayOrderId, razorpaySignature }
+ * @param {string} email - Guest's email
+ */
+export async function confirmGuestPayment(courseId, paymentData, email) {
+  await api.post(`/api/guest/courses/${courseId}/enroll/confirm`, {
+    email,
+    ...paymentData,
+  });
+}
+
+// ── Anonymous enrollment (Razorpay collects contact details) ──────────────────
+
+/** Start an anonymous paid course enrollment — no form, Razorpay collects email/phone. */
+export async function startAnonEnrollment(courseId, countryCode) {
+  const response = await api.post(`/api/guest/courses/${courseId}/anon-enroll`, {
+    countryCode: countryCode || null,
+  });
+  return response.data;
+}
+
+/** Confirm an anonymous course payment. Backend fetches contact details from Razorpay. */
+export async function confirmAnonPayment(courseId, paymentData) {
+  await api.post(`/api/guest/courses/${courseId}/anon-confirm`, paymentData);
+}
+
 /**
  * Notify backend of a payment failure so a failure email can be sent to the user.
  * Non-throwing — failure to notify should not block the UI.
@@ -177,11 +221,15 @@ export async function notifyPaymentFailed(courseId, bundleId, reason, flagshipId
 export default {
   startEnrollment,
   confirmPayment,
+  startGuestEnrollment,
+  confirmGuestPayment,
   getEnrolledCourses,
   isEnrolledInCourse,
   loadRazorpayScript,
   processRazorpayPayment,
   notifyPaymentFailed,
+  startAnonEnrollment,
+  confirmAnonPayment,
   unenroll,
   markComplete,
 };

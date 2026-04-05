@@ -52,7 +52,7 @@ const SAMPLE_VARS = {
   issuedDate: 'February 20, 2026',
   downloadUrl: '#',
   verifyUrl: '#',
-  bundleTitle: 'Microbiology Excellence Bundle',
+  bundleTitle: 'Microbiology Excellence Value Pack',
   courseList: COURSE_LIST_SAMPLE,
   reason: 'Your card was declined. Please check your card details and try again.',
   retryUrl: '#',

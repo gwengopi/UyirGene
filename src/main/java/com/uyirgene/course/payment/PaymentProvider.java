@@ -1,5 +1,6 @@
 package com.uyirgene.course.payment;
 
+import com.uyirgene.course.payment.dto.PaymentContactDetails;
 import com.uyirgene.course.payment.dto.PaymentOrder;
 
 public interface PaymentProvider {
@@ -29,4 +30,14 @@ public interface PaymentProvider {
      * @return The public key ID
      */
     String getKeyId();
+
+    /**
+     * Fetches contact details (email, phone, name) for a completed payment.
+     * Used in the anonymous guest enrollment flow to obtain the payer's contact info
+     * directly from the payment gateway instead of a pre-enrollment form.
+     *
+     * @param paymentId The payment ID returned by the payment gateway
+     * @return Contact details of the payer
+     */
+    PaymentContactDetails fetchPaymentDetails(String paymentId);
 }

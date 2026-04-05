@@ -7,3 +7,4 @@ export { default as CourseFilters } from './CourseFilters';
 export { default as ManualSection } from './ManualSection';
 export { default as EnrollmentUpsellDialog } from './EnrollmentUpsellDialog';
 export { default as CertificateNameCard } from './CertificateNameCard';
+export { default as GuestEnrollModal } from './GuestEnrollModal';

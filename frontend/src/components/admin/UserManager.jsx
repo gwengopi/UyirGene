@@ -37,6 +37,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SchoolIcon from '@mui/icons-material/School';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import DownloadIcon from '@mui/icons-material/Download';
+import LinkIcon from '@mui/icons-material/Link';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { Button, EmptyState, LoadingSpinner } from '../common';
@@ -60,6 +61,7 @@ function UserManager({
   onRefresh,
   onCreateUser,
   onExport,
+  onResendAccessLink,
 }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -136,6 +138,13 @@ function UserManager({
       onDelete?.(selectedUser.id);
     }
     handleCloseDeleteConfirm();
+  };
+
+  const handleResendAccessLink = () => {
+    if (selectedUser) {
+      onResendAccessLink?.(selectedUser.id);
+    }
+    handleMenuClose();
   };
 
   const handleOpenCreate = () => {
@@ -327,6 +336,16 @@ function UserManager({
             <SchoolIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>View Enrollments</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleResendAccessLink}>
+          <ListItemIcon>
+            <LinkIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText
+            primary="Resend Access Link"
+            secondary="For guest-enrolled users without a password"
+            secondaryTypographyProps={{ fontSize: '0.7rem' }}
+          />
         </MenuItem>
         <MenuItem onClick={handleOpenDeleteConfirm} sx={{ color: 'error.main' }}>
           <ListItemIcon>

@@ -387,7 +387,69 @@ public class CourseBundleService {
 
     @Transactional
     public MultiEnrollmentResult startMultiBundleEnrollment(List<Long> bundleIds, String countryCode, Long standaloneCourseId) {
-        User user = currentUserService.getCurrentUser();
+        return startMultiBundleEnrollmentForUser(currentUserService.getCurrentUser(), bundleIds, countryCode, standaloneCourseId);
+    }
+
+    @Transactional
+    public MultiEnrollmentResult startGuestMultiBundleEnrollment(User user, List<Long> bundleIds, String countryCode, Long standaloneCourseId) {
+        return startMultiBundleEnrollmentForUser(user, bundleIds, countryCode, standaloneCourseId);
+    }
+
+    /**
+     * Creates a Razorpay order for an anonymous (no-account) multi-bundle enrollment.
+     * No user is associated yet — the user is created on payment confirmation.
+     */
+    public MultiEnrollmentResult createAnonymousBundleOrder(List<Long> bundleIds, String countryCode, Long standaloneCourseId) {
+        boolean useCountryPricing = countryCode != null && !countryCode.isBlank() && !"IN".equalsIgnoreCase(countryCode);
+        String upperCC = useCountryPricing ? countryCode.toUpperCase() : null;
+
+        List<Double> amounts = new ArrayList<>();
+        List<String> currencies = new ArrayList<>();
+
+        for (Long bundleId : bundleIds) {
+            CourseBundle bundle = bundleRepo.findById(bundleId)
+                    .orElseThrow(() -> new EntityNotFoundException("Bundle not found: " + bundleId));
+            if (!bundle.getPublished())
+                throw new IllegalStateException("Bundle '" + bundle.getTitle() + "' is not available for purchase");
+            if (useCountryPricing) {
+                Optional<BundlePrice> bp = bundlePriceRepo.findByBundleAndCountryCode(bundle, upperCC);
+                amounts.add(bp.map(BundlePrice::getAmount).orElse(bundle.getPrice()));
+                currencies.add(bp.map(BundlePrice::getCurrencyCode).orElse("INR"));
+            } else {
+                amounts.add(bundle.getPrice());
+                currencies.add("INR");
+            }
+        }
+
+        // Normalise currencies (if mixed, fall back to INR)
+        String finalCurrency = currencies.stream().allMatch(c -> c.equals(currencies.get(0))) ? currencies.get(0) : "INR";
+        double totalAmount = amounts.stream().mapToDouble(Double::doubleValue).sum();
+
+        // Standalone course price
+        if (standaloneCourseId != null) {
+            Course sc = courseRepo.findById(standaloneCourseId)
+                    .orElseThrow(() -> new EntityNotFoundException("Course not found: " + standaloneCourseId));
+            if (useCountryPricing) {
+                Optional<CoursePrice> cp = coursePriceRepo.findByCourseAndCountryCode(sc, upperCC);
+                if (cp.isPresent()) {
+                    totalAmount += cp.get().getAmount();
+                } else {
+                    totalAmount += sc.getPrice();
+                }
+            } else {
+                totalAmount += sc.getPrice();
+            }
+        }
+
+        long amountSmallestUnit = Math.round(totalAmount * 100);
+        PaymentOrder po = paymentProvider.createOrder(amountSmallestUnit, finalCurrency, "anon-bundles-" + System.currentTimeMillis());
+        return new MultiEnrollmentResult(
+                new EnrollmentResult.RazorpayOrder(po.getId(), po.getAmount(), po.getCurrency(), po.getKeyId()),
+                null);
+    }
+
+    @Transactional
+    private MultiEnrollmentResult startMultiBundleEnrollmentForUser(User user, List<Long> bundleIds, String countryCode, Long standaloneCourseId) {
         List<String> warnings = new ArrayList<>();
 
         boolean useCountryPricing = countryCode != null && !countryCode.isBlank() && !"IN".equalsIgnoreCase(countryCode);
@@ -513,13 +575,24 @@ public class CourseBundleService {
     public List<Enrollment> confirmMultiBundlePayment(List<Long> bundleIds, String razorpayPaymentId,
                                                        String razorpayOrderId, String signature,
                                                        Long standaloneCourseId) {
-        // Verify payment signature once for the combined order
         boolean ok = paymentProvider.verifySignature(razorpayOrderId, razorpayPaymentId, signature);
-        if (!ok) {
-            throw new PaymentException("Invalid payment signature");
-        }
+        if (!ok) throw new PaymentException("Invalid payment signature");
+        return confirmMultiBundlePaymentForUser(currentUserService.getCurrentUser(), bundleIds, razorpayPaymentId, razorpayOrderId, standaloneCourseId, false);
+    }
 
-        User user = currentUserService.getCurrentUser();
+    @Transactional
+    public List<Enrollment> confirmGuestMultiBundlePayment(User user, List<Long> bundleIds, String razorpayPaymentId,
+                                                            String razorpayOrderId, String signature,
+                                                            Long standaloneCourseId) {
+        boolean ok = paymentProvider.verifySignature(razorpayOrderId, razorpayPaymentId, signature);
+        if (!ok) throw new PaymentException("Invalid payment signature");
+        return confirmMultiBundlePaymentForUser(user, bundleIds, razorpayPaymentId, razorpayOrderId, standaloneCourseId, true);
+    }
+
+    @Transactional
+    private List<Enrollment> confirmMultiBundlePaymentForUser(User user, List<Long> bundleIds, String razorpayPaymentId,
+                                                               String razorpayOrderId,
+                                                               Long standaloneCourseId, boolean suppressEmail) {
         List<Enrollment> allEnrollments = new ArrayList<>();
 
         for (Long bundleId : bundleIds) {
@@ -551,7 +624,7 @@ public class CourseBundleService {
                 }
             }
 
-            if (!newEnrollments.isEmpty()) {
+            if (!newEnrollments.isEmpty() && !suppressEmail) {
                 String userEmail = user.getEmail();
                 String userName = user.getName();
                 String bundleTitle = bundle.getTitle();
@@ -589,7 +662,9 @@ public class CourseBundleService {
                 }
                 allEnrollments.add(standaloneEnrollment);
                 // Send individual enrollment confirmation email for the standalone course
-                mailService.sendEnrollmentSuccess(user, standalone);
+                if (!suppressEmail) {
+                    mailService.sendEnrollmentSuccess(user, standalone);
+                }
             }
         }
 

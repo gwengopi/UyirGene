@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Box, Typography, Checkbox, Divider, Chip, IconButton,
@@ -94,15 +94,56 @@ function EnrollmentUpsellDialog({
   const toggleBundle = (id) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+        // Auto-deselect any bundle whose courses are all contained in the newly added bundle
+        const newBundle = bundles.find((b) => b.id === id);
+        if (newBundle) {
+          const newCourseIds = new Set((newBundle.courses || []).map((c) => Number(c.id)));
+          for (const otherId of [...next]) {
+            if (otherId === id) continue;
+            const other = bundles.find((b) => b.id === otherId);
+            if (other) {
+              const otherIds = (other.courses || []).map((c) => Number(c.id));
+              if (otherIds.length > 0 && otherIds.every((cId) => newCourseIds.has(cId))) {
+                next.delete(otherId);
+              }
+            }
+          }
+        }
+      }
       return next;
     });
   };
 
-  // ---- PRICE COMPUTATION ----
+  // ---- COVERED BUNDLE COMPUTATION ----
+  // A bundle is "covered" if all its courses are already contained in the union of
+  // currently-selected bundles' courses. Show it disabled (like individual courses are
+  // disabled when included in a selected bundle).
 
   const selectedBundles = bundles.filter((b) => selectedIds.has(b.id));
+
+  const selectedBundleCourseIds = useMemo(() => {
+    const ids = new Set();
+    selectedBundles.forEach((b) => (b.courses || []).forEach((c) => ids.add(Number(c.id))));
+    return ids;
+  }, [selectedBundles]);
+
+  const coveredBundleIds = useMemo(() => {
+    const ids = new Set();
+    bundles.forEach((b) => {
+      if (selectedIds.has(b.id)) return; // already selected — not "covered"
+      const courses = b.courses || [];
+      if (courses.length > 0 && courses.every((c) => selectedBundleCourseIds.has(Number(c.id)))) {
+        ids.add(b.id);
+      }
+    });
+    return ids;
+  }, [bundles, selectedIds, selectedBundleCourseIds]);
+
+  // ---- PRICE COMPUTATION ----
   // Use the course's display currency throughout the dialog so every price is consistent.
   // Bundles without a country-specific price fall back to this same currency.
   const effectiveCurrency = displayPrice?.currency || 'INR';
@@ -272,11 +313,13 @@ function EnrollmentUpsellDialog({
                 ? Math.round((1 - bundleAmount / bundleOriginalPrice.amount) * 100)
                 : bundle.savingsPercent;
               const isChecked = selectedIds.has(bundle.id);
+              const isCovered = coveredBundleIds.has(bundle.id);
 
               // Which courses in this bundle does user already own?
               const ownedInBundle = bundle.courses?.filter((c) => enrolledCourseIds.has(c.id)) || [];
               const hasOwned = ownedInBundle.length > 0;
               const allOwned = ownedInBundle.length === bundle.courses?.length;
+              const isDisabled = allOwned || isCovered;
 
               return (
                 <Box key={bundle.id}>
@@ -284,33 +327,36 @@ function EnrollmentUpsellDialog({
                   <Box
                     sx={{
                       p: 2.5,
-                      cursor: allOwned ? 'not-allowed' : 'pointer',
-                      opacity: allOwned ? 0.5 : 1,
+                      cursor: isDisabled ? 'not-allowed' : 'pointer',
+                      opacity: isDisabled ? 0.5 : 1,
                       bgcolor: isChecked ? 'action.selected' : 'transparent',
                       transition: 'background-color 0.15s',
-                      '&:hover': allOwned ? {} : { bgcolor: 'action.hover' },
+                      '&:hover': isDisabled ? {} : { bgcolor: 'action.hover' },
                     }}
-                    onClick={() => !allOwned && toggleBundle(bundle.id)}
+                    onClick={() => !isDisabled && toggleBundle(bundle.id)}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
                       <Checkbox
                         checked={isChecked}
-                        disabled={allOwned}
+                        disabled={isDisabled}
                         onClick={(e) => e.stopPropagation()}
-                        onChange={() => !allOwned && toggleBundle(bundle.id)}
+                        onChange={() => !isDisabled && toggleBundle(bundle.id)}
                         sx={{ mt: -0.5, p: 0 }}
                       />
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         {/* Bundle header */}
                         <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 0.5 }}>
                           <Typography variant="subtitle1" fontWeight={700}>{bundle.title}</Typography>
-                          {localSavingsPercent > 0 && (
+                          {localSavingsPercent > 0 && !isCovered && (
                             <Chip
                               label={`Save ${localSavingsPercent}%`}
                               size="small"
                               color="success"
                               sx={{ fontWeight: 700, height: 20, fontSize: '0.7rem' }}
                             />
+                          )}
+                          {isCovered && (
+                            <Chip label="Included in selected value pack" size="small" color="success" sx={{ height: 20, fontSize: '0.7rem' }} />
                           )}
                           {allOwned && (
                             <Chip label="Already owned" size="small" color="default" sx={{ height: 20, fontSize: '0.7rem' }} />
@@ -352,17 +398,30 @@ function EnrollmentUpsellDialog({
 
                         {/* Price */}
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                          <Typography variant="h6" color="primary" fontWeight={700}>
-                            {formatCurrency(bundleAmount, bundleCurrency)}
-                          </Typography>
-                          {bundleOriginalPrice && (
-                            <Typography
-                              variant="body2"
-                              color="text.disabled"
-                              sx={{ textDecoration: 'line-through' }}
-                            >
-                              {formatCurrency(bundleOriginalPrice.amount, bundleOriginalPrice.currency)}
-                            </Typography>
+                          {isCovered ? (
+                            <>
+                              <Typography variant="h6" color="text.disabled" fontWeight={700} sx={{ textDecoration: 'line-through' }}>
+                                {formatCurrency(bundleAmount, bundleCurrency)}
+                              </Typography>
+                              <Typography variant="caption" color="success.main" fontWeight={600}>
+                                Covered by selected value pack
+                              </Typography>
+                            </>
+                          ) : (
+                            <>
+                              <Typography variant="h6" color="primary" fontWeight={700}>
+                                {formatCurrency(bundleAmount, bundleCurrency)}
+                              </Typography>
+                              {bundleOriginalPrice && (
+                                <Typography
+                                  variant="body2"
+                                  color="text.disabled"
+                                  sx={{ textDecoration: 'line-through' }}
+                                >
+                                  {formatCurrency(bundleOriginalPrice.amount, bundleOriginalPrice.currency)}
+                                </Typography>
+                              )}
+                            </>
                           )}
                         </Box>
                       </Box>

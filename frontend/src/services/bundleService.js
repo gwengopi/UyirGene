@@ -10,6 +10,8 @@ const BUNDLE_ENDPOINTS = {
   CONFIRM: (id) => `/api/bundles/${id}/enroll/confirm`,
   MULTI_ENROLL: '/api/bundles/enroll/multi',
   MULTI_CONFIRM: '/api/bundles/enroll/multi/confirm',
+  GUEST_MULTI_ENROLL: '/api/guest/bundles/enroll/multi',
+  GUEST_MULTI_CONFIRM: '/api/guest/bundles/enroll/multi/confirm',
   ADMIN_LIST: '/api/bundles/admin',
   ADMIN_CREATE: '/api/bundles/admin',
   ADMIN_UPDATE: (id) => `/api/bundles/admin/${id}`,
@@ -73,6 +75,34 @@ export async function confirmMultiBundlePayment(bundleIds, paymentData, courseId
   const body = { bundleIds, ...paymentData };
   if (courseId) body.courseId = Number(courseId);
   const response = await api.post(BUNDLE_ENDPOINTS.MULTI_CONFIRM, body);
+  return response.data;
+}
+
+export async function startGuestMultiBundleEnrollment(bundleIds, guestInfo, countryCode, courseId) {
+  const body = { bundleIds, ...guestInfo, countryCode };
+  if (courseId) body.standaloneCourseId = Number(courseId);
+  const response = await api.post(BUNDLE_ENDPOINTS.GUEST_MULTI_ENROLL, body);
+  return response.data;
+}
+
+export async function confirmGuestMultiBundlePayment(bundleIds, paymentData, email, courseId) {
+  const body = { bundleIds, email, ...paymentData };
+  if (courseId) body.standaloneCourseId = Number(courseId);
+  const response = await api.post(BUNDLE_ENDPOINTS.GUEST_MULTI_CONFIRM, body);
+  return response.data;
+}
+
+export async function startAnonMultiBundleEnrollment(bundleIds, countryCode, courseId) {
+  const body = { bundleIds, countryCode };
+  if (courseId) body.standaloneCourseId = Number(courseId);
+  const response = await api.post('/api/guest/bundles/anon-enroll', body);
+  return response.data;
+}
+
+export async function confirmAnonMultiBundlePayment(bundleIds, paymentData, courseId) {
+  const body = { bundleIds, ...paymentData };
+  if (courseId) body.standaloneCourseId = Number(courseId);
+  const response = await api.post('/api/guest/bundles/anon-confirm', body);
   return response.data;
 }
 

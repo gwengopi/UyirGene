@@ -50,9 +50,14 @@ public class AdminController {
     private final CourseBundleService courseBundleService;
     private final FlagshipProgramRepository flagshipProgramRepository;
     private final CourseBundleRepository courseBundleRepository;
+    private final VideoProgressRepository videoProgressRepository;
+    private final MarketingMailLogRepository marketingMailLogRepository;
 
     @Value("${app.certificate.folder:uploads/certificates}")
     private String certFolder;
+
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
 
     @GetMapping("/users")
     @PreAuthorize("hasRole('ADMIN')")
@@ -94,13 +99,14 @@ public class AdminController {
     @ApiResponse(responseCode = "204", description = "User deleted")
     @Transactional
     public ResponseEntity<?> deleteUser(@PathVariable("id") Long id) {
-        if (userRepository.existsById(id)) {
-            // Delete all enrollments for this user first
+        return userRepository.findById(id).map(user -> {
+            videoProgressRepository.deleteByUser(user);
+            marketingMailLogRepository.deleteByUserId(id);
+            certificateRepository.deleteByUser(user);
             enrollmentRepository.deleteByUserId(id);
-            userRepository.deleteById(id);
+            userRepository.delete(user);
             return ResponseEntity.noContent().build();
-        }
-        return ResponseEntity.notFound().build();
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     @PutMapping("/users/{id}/status")
@@ -967,6 +973,30 @@ public class AdminController {
         private Long courseId;
         private Long flagshipProgramId;
         private Long bundleId;
+    }
+
+    // ── Resend magic link access ─────────────────────────────────────────────────
+
+    @PostMapping("/users/{userId}/resend-access-link")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Admin: resend magic link access email to a guest-enrolled user")
+    public ResponseEntity<?> resendAccessLink(@PathVariable Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new com.uyirgene.exception.EntityNotFoundException("User not found"));
+
+        // Only resend if the account still has (or needs) a magic link
+        // — i.e., the user has never explicitly set a password
+        if (user.getMagicLinkToken() == null && user.getCreatedAt() != null
+                && user.getCreatedAt().isBefore(LocalDateTime.now().minusMinutes(5))) {
+            // Account exists but has no magic link token — user likely set a password already
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "This user has already set a password and can log in normally."));
+        }
+
+        String token = userService.generateMagicLinkToken(user);
+        String magicLink = frontendUrl + "/magic-login?token=" + token;
+        mailService.sendMagicLinkResend(user, magicLink);
+        return ResponseEntity.ok(Map.of("message", "Access link sent to " + user.getEmail()));
     }
 
     // ── Create user manually ─────────────────────────────────────────────────────

@@ -44,6 +44,16 @@ public class User {
     @Column(name = "password_reset_token_expiry")
     private LocalDateTime passwordResetTokenExpiry;
 
+    @Column(name = "phone_number", length = 20)
+    private String phoneNumber;
+
+    /** One-time-setup magic link token for guest-enrolled accounts (valid until password is explicitly set). */
+    @Column(name = "magic_link_token", length = 128)
+    private String magicLinkToken;
+
+    @Column(name = "magic_link_token_created_at")
+    private LocalDateTime magicLinkTokenCreatedAt;
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {

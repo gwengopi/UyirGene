@@ -6,6 +6,7 @@ import java.util.List;
 
 public interface MarketingMailLogRepository extends JpaRepository<MarketingMailLog, Long> {
 
+    void deleteByUserId(Long userId);
     List<MarketingMailLog> findByCampaignAndBatchNumber(MarketingCampaign campaign, int batchNumber);
 
     long countByCampaignAndStatus(MarketingCampaign campaign, MarketingMailLog.Status status);

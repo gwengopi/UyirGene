@@ -33,8 +33,8 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import QuizIcon from '@mui/icons-material/Quiz';
 import { Button, Breadcrumb, LoadingSpinner, SEO } from '../components/common';
 import { courseSchema } from '../components/common/SEO';
-import { VideoPlayer, VideoList, ManualSection, EnrollmentUpsellDialog, CertificateNameCard } from '../components/course';
-import { getPublishedBundlesByCategory, startMultiBundleEnrollment } from '../services/bundleService';
+import { VideoPlayer, VideoList, ManualSection, EnrollmentUpsellDialog, CertificateNameCard, GuestEnrollModal } from '../components/course';
+import { getPublishedBundlesByCategory, startMultiBundleEnrollment, startGuestMultiBundleEnrollment, startAnonMultiBundleEnrollment } from '../services/bundleService';
 import { ProgressTracker } from '../components/user';
 import { courseService, enrollmentService, videoService, certificateService } from '../services';
 import { useAuth, useToast, useConfig } from '../store';
@@ -81,6 +81,10 @@ function CourseDetail() {
   const [enrollmentErrorOpen, setEnrollmentErrorOpen] = useState(false);
   const [enrollmentError, setEnrollmentError] = useState('');
   const [selectedCountry, setSelectedCountry] = useState('US');
+  const [guestModalOpen, setGuestModalOpen] = useState(false);
+  const [pendingBundleEnroll, setPendingBundleEnroll] = useState(null);
+  const [enrollSuccessOpen, setEnrollSuccessOpen] = useState(false);
+  const [enrollSuccessMessage, setEnrollSuccessMessage] = useState('');
 
   // Resolve price and currency based on selected country
   const hasCountryPrices = course?.countryPrices && course.countryPrices.length > 0;
@@ -216,6 +220,25 @@ function CourseDetail() {
   // Proceed directly with single-course enrollment (called from upsell dialog skip or when no bundles)
   const handleEnrollSingleCourse = async () => {
     setUpsellOpen(false);
+    if (!isAuthenticated()) {
+      // Paid course: skip popup — Razorpay will collect email/phone
+      if (displayPrice?.amount) {
+        setEnrolling(true);
+        try {
+          const order = await enrollmentService.startAnonEnrollment(courseId, selectedCountry);
+          navigate(ROUTES.PAYMENT, { state: { courseId, courseName: course?.title, order, anonymous: true } });
+        } catch (error) {
+          setEnrollmentError(error.response?.data?.message || error.message || 'Failed to start enrollment');
+          setEnrollmentErrorOpen(true);
+        } finally {
+          setEnrolling(false);
+        }
+        return;
+      }
+      // Free course: still need contact details via modal
+      setGuestModalOpen(true);
+      return;
+    }
     setEnrolling(true);
     try {
       const result = await enrollmentService.startEnrollment(courseId, selectedCountry);
@@ -227,7 +250,8 @@ function CourseDetail() {
         return;
       }
       setIsEnrolled(true);
-      showSuccess('Successfully enrolled!');
+      setEnrollSuccessMessage('Successfully enrolled! You will receive a confirmation email shortly.');
+      setEnrollSuccessOpen(true);
       const videosData = await courseService.getCourseVideos(courseId);
       setVideos(videosData);
       setCurrentVideo(videosData[0]);
@@ -250,6 +274,33 @@ function CourseDetail() {
   // so its price is included in the same order and it is enrolled on confirmation.
   const handleEnrollBundles = async (bundleIds, courseIsStandalone = false) => {
     setUpsellOpen(false);
+    if (!isAuthenticated()) {
+      // Bundles are always paid — skip popup, Razorpay collects email/phone
+      setEnrolling(true);
+      try {
+        const standaloneCourseId = courseIsStandalone ? courseId : null;
+        const result = await startAnonMultiBundleEnrollment(bundleIds, selectedCountry, standaloneCourseId);
+        const order = result?.order;
+        if (order) {
+          const bundlePart = `${bundleIds.length} value pack${bundleIds.length > 1 ? 's' : ''}`;
+          navigate(ROUTES.PAYMENT, {
+            state: {
+              bundleIds,
+              courseId: standaloneCourseId,
+              courseName: courseIsStandalone ? `${bundlePart} + ${course?.title}` : bundlePart,
+              order,
+              anonymous: true,
+            },
+          });
+        }
+      } catch (error) {
+        setEnrollmentError(error.response?.data?.message || error.message || 'Failed to start enrollment');
+        setEnrollmentErrorOpen(true);
+      } finally {
+        setEnrolling(false);
+      }
+      return;
+    }
     setEnrolling(true);
     try {
       const standaloneCourseId = courseIsStandalone ? courseId : null;
@@ -276,28 +327,90 @@ function CourseDetail() {
     }
   };
 
+  // Guest enrollment — called when GuestEnrollModal is submitted
+  const handleGuestEnroll = async (guestInfo) => {
+    setEnrolling(true);
+    try {
+      // Bundle enrollment path
+      if (pendingBundleEnroll) {
+        const { bundleIds, courseIsStandalone } = pendingBundleEnroll;
+        const standaloneCourseId = courseIsStandalone ? courseId : null;
+        const result = await startGuestMultiBundleEnrollment(bundleIds, guestInfo, selectedCountry, standaloneCourseId);
+        const order = result?.order;
+        setPendingBundleEnroll(null);
+        setGuestModalOpen(false);
+        if (order) {
+          const bundlePart = `${bundleIds.length} value pack${bundleIds.length > 1 ? 's' : ''}`;
+          navigate(ROUTES.PAYMENT, {
+            state: {
+              bundleIds,
+              courseId: standaloneCourseId,
+              courseName: courseIsStandalone ? `${bundlePart} + ${course?.title}` : bundlePart,
+              order,
+              guestEmail: guestInfo.email,
+            },
+          });
+        }
+        return;
+      }
+
+      // Single course enrollment path
+      const result = await enrollmentService.startGuestEnrollment(courseId, guestInfo, selectedCountry);
+      const order = result && (result.orderId ? result : null);
+      setGuestModalOpen(false);
+      if (order) {
+        navigate(ROUTES.PAYMENT, {
+          state: {
+            courseId,
+            courseName: course?.title,
+            order,
+            guestEmail: guestInfo.email,
+          },
+        });
+        return;
+      }
+      // Free course — enrolled immediately
+      setIsEnrolled(true);
+      setEnrollSuccessMessage('Successfully enrolled! Check your email for your access link.');
+      setEnrollSuccessOpen(true);
+    } catch (error) {
+      if (error.response?.status === 409) {
+        setGuestModalOpen(false);
+        setPendingBundleEnroll(null);
+        setEnrollmentError('You are already enrolled. Please log in to access your course.');
+        setEnrollmentErrorOpen(true);
+      } else {
+        setEnrollmentError(error.response?.data?.message || error.message || 'Failed to enroll');
+        setEnrollmentErrorOpen(true);
+      }
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
   // Handle enrollment — shows upsell dialog if bundles exist
   const handleEnroll = async () => {
-    if (!isAuthenticated()) {
-      navigate(ROUTES.LOGIN, { state: { from: location } });
-      return;
-    }
-
     // Prevent enrollment while still loading enrollment status
     if (loading) {
       return;
     }
 
-    // Check if already enrolled
-    if (isEnrolled) {
+    // Check if already enrolled (authenticated users only)
+    if (isAuthenticated() && isEnrolled) {
       setEnrollmentError('You are already enrolled in this course');
       setEnrollmentErrorOpen(true);
       return;
     }
 
-    // Show bundle upsell dialog only for paid courses (free courses enroll directly)
+    // Show bundle upsell dialog first (both guest and authenticated), only for paid courses
     if (availableBundles.length > 0 && displayPrice.amount) {
       setUpsellOpen(true);
+      return;
+    }
+
+    // No bundles — if guest, collect contact details now
+    if (!isAuthenticated()) {
+      setGuestModalOpen(true);
       return;
     }
 
@@ -320,7 +433,8 @@ function CourseDetail() {
 
       // Free course was enrolled immediately
       setIsEnrolled(true);
-      showSuccess('Successfully enrolled!');
+      setEnrollSuccessMessage('Successfully enrolled! You will receive a confirmation email shortly.');
+      setEnrollSuccessOpen(true);
 
       // Load videos after enrollment
       const videosData = await courseService.getCourseVideos(courseId);
@@ -1167,6 +1281,15 @@ function CourseDetail() {
           )}
         </Grid>
 
+        {/* Guest Enrollment Modal */}
+        <GuestEnrollModal
+          open={guestModalOpen}
+          onClose={() => { setGuestModalOpen(false); setPendingBundleEnroll(null); }}
+          onSubmit={handleGuestEnroll}
+          loading={enrolling}
+          courseName={course?.title}
+        />
+
         {/* Bundle Upsell Dialog */}
         <EnrollmentUpsellDialog
           open={upsellOpen}
@@ -1213,6 +1336,17 @@ function CourseDetail() {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setEnrollmentErrorOpen(false)} variant="contained">OK</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Enrollment Success Dialog */}
+        <Dialog open={enrollSuccessOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') setEnrollSuccessOpen(false); }} disableEscapeKeyDown aria-labelledby="enroll-success-title">
+          <DialogTitle id="enroll-success-title" sx={{ color: 'success.main' }}>Enrollment Successful!</DialogTitle>
+          <DialogContent>
+            <DialogContentText>{enrollSuccessMessage}</DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setEnrollSuccessOpen(false)} variant="contained" color="success">Start Learning</Button>
           </DialogActions>
         </Dialog>
       </Container>

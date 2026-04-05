@@ -1,5 +1,6 @@
 package com.uyirgene.course.payment;
 
+import com.uyirgene.course.payment.dto.PaymentContactDetails;
 import com.uyirgene.course.payment.dto.PaymentOrder;
 import com.uyirgene.exception.PaymentException;
 import lombok.extern.slf4j.Slf4j;
@@ -106,5 +107,38 @@ public class RazorpayPaymentService implements PaymentProvider {
     @Override
     public String getKeyId() {
         return keyId;
+    }
+
+    @Override
+    public PaymentContactDetails fetchPaymentDetails(String paymentId) {
+        log.info("Fetching Razorpay payment details for paymentId: {}", paymentId);
+        String url = "https://api.razorpay.com/v1/payments/" + paymentId;
+
+        HttpHeaders headers = new HttpHeaders();
+        String auth = keyId + ":" + keySecret;
+        String encoded = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
+        headers.set("Authorization", "Basic " + encoded);
+        HttpEntity<Void> req = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<Map> resp = restTemplate.exchange(url, org.springframework.http.HttpMethod.GET, req, Map.class);
+            Map data = resp.getBody();
+            if (data == null) throw new PaymentException("Empty response from Razorpay payment fetch");
+
+            String email = (String) data.get("email");
+            String contact = (String) data.get("contact");
+            String name = (String) data.get("name");
+            Object amtObj = data.get("amount");
+            Long amount = amtObj instanceof Number ? ((Number) amtObj).longValue() : null;
+            String currency = (String) data.get("currency");
+
+            log.info("Razorpay payment details fetched for {}: email={}", paymentId, email);
+            return new PaymentContactDetails(email, contact, name, amount, currency);
+        } catch (PaymentException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error fetching Razorpay payment details for {}: {}", paymentId, e.getMessage(), e);
+            throw new PaymentException("Failed to fetch payment details from Razorpay", e);
+        }
     }
 }

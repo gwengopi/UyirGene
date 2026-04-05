@@ -117,6 +117,7 @@ export const ROUTES = {
   PAYMENT: '/payment',
   NOT_FOUND: '/404',
   UNSUBSCRIBE: '/unsubscribe',
+  MAGIC_LOGIN: '/magic-login',
 };
 
 // Default values

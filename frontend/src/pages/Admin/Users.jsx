@@ -75,6 +75,15 @@ function AdminUsers() {
     }
   };
 
+  const handleResendAccessLink = async (userId) => {
+    try {
+      const result = await adminService.resendAccessLink(userId);
+      showSuccess(result.message || 'Access link sent successfully');
+    } catch (error) {
+      showError(error?.response?.data?.message || 'Failed to send access link');
+    }
+  };
+
   const handleUnenroll = async (enrollmentId) => {
     try {
       await adminService.adminUnenroll(enrollmentId);
@@ -123,6 +132,7 @@ function AdminUsers() {
           onRefresh={loadUsers}
           onCreateUser={handleCreateUser}
           onExport={handleExport}
+          onResendAccessLink={handleResendAccessLink}
         />
       </Container>
     </AdminLayout>

@@ -121,6 +121,34 @@ public class AuthController {
         }
     }
 
+    /**
+     * Exchange a magic link token for a JWT.
+     * Token is multi-use and valid for 30 days, or until the user explicitly sets a password.
+     */
+    @GetMapping("/magic")
+    public ResponseEntity<?> magicLogin(@RequestParam(required = false) String token) {
+        if (token == null || token.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Token is required"));
+        }
+        return userService.validateMagicLinkToken(token)
+                .map(user -> {
+                    String jwt = jwtService.generateToken(user);
+                    return ResponseEntity.ok(Map.of(
+                            "token", "Bearer " + jwt,
+                            "user", Map.of(
+                                    "id", user.getId(),
+                                    "email", user.getEmail(),
+                                    "name", user.getName() != null ? user.getName() : "",
+                                    "role", user.getRole().name()
+                            )
+                    ));
+                })
+                .<ResponseEntity<?>>orElse(
+                        ResponseEntity.status(410).body(Map.of("message",
+                                "This access link has expired or is no longer valid. Please use Forgot Password to regain access."))
+                );
+    }
+
     @PostMapping("/forgot-password")
     public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> body) {
         String email = body.get("email");

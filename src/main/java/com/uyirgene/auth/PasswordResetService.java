@@ -50,6 +50,9 @@ public class PasswordResetService {
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setPasswordResetToken(null);
         user.setPasswordResetTokenExpiry(null);
+        // Password explicitly set via reset — magic link access no longer needed
+        user.setMagicLinkToken(null);
+        user.setMagicLinkTokenCreatedAt(null);
         userRepository.save(user);
     }
 

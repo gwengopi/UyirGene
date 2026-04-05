@@ -15,6 +15,20 @@ export const flagshipService = {
   confirmPayment: (id, paymentData) =>
     api.post(`${BASE}/${id}/enroll/confirm`, paymentData).then((r) => r.data),
 
+  // ── Guest enrollment (unauthenticated) ───────────────────────────────────
+  startGuestEnrollment: (id, guestInfo, countryCode) =>
+    api.post(`/api/guest/flagship/${id}/enroll`, { ...guestInfo, countryCode: countryCode || null }).then((r) => r.data),
+
+  confirmGuestPayment: (id, paymentData, email) =>
+    api.post(`/api/guest/flagship/${id}/enroll/confirm`, { email, ...paymentData }).then((r) => r.data),
+
+  // ── Anonymous enrollment (Razorpay collects contact details) ──────────────
+  startAnonEnrollment: (id, countryCode) =>
+    api.post(`/api/guest/flagship/${id}/anon-enroll`, { countryCode: countryCode || null }).then((r) => r.data),
+
+  confirmAnonPayment: (id, paymentData) =>
+    api.post(`/api/guest/flagship/${id}/anon-confirm`, paymentData).then((r) => r.data),
+
   getEnrolledPrograms: () => api.get(`${BASE}/enrolled`).then((r) => r.data),
 
   unenroll: (id) => api.delete(`${BASE}/${id}/enroll`).then((r) => r.data),

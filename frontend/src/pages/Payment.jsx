@@ -7,7 +7,7 @@ import {
 import { useToast } from '../store';
 import { enrollmentService } from '../services';
 import * as bundleService from '../services/bundleService';
-import { confirmMultiBundlePayment } from '../services/bundleService';
+import { confirmMultiBundlePayment, confirmGuestMultiBundlePayment, confirmAnonMultiBundlePayment } from '../services/bundleService';
 import { flagshipService } from '../services/flagshipService';
 import { formatCurrency } from '../utils/formatters';
 import { ROUTES } from '../utils/constants';
@@ -15,20 +15,24 @@ import { ROUTES } from '../utils/constants';
 function Payment() {
   const { state } = useLocation();
   const navigate = useNavigate();
-  const { showSuccess, showError } = useToast();
+  const { showError } = useToast();
 
   const [processing, setProcessing] = useState(false);
   const [failureDialog, setFailureDialog] = useState({ open: false, message: '' });
+  const [successDialog, setSuccessDialog] = useState({ open: false, message: '', navigateTo: null });
 
   const order = state?.order;
   const courseId = state?.courseId;     // single-course enrollment OR standalone courseId in a multi-bundle payment
   const bundleId = state?.bundleId;
   const bundleIds = state?.bundleIds;   // array — multi-bundle enrollment
   const flagshipProgramId = state?.flagshipProgramId;
+  const guestEmail = state?.guestEmail; // present for guest (unauthenticated) enrollment with modal
+  const isAnonymous = !!state?.anonymous; // Razorpay-collect flow — no pre-collected email
   const courseName = state?.courseName || state?.bundleName || 'course';
   const isMultiBundle = Array.isArray(bundleIds) && bundleIds.length > 0;
   const isBundle = !!bundleId;
   const isFlagship = !!flagshipProgramId;
+  const isGuest = !!guestEmail;
 
   if (!order || (!courseId && !bundleId && !bundleIds && !flagshipProgramId)) {
     return (
@@ -42,8 +46,25 @@ function Payment() {
   }
 
   const confirmPayment = async (paymentData) => {
-    if (isMultiBundle) {
-      // courseId is the optional standalone course included in this combined order
+    if (isAnonymous) {
+      // Anonymous flow — backend fetches contact details from Razorpay
+      if (isFlagship) {
+        await flagshipService.confirmAnonPayment(flagshipProgramId, paymentData);
+      } else if (isMultiBundle) {
+        await confirmAnonMultiBundlePayment(bundleIds, paymentData, courseId || null);
+      } else {
+        await enrollmentService.confirmAnonPayment(courseId, paymentData);
+      }
+    } else if (isGuest) {
+      // Guest (unauthenticated) confirmation — use guest endpoints
+      if (isFlagship) {
+        await flagshipService.confirmGuestPayment(flagshipProgramId, paymentData, guestEmail);
+      } else if (isMultiBundle) {
+        await confirmGuestMultiBundlePayment(bundleIds, paymentData, guestEmail, courseId || null);
+      } else {
+        await enrollmentService.confirmGuestPayment(courseId, paymentData, guestEmail);
+      }
+    } else if (isMultiBundle) {
       await confirmMultiBundlePayment(bundleIds, paymentData, courseId || null);
     } else if (isBundle) {
       await bundleService.confirmBundlePayment(bundleId, paymentData);
@@ -66,27 +87,36 @@ function Payment() {
       });
 
       await confirmPayment(paymentData);
-      showSuccess(isMultiBundle
-        ? 'Payment successful! You are now enrolled in all selected value pack courses.'
-        : isBundle
-          ? 'Payment successful! You are now enrolled in all value pack courses.'
-          : 'Payment successful! Enrollment completed.');
-      navigate(ROUTES.MY_COURSES);
+      if (isAnonymous || isGuest) {
+        const msg = isAnonymous
+          ? 'Enrollment confirmed! Check your email (the one you entered in Razorpay) for your access link.'
+          : `Enrollment confirmed! We've sent your access link to ${guestEmail}. Check your inbox.`;
+        setSuccessDialog({ open: true, message: msg, navigateTo: ROUTES.COURSES });
+      } else {
+        const msg = isMultiBundle
+          ? 'Payment successful! You are now enrolled in all selected value pack courses. A confirmation email has been sent.'
+          : isBundle
+            ? 'Payment successful! You are now enrolled in all value pack courses. A confirmation email has been sent.'
+            : 'Payment successful! Enrollment completed. A confirmation email has been sent.';
+        setSuccessDialog({ open: true, message: msg, navigateTo: ROUTES.MY_COURSES });
+      }
     } catch (error) {
       if (error.message === 'Payment cancelled') {
         // User cancelled - no message needed
-      } else if (error.response?.status === 401) {
+      } else if (!isGuest && error.response?.status === 401) {
         showError('Session expired. Please login and try again.');
         navigate(ROUTES.LOGIN);
       } else {
         const msg = error.message || 'Payment failed. Please try again.';
         setFailureDialog({ open: true, message: msg });
-        enrollmentService.notifyPaymentFailed(
-          courseId ? Number(courseId) : null,
-          isMultiBundle ? bundleIds[0] : bundleId ? Number(bundleId) : null,
-          msg,
-          flagshipProgramId ? Number(flagshipProgramId) : null
-        );
+        if (!isGuest) {
+          enrollmentService.notifyPaymentFailed(
+            courseId ? Number(courseId) : null,
+            isMultiBundle ? bundleIds[0] : bundleId ? Number(bundleId) : null,
+            msg,
+            flagshipProgramId ? Number(flagshipProgramId) : null
+          );
+        }
       }
     } finally {
       setProcessing(false);
@@ -115,6 +145,26 @@ function Payment() {
           </Button>
         </Box>
       </Paper>
+
+      {/* Payment Success Dialog */}
+      <Dialog open={successDialog.open} onClose={() => {}} disableEscapeKeyDown>
+        <DialogTitle sx={{ color: 'success.main' }}>Enrollment Successful!</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{successDialog.message}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={() => {
+              setSuccessDialog({ open: false, message: '', navigateTo: null });
+              if (successDialog.navigateTo) navigate(successDialog.navigateTo);
+            }}
+          >
+            {(isGuest || isAnonymous) ? 'OK' : 'Go to My Courses'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Payment Failure Dialog */}
       <Dialog open={failureDialog.open} onClose={(e, reason) => { if (reason !== 'backdropClick') setFailureDialog({ open: false, message: '' }); }} disableEscapeKeyDown>
