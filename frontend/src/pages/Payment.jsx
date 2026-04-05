@@ -6,7 +6,7 @@ import {
   TextField,
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import { useToast } from '../store';
+import { useToast, useAuth } from '../store';
 import { enrollmentService } from '../services';
 import api from '../services/api';
 import * as bundleService from '../services/bundleService';
@@ -24,6 +24,7 @@ function Payment() {
   const { state } = useLocation();
   const navigate = useNavigate();
   const { showError } = useToast();
+  const { user } = useAuth();
 
   const [processing, setProcessing] = useState(false);
   const [anonEmail, setAnonEmail] = useState('');
@@ -45,7 +46,7 @@ function Payment() {
   const isFlagship = !!flagshipProgramId;
   const isGuest = !!guestEmail;
 
-  const effectiveEmail = isAnonymous ? anonEmail : guestEmail;
+  const effectiveEmail = isAnonymous ? anonEmail : guestEmail || user?.email || '';
 
   if (!order || (!courseId && !bundleId && !bundleIds && !flagshipProgramId)) {
     return (
