@@ -112,6 +112,7 @@ function Payment() {
         currency: order.currency,
         keyId: order.keyId,
         courseName,
+        prefillEmail: effectiveEmail || '',
       });
 
       await confirmPayment(paymentData);

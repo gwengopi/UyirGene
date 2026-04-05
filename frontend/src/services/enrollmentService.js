@@ -134,6 +134,9 @@ export async function processRazorpayPayment(options) {
       order_id: options.orderId,
       name: 'Uyirgene',
       description: `Enrollment for ${options.courseName || 'course'}`,
+      prefill: {
+        email: options.prefillEmail || '',
+      },
       handler: function (response) {
         cleanupRazorpay();
         resolve({
