@@ -294,4 +294,21 @@ public class GuestEnrollmentController {
         private String razorpayOrderId;
         private String razorpaySignature;
     }
+
+    @Data
+    public static class EnrollmentCheckRequest {
+        private String email;
+        private Long courseId;
+        private List<Long> bundleIds;
+        private Long flagshipProgramId;
+    }
+
+    @PostMapping("/check-enrollment")
+    public ResponseEntity<?> checkEnrollment(@RequestBody EnrollmentCheckRequest req) {
+        if (req.getEmail() == null || req.getEmail().isBlank())
+            return ResponseEntity.badRequest().body(Map.of("message", "Email is required"));
+        boolean enrolled = guestEnrollmentService.isAlreadyEnrolled(
+                req.getEmail(), req.getCourseId(), req.getBundleIds(), req.getFlagshipProgramId());
+        return ResponseEntity.ok(Map.of("enrolled", enrolled));
+    }
 }

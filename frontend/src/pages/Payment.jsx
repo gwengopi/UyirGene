@@ -3,14 +3,22 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Container, Paper, Typography, Box, Button, Alert,
   Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
+  TextField,
 } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
 import { useToast } from '../store';
 import { enrollmentService } from '../services';
+import api from '../services/api';
 import * as bundleService from '../services/bundleService';
-import { confirmMultiBundlePayment, confirmGuestMultiBundlePayment, confirmAnonMultiBundlePayment } from '../services/bundleService';
+import { confirmMultiBundlePayment, confirmGuestMultiBundlePayment } from '../services/bundleService';
 import { flagshipService } from '../services/flagshipService';
 import { formatCurrency } from '../utils/formatters';
 import { ROUTES } from '../utils/constants';
+
+async function checkGuestEnrollment({ email, courseId, bundleIds, flagshipProgramId }) {
+  const res = await api.post('/api/guest/check-enrollment', { email, courseId, bundleIds, flagshipProgramId });
+  return res.data.enrolled;
+}
 
 function Payment() {
   const { state } = useLocation();
@@ -18,21 +26,26 @@ function Payment() {
   const { showError } = useToast();
 
   const [processing, setProcessing] = useState(false);
+  const [anonEmail, setAnonEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [alreadyEnrolled, setAlreadyEnrolled] = useState(false);
   const [failureDialog, setFailureDialog] = useState({ open: false, message: '' });
   const [successDialog, setSuccessDialog] = useState({ open: false, message: '', navigateTo: null });
 
   const order = state?.order;
-  const courseId = state?.courseId;     // single-course enrollment OR standalone courseId in a multi-bundle payment
+  const courseId = state?.courseId;
   const bundleId = state?.bundleId;
-  const bundleIds = state?.bundleIds;   // array — multi-bundle enrollment
+  const bundleIds = state?.bundleIds;
   const flagshipProgramId = state?.flagshipProgramId;
-  const guestEmail = state?.guestEmail; // present for guest (unauthenticated) enrollment with modal
-  const isAnonymous = !!state?.anonymous; // Razorpay-collect flow — no pre-collected email
+  const guestEmail = state?.guestEmail;
+  const isAnonymous = !!state?.anonymous;
   const courseName = state?.courseName || state?.bundleName || 'course';
   const isMultiBundle = Array.isArray(bundleIds) && bundleIds.length > 0;
   const isBundle = !!bundleId;
   const isFlagship = !!flagshipProgramId;
   const isGuest = !!guestEmail;
+
+  const effectiveEmail = isAnonymous ? anonEmail : guestEmail;
 
   if (!order || (!courseId && !bundleId && !bundleIds && !flagshipProgramId)) {
     return (
@@ -46,23 +59,14 @@ function Payment() {
   }
 
   const confirmPayment = async (paymentData) => {
-    if (isAnonymous) {
-      // Anonymous flow — backend fetches contact details from Razorpay
+    if (isAnonymous || isGuest) {
+      const email = effectiveEmail;
       if (isFlagship) {
-        await flagshipService.confirmAnonPayment(flagshipProgramId, paymentData);
+        await flagshipService.confirmGuestPayment(flagshipProgramId, paymentData, email);
       } else if (isMultiBundle) {
-        await confirmAnonMultiBundlePayment(bundleIds, paymentData, courseId || null);
+        await confirmGuestMultiBundlePayment(bundleIds, paymentData, email, courseId || null);
       } else {
-        await enrollmentService.confirmAnonPayment(courseId, paymentData);
-      }
-    } else if (isGuest) {
-      // Guest (unauthenticated) confirmation — use guest endpoints
-      if (isFlagship) {
-        await flagshipService.confirmGuestPayment(flagshipProgramId, paymentData, guestEmail);
-      } else if (isMultiBundle) {
-        await confirmGuestMultiBundlePayment(bundleIds, paymentData, guestEmail, courseId || null);
-      } else {
-        await enrollmentService.confirmGuestPayment(courseId, paymentData, guestEmail);
+        await enrollmentService.confirmGuestPayment(courseId, paymentData, email);
       }
     } else if (isMultiBundle) {
       await confirmMultiBundlePayment(bundleIds, paymentData, courseId || null);
@@ -76,6 +80,30 @@ function Payment() {
   };
 
   const handlePayNow = async () => {
+    if (isAnonymous) {
+      if (!anonEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(anonEmail.trim())) {
+        setEmailError('Please enter a valid email address.');
+        return;
+      }
+      setEmailError('');
+
+      // Check if already enrolled before opening Razorpay
+      try {
+        const enrolled = await checkGuestEnrollment({
+          email: anonEmail.trim(),
+          courseId: courseId ? Number(courseId) : null,
+          bundleIds: isMultiBundle ? bundleIds : bundleId ? [Number(bundleId)] : null,
+          flagshipProgramId: flagshipProgramId ? Number(flagshipProgramId) : null,
+        });
+        if (enrolled) {
+          setAlreadyEnrolled(true);
+          return;
+        }
+      } catch {
+        // If check fails, proceed — don't block payment over a non-critical check
+      }
+    }
+
     setProcessing(true);
     try {
       const paymentData = await enrollmentService.processRazorpayPayment({
@@ -88,9 +116,8 @@ function Payment() {
 
       await confirmPayment(paymentData);
       if (isAnonymous || isGuest) {
-        const msg = isAnonymous
-          ? 'Enrollment confirmed! Check your email (the one you entered in Razorpay) for your access link.'
-          : `Enrollment confirmed! We've sent your access link to ${guestEmail}. Check your inbox.`;
+        const email = effectiveEmail;
+        const msg = `Enrollment confirmed! We've sent your access link to ${email}. Check your inbox to access your courses.`;
         setSuccessDialog({ open: true, message: msg, navigateTo: ROUTES.COURSES });
       } else {
         const msg = isMultiBundle
@@ -103,13 +130,13 @@ function Payment() {
     } catch (error) {
       if (error.message === 'Payment cancelled') {
         // User cancelled - no message needed
-      } else if (!isGuest && error.response?.status === 401) {
+      } else if (!isGuest && !isAnonymous && error.response?.status === 401) {
         showError('Session expired. Please login and try again.');
         navigate(ROUTES.LOGIN);
       } else {
         const msg = error.message || 'Payment failed. Please try again.';
         setFailureDialog({ open: true, message: msg });
-        if (!isGuest) {
+        if (!isGuest && !isAnonymous) {
           enrollmentService.notifyPaymentFailed(
             courseId ? Number(courseId) : null,
             isMultiBundle ? bundleIds[0] : bundleId ? Number(bundleId) : null,
@@ -136,8 +163,41 @@ function Payment() {
           Amount: {formatCurrency(order.amount / 100, order.currency)}
         </Typography>
 
+        {isAnonymous && (
+          <Box sx={{ mb: 3 }}>
+            <TextField
+              label="Email Address"
+              type="email"
+              fullWidth
+              value={anonEmail}
+              onChange={(e) => {
+                setAnonEmail(e.target.value);
+                setEmailError('');
+                setAlreadyEnrolled(false);
+              }}
+              error={!!emailError}
+              helperText={emailError || 'This email will be used to create your account and access your courses.'}
+              disabled={processing}
+              required
+            />
+            {alreadyEnrolled && (
+              <Alert severity="warning" sx={{ mt: 2 }}>
+                This email is already enrolled in this course.{' '}
+                <RouterLink to={ROUTES.LOGIN} style={{ fontWeight: 600 }}>Log in to your account</RouterLink>
+                {' '}or{' '}
+                <RouterLink to="/forgot-password" style={{ fontWeight: 600 }}>reset your password</RouterLink>
+                {' '}to access it.
+              </Alert>
+            )}
+          </Box>
+        )}
+
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button variant="contained" onClick={handlePayNow} disabled={processing}>
+          <Button
+            variant="contained"
+            onClick={handlePayNow}
+            disabled={processing || (isAnonymous && !anonEmail.trim()) || alreadyEnrolled}
+          >
             {processing ? 'Processing...' : 'Pay Now'}
           </Button>
           <Button onClick={() => navigate(-1)} disabled={processing}>

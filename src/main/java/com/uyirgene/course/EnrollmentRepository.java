@@ -19,6 +19,15 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     /** Find enrollment by Razorpay order ID — used by webhook to confirm payment. */
     Optional<Enrollment> findByPaymentOrderId(String paymentOrderId);
 
+    /** Check if user is enrolled in a specific course with a given status. */
+    boolean existsByUserAndCourseAndStatusIn(User user, Course course, List<Enrollment.Status> statuses);
+
+    /** Check if user has any enrollment via any of the given bundle IDs. */
+    boolean existsByUserAndBundle_IdInAndStatusIn(User user, List<Long> bundleIds, List<Enrollment.Status> statuses);
+
+    /** Check if user is enrolled in a flagship program with a given status. */
+    boolean existsByUserAndFlagshipProgramAndStatusIn(User user, FlagshipProgram flagshipProgram, List<Enrollment.Status> statuses);
+
     /** Returns all course enrollments eligible for a completion reminder:
      *  course has reminderDays set, status is ENROLLED, reminder not yet sent. */
     @Query("SELECT e FROM Enrollment e JOIN FETCH e.user JOIN FETCH e.course c " +

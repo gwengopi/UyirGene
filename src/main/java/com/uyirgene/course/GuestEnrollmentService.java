@@ -7,6 +7,7 @@ import com.uyirgene.course.payment.dto.PaymentOrder;
 import com.uyirgene.exception.EntityNotFoundException;
 import com.uyirgene.exception.PaymentException;
 import com.uyirgene.user.User;
+import com.uyirgene.user.UserRepository;
 import com.uyirgene.user.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,6 +40,7 @@ import java.util.Optional;
 public class GuestEnrollmentService {
 
     private final EnrollmentRepository enrollmentRepo;
+    private final UserRepository userRepository;
     private final CourseRepository courseRepo;
     private final CoursePriceRepository coursePriceRepo;
     private final FlagshipProgramRepository flagshipProgramRepo;
@@ -543,6 +545,31 @@ public class GuestEnrollmentService {
             if (part.length() > 1) sb.append(part.substring(1));
         }
         return sb.length() > 0 ? sb.toString() : "Student";
+    }
+
+    /**
+     * Returns true if the given email already has an active enrollment for the specified item.
+     * Used as a pre-payment guard on the Payment page so users aren't charged twice.
+     */
+    @Transactional(readOnly = true)
+    public boolean isAlreadyEnrolled(String email, Long courseId, List<Long> bundleIds, Long flagshipProgramId) {
+        Optional<User> userOpt = userRepository.findByEmail(email.trim().toLowerCase());
+        if (userOpt.isEmpty()) return false;
+        User user = userOpt.get();
+        List<Enrollment.Status> active = List.of(Enrollment.Status.ENROLLED, Enrollment.Status.COMPLETED);
+
+        if (flagshipProgramId != null) {
+            FlagshipProgram program = flagshipProgramRepo.findById(flagshipProgramId).orElse(null);
+            return program != null && enrollmentRepo.existsByUserAndFlagshipProgramAndStatusIn(user, program, active);
+        }
+        if (bundleIds != null && !bundleIds.isEmpty()) {
+            return enrollmentRepo.existsByUserAndBundle_IdInAndStatusIn(user, bundleIds, active);
+        }
+        if (courseId != null) {
+            Course course = courseRepo.findById(courseId).orElse(null);
+            return course != null && enrollmentRepo.existsByUserAndCourseAndStatusIn(user, course, active);
+        }
+        return false;
     }
 
     private boolean isFreshGuestAccount(User user) {
