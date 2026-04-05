@@ -311,4 +311,36 @@ public class GuestEnrollmentController {
                 req.getEmail(), req.getCourseId(), req.getBundleIds(), req.getFlagshipProgramId());
         return ResponseEntity.ok(Map.of("enrolled", enrolled));
     }
+
+    // ── Free enrollment (no payment required) ────────────────────────────────
+
+    @PostMapping("/courses/{courseId}/free-enroll")
+    public ResponseEntity<?> freeEnrollCourse(
+            @PathVariable Long courseId,
+            @RequestBody Map<String, String> req) {
+        String email = req.get("email");
+        if (email == null || email.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("message", "Email is required"));
+        try {
+            guestEnrollmentService.enrollGuestFreeCourse(email, courseId);
+            return ResponseEntity.ok(Map.of("message", "Enrollment confirmed. Check your email for access details."));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/flagship/{programId}/free-enroll")
+    public ResponseEntity<?> freeEnrollFlagship(
+            @PathVariable Long programId,
+            @RequestBody Map<String, String> req) {
+        String email = req.get("email");
+        if (email == null || email.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("message", "Email is required"));
+        try {
+            guestEnrollmentService.enrollGuestFlagshipFree(email, programId);
+            return ResponseEntity.ok(Map.of("message", "Enrollment confirmed. Check your email for access details."));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
 }

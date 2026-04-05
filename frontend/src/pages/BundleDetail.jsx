@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Container,
   Grid,
@@ -37,7 +37,6 @@ import * as bundleService from '../services/bundleService';
 function BundleDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const { isAuthenticated } = useAuth();
   const { showSuccess, showError } = useToast();
   const { getImage, getCategoryLabel } = useConfig();
@@ -67,8 +66,25 @@ function BundleDetail() {
 
   const handleEnroll = async () => {
     if (!isAuthenticated()) {
-      showError('Please login to purchase this value pack');
-      navigate(ROUTES.LOGIN, { state: { from: location } });
+      setEnrolling(true);
+      try {
+        const result = await bundleService.startAnonMultiBundleEnrollment([bundle.id], selectedCountry, null);
+        const order = result?.order;
+        if (order) {
+          navigate(ROUTES.PAYMENT, {
+            state: {
+              bundleIds: [bundle.id],
+              courseName: bundle.title,
+              order,
+              anonymous: true,
+            },
+          });
+        }
+      } catch (error) {
+        showError(error.response?.data?.message || error.message || 'Failed to start enrollment');
+      } finally {
+        setEnrolling(false);
+      }
       return;
     }
 

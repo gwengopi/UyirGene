@@ -129,7 +129,7 @@ public class GuestEnrollmentService {
     public Enrollment confirmGuestCoursePayment(String email, Long courseId,
                                                  String razorpayPaymentId, String razorpayOrderId,
                                                  String signature) {
-        User user = userService.findOrCreateGuestUser(null, email, null);
+        User user = userService.findOrCreateGuestUser(deriveNameFromEmail(email), email, null);
         Course course = courseRepo.findById(courseId)
                 .orElseThrow(() -> new EntityNotFoundException("Course not found"));
 
@@ -237,7 +237,7 @@ public class GuestEnrollmentService {
     public Enrollment confirmGuestFlagshipPayment(String email, Long programId,
                                                    String razorpayPaymentId, String razorpayOrderId,
                                                    String signature) {
-        User user = userService.findOrCreateGuestUser(null, email, null);
+        User user = userService.findOrCreateGuestUser(deriveNameFromEmail(email), email, null);
         FlagshipProgram program = flagshipProgramRepo.findById(programId)
                 .orElseThrow(() -> new EntityNotFoundException("Flagship program not found"));
 
@@ -286,11 +286,12 @@ public class GuestEnrollmentService {
             String email, List<Long> bundleIds,
             String razorpayPaymentId, String razorpayOrderId, String signature,
             Long standaloneCourseId) {
-        User user = userService.findOrCreateGuestUser(null, email, null);
+        User user = userService.findOrCreateGuestUser(deriveNameFromEmail(email), email, null);
         List<Enrollment> enrollments = bundleService.confirmGuestMultiBundlePayment(
                 user, bundleIds, razorpayPaymentId, razorpayOrderId, signature, standaloneCourseId);
         // Send proper enrollment emails with magic link for guest users
-        if (!enrollments.isEmpty()) {
+        if (!enrollments.isEmpty() && user.getPassword() == null) {
+            // Passwordless guest/anonymous account — always send magic link regardless of account age
             boolean isNew = isFreshGuestAccount(user); // must check BEFORE generateMagicLinkToken sets the token
             String token = userService.generateMagicLinkToken(user);
             String magicLink = frontendUrl + "/magic-login?token=" + token;
@@ -511,13 +512,14 @@ public class GuestEnrollmentService {
      * the standard enrollment email.
      */
     private void sendEnrollmentEmailWithMagicLink(User user, Course course) {
-        if (user.getMagicLinkToken() != null || isFreshGuestAccount(user)) {
+        if (user.getPassword() == null) {
+            // Passwordless guest/anonymous account — always send magic link regardless of account age
             boolean isNew = isFreshGuestAccount(user);
             String token = userService.generateMagicLinkToken(user);
             String magicLink = frontendUrl + "/magic-login?token=" + token;
             mailService.sendGuestEnrollmentSuccess(user, course, magicLink, isNew);
         } else {
-            // Existing user who has a real password — send standard enrollment email
+            // Existing user with a real password — send standard enrollment email
             mailService.sendEnrollmentSuccess(user, course);
         }
     }
@@ -528,7 +530,8 @@ public class GuestEnrollmentService {
      */
     private void enrollInFlagshipCoursesForGuest(User user, FlagshipProgram program) {
         List<String> courseTitles = enrollmentService.enrollInFlagshipLinkedCourses(user, program);
-        if (user.getMagicLinkToken() != null || isFreshGuestAccount(user)) {
+        if (user.getPassword() == null) {
+            // Passwordless guest/anonymous account — always send magic link regardless of account age
             boolean isNew = isFreshGuestAccount(user);
             String token = userService.generateMagicLinkToken(user);
             String magicLink = frontendUrl + "/magic-login?token=" + token;
@@ -602,5 +605,57 @@ public class GuestEnrollmentService {
         return user.getCreatedAt() != null
                 && user.getCreatedAt().isAfter(LocalDateTime.now().minusMinutes(5))
                 && user.getMagicLinkToken() == null;
+    }
+
+    // ==================== Free Enrollment (no payment) ====================
+
+    @Transactional
+    public void enrollGuestFreeCourse(String email, Long courseId) {
+        User user = userService.findOrCreateGuestUser(deriveNameFromEmail(email), email, null);
+        Course course = courseRepo.findById(courseId)
+                .orElseThrow(() -> new EntityNotFoundException("Course not found"));
+
+        Optional<Enrollment> existing = enrollmentRepo.findByUserAndCourse(user, course);
+        if (existing.isPresent()) {
+            Enrollment e = existing.get();
+            if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) {
+                return; // idempotent — already enrolled
+            }
+            e.setStatus(Enrollment.Status.ENROLLED);
+            enrollmentRepo.save(e);
+        } else {
+            Enrollment e = Enrollment.builder()
+                    .user(user).course(course)
+                    .enrolledAt(LocalDateTime.now())
+                    .status(Enrollment.Status.ENROLLED)
+                    .build();
+            enrollmentRepo.save(e);
+        }
+        sendEnrollmentEmailWithMagicLink(user, course);
+    }
+
+    @Transactional
+    public void enrollGuestFlagshipFree(String email, Long programId) {
+        User user = userService.findOrCreateGuestUser(deriveNameFromEmail(email), email, null);
+        FlagshipProgram program = flagshipProgramRepo.findById(programId)
+                .orElseThrow(() -> new EntityNotFoundException("Flagship program not found"));
+
+        Optional<Enrollment> existing = enrollmentRepo.findByUserAndFlagshipProgram(user, program);
+        if (existing.isPresent()) {
+            Enrollment e = existing.get();
+            if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) {
+                return; // idempotent
+            }
+            e.setStatus(Enrollment.Status.ENROLLED);
+            enrollmentRepo.save(e);
+        } else {
+            Enrollment e = Enrollment.builder()
+                    .user(user).flagshipProgram(program)
+                    .enrolledAt(LocalDateTime.now())
+                    .status(Enrollment.Status.ENROLLED)
+                    .build();
+            enrollmentRepo.save(e);
+        }
+        enrollInFlagshipCoursesForGuest(user, program);
     }
 }

@@ -15,9 +15,10 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import QuizIcon from '@mui/icons-material/Quiz';
 import DownloadIcon from '@mui/icons-material/Download';
 import CardMembershipIcon from '@mui/icons-material/CardMembership';
-import { SEO, Breadcrumb } from '../components/common';
-import { CertificateNameCard, GuestEnrollModal } from '../components/course';
+import { SEO, Breadcrumb, GuestEmailDialog } from '../components/common';
+import { CertificateNameCard } from '../components/course';
 import { flagshipService } from '../services/flagshipService';
+import api from '../services/api';
 import { useAuth, useToast } from '../store';
 import { formatCurrency } from '../utils/formatters';
 import { ROUTES, SUPPORTED_COUNTRIES } from '../utils/constants';
@@ -209,7 +210,8 @@ function FlagshipDetail() {
   const [selectedCountry, setSelectedCountry] = useState('US');
   const [enrolling, setEnrolling] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
-  const [guestModalOpen, setGuestModalOpen] = useState(false);
+  const [freeEmailDialogOpen, setFreeEmailDialogOpen] = useState(false);
+  const [freeEnrolling, setFreeEnrolling] = useState(false);
   const [enrollmentStatus, setEnrollmentStatus] = useState(null);
   const [enrolledProgramData, setEnrolledProgramData] = useState(null); // includes canDownloadCertificate
 
@@ -247,47 +249,32 @@ function FlagshipDetail() {
     return () => { cancelled = true; };
   }, [slug, isAuthenticated]);
 
-  const handleGuestEnroll = useCallback(async (guestInfo) => {
-    setEnrolling(true);
+  // Free flagship enrollment for unauthenticated users — email only, no payment
+  const handleFreeEnroll = useCallback(async (email) => {
+    setFreeEnrolling(true);
     try {
-      const result = await flagshipService.startGuestEnrollment(
-        program.id,
-        guestInfo,
-        selectedCountry !== 'IN' ? selectedCountry : null
-      );
-      const order = result?.orderId ? result : null;
-      setGuestModalOpen(false);
-      if (order) {
-        navigate(ROUTES.PAYMENT, {
-          state: {
-            flagshipProgramId: program.id,
-            courseName: program.title,
-            order,
-            guestEmail: guestInfo.email,
-          },
-        });
-        return;
-      }
+      const enrolled = await api.post('/api/guest/check-enrollment', {
+        email, flagshipProgramId: Number(program.id),
+      }).then(r => r.data.enrolled).catch(() => false);
+      if (enrolled) return { alreadyEnrolled: true };
+
+      await api.post(`/api/guest/flagship/${program.id}/free-enroll`, { email });
       setIsEnrolled(true);
       setEnrollmentStatus('ENROLLED');
       showSuccess('Successfully enrolled! Check your email for your access link.');
+      return {};
     } catch (err) {
-      if (err.response?.status === 409) {
-        setGuestModalOpen(false);
-        showError('You are already enrolled. Please log in to access your program.');
-      } else {
-        showError(err.response?.data?.message || err.message || 'Failed to enroll');
-      }
+      showError(err.response?.data?.message || err.message || 'Failed to enroll');
+      return {};
     } finally {
-      setEnrolling(false);
+      setFreeEnrolling(false);
     }
-  }, [program, selectedCountry, navigate, showError, showSuccess]);
+  }, [program, showError, showSuccess]);
 
   const handleEnroll = useCallback(async () => {
     if (!isAuthenticated()) {
-      // Paid program: skip popup — Razorpay collects email/phone
       const countryCode = selectedCountry !== 'IN' ? selectedCountry : null;
-      const isPaid = program?.price > 0;
+      const isPaid = (program?.price > 0) || (program?.countryPrices?.some(cp => cp.amount > 0));
       if (isPaid) {
         setEnrolling(true);
         try {
@@ -302,8 +289,8 @@ function FlagshipDetail() {
         }
         return;
       }
-      // Free program: still need contact details
-      setGuestModalOpen(true);
+      // Free program: collect email only
+      setFreeEmailDialogOpen(true);
       return;
     }
     if (isEnrolled) {
@@ -711,12 +698,12 @@ function FlagshipDetail() {
 
       </Container>
 
-      {/* Guest Enrollment Modal */}
-      <GuestEnrollModal
-        open={guestModalOpen}
-        onClose={() => setGuestModalOpen(false)}
-        onSubmit={handleGuestEnroll}
-        loading={enrolling}
+      {/* Free Program Email Dialog */}
+      <GuestEmailDialog
+        open={freeEmailDialogOpen}
+        onClose={() => setFreeEmailDialogOpen(false)}
+        onSubmit={handleFreeEnroll}
+        loading={freeEnrolling}
         courseName={program?.title}
       />
     </>
