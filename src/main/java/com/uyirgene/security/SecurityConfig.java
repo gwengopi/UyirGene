@@ -56,6 +56,7 @@ public class SecurityConfig {
                             "/api/careers/**",
                             "/api/marketing/unsubscribe",
                             "/api/payment/webhook",
+                            "/api/payment/guest/failed",
                             "/api/analytics/pageview",
                             "/actuator/health"
                     ).permitAll()

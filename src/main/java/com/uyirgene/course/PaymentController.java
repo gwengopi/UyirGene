@@ -33,6 +33,16 @@ public class PaymentController {
         private String reason;
     }
 
+    @Data
+    public static class GuestPaymentFailedRequest {
+        private String email;
+        private String name;
+        private Long courseId;
+        private Long bundleId;
+        private Long flagshipId;
+        private String reason;
+    }
+
     @PostMapping("/failed")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> notifyPaymentFailed(@RequestBody PaymentFailedRequest req) {
@@ -68,6 +78,39 @@ public class PaymentController {
             );
         } catch (Exception e) {
             log.error("Failed to send payment failure notification: {}", e.getMessage());
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/guest/failed")
+    public ResponseEntity<?> notifyGuestPaymentFailed(@RequestBody GuestPaymentFailedRequest req) {
+        if (req.getEmail() == null || req.getEmail().isBlank()) {
+            return ResponseEntity.ok().build();
+        }
+        try {
+            String courseTitle;
+            String retryUrl;
+
+            if (req.getCourseId() != null) {
+                Course course = courseRepository.findById(req.getCourseId()).orElse(null);
+                courseTitle = course != null ? course.getTitle() : "your course";
+                retryUrl = baseUrl + "/courses/" + req.getCourseId();
+            } else if (req.getBundleId() != null) {
+                CourseBundle bundle = bundleRepository.findById(req.getBundleId()).orElse(null);
+                courseTitle = bundle != null ? bundle.getTitle() : "your bundle";
+                retryUrl = baseUrl + "/bundles/" + req.getBundleId();
+            } else if (req.getFlagshipId() != null) {
+                FlagshipProgram program = flagshipProgramRepository.findById(req.getFlagshipId()).orElse(null);
+                courseTitle = program != null ? program.getTitle() : "your program";
+                retryUrl = baseUrl + "/flagship/" + req.getFlagshipId();
+            } else {
+                courseTitle = "your course";
+                retryUrl = baseUrl + "/courses";
+            }
+
+            mailService.sendPaymentFailed(req.getEmail(), req.getName(), courseTitle, req.getReason(), retryUrl);
+        } catch (Exception e) {
+            log.error("Failed to send guest payment failure notification: {}", e.getMessage());
         }
         return ResponseEntity.ok().build();
     }

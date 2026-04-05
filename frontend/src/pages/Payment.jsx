@@ -143,6 +143,14 @@ function Payment() {
             msg,
             flagshipProgramId ? Number(flagshipProgramId) : null
           );
+        } else if (effectiveEmail) {
+          api.post('/api/payment/guest/failed', {
+            email: effectiveEmail,
+            courseId: courseId ? Number(courseId) : null,
+            bundleId: isMultiBundle ? bundleIds[0] : bundleId ? Number(bundleId) : null,
+            flagshipId: flagshipProgramId ? Number(flagshipProgramId) : null,
+            reason: msg,
+          }).catch(() => {});
         }
       }
     } finally {

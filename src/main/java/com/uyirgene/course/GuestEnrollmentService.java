@@ -132,18 +132,31 @@ public class GuestEnrollmentService {
         User user = userService.findOrCreateGuestUser(null, email, null);
         Course course = courseRepo.findById(courseId)
                 .orElseThrow(() -> new EntityNotFoundException("Course not found"));
-        Enrollment e = enrollmentRepo.findByUserAndCourse(user, course)
-                .orElseThrow(() -> new EntityNotFoundException("Enrollment not found. Please restart enrollment."));
 
-        if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) {
-            return e; // idempotent
+        Optional<Enrollment> existing = enrollmentRepo.findByUserAndCourse(user, course);
+        Enrollment e;
+        if (existing.isPresent()) {
+            e = existing.get();
+            if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) {
+                return e; // idempotent
+            }
+            // Pending enrollment exists (guest modal flow) — validate order ID matches
+            if (e.getPaymentOrderId() != null && !e.getPaymentOrderId().equals(razorpayOrderId)) {
+                throw new PaymentException("Payment order does not match this enrollment");
+            }
+        } else {
+            // No pending enrollment — anonymous flow where order was created without a user
+            e = Enrollment.builder()
+                    .user(user).course(course)
+                    .enrolledAt(LocalDateTime.now())
+                    .status(Enrollment.Status.PENDING)
+                    .build();
         }
-        if (e.getPaymentOrderId() == null || !e.getPaymentOrderId().equals(razorpayOrderId)) {
-            throw new PaymentException("Payment order does not match this enrollment");
-        }
+
         boolean ok = paymentProvider.verifySignature(razorpayOrderId, razorpayPaymentId, signature);
         if (!ok) throw new PaymentException("Invalid payment signature");
 
+        e.setPaymentOrderId(razorpayOrderId);
         e.setStatus(Enrollment.Status.ENROLLED);
         Enrollment saved = enrollmentRepo.save(e);
         sendEnrollmentEmailWithMagicLink(user, course);
@@ -227,18 +240,31 @@ public class GuestEnrollmentService {
         User user = userService.findOrCreateGuestUser(null, email, null);
         FlagshipProgram program = flagshipProgramRepo.findById(programId)
                 .orElseThrow(() -> new EntityNotFoundException("Flagship program not found"));
-        Enrollment e = enrollmentRepo.findByUserAndFlagshipProgram(user, program)
-                .orElseThrow(() -> new EntityNotFoundException("Enrollment not found. Please restart enrollment."));
 
-        if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) {
-            return e;
+        Optional<Enrollment> existing = enrollmentRepo.findByUserAndFlagshipProgram(user, program);
+        Enrollment e;
+        if (existing.isPresent()) {
+            e = existing.get();
+            if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) {
+                return e; // idempotent
+            }
+            // Pending enrollment exists (guest modal flow) — validate order ID matches
+            if (e.getPaymentOrderId() != null && !e.getPaymentOrderId().equals(razorpayOrderId)) {
+                throw new PaymentException("Payment order does not match this enrollment");
+            }
+        } else {
+            // No pending enrollment — anonymous flow where order was created without a user
+            e = Enrollment.builder()
+                    .user(user).flagshipProgram(program)
+                    .enrolledAt(LocalDateTime.now())
+                    .status(Enrollment.Status.PENDING)
+                    .build();
         }
-        if (e.getPaymentOrderId() == null || !e.getPaymentOrderId().equals(razorpayOrderId)) {
-            throw new PaymentException("Payment order does not match this enrollment");
-        }
+
         boolean ok = paymentProvider.verifySignature(razorpayOrderId, razorpayPaymentId, signature);
         if (!ok) throw new PaymentException("Invalid payment signature");
 
+        e.setPaymentOrderId(razorpayOrderId);
         e.setStatus(Enrollment.Status.ENROLLED);
         Enrollment saved = enrollmentRepo.save(e);
         enrollInFlagshipCoursesForGuest(user, program);
