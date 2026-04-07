@@ -290,8 +290,8 @@ public class GuestEnrollmentService {
         List<Enrollment> enrollments = bundleService.confirmGuestMultiBundlePayment(
                 user, bundleIds, razorpayPaymentId, razorpayOrderId, signature, standaloneCourseId);
         // Send proper enrollment emails with magic link for guest users
-        if (!enrollments.isEmpty() && user.getPassword() == null) {
-            // Passwordless guest/anonymous account — always send magic link regardless of account age
+        if (!enrollments.isEmpty()) {
+            // Always send magic link in guest/anonymous flow — user is not logged in
             boolean isNew = isFreshGuestAccount(user); // must check BEFORE generateMagicLinkToken sets the token
             String token = userService.generateMagicLinkToken(user);
             String magicLink = frontendUrl + "/magic-login?token=" + token;
@@ -512,16 +512,12 @@ public class GuestEnrollmentService {
      * the standard enrollment email.
      */
     private void sendEnrollmentEmailWithMagicLink(User user, Course course) {
-        if (user.getPassword() == null) {
-            // Passwordless guest/anonymous account — always send magic link regardless of account age
-            boolean isNew = isFreshGuestAccount(user);
-            String token = userService.generateMagicLinkToken(user);
-            String magicLink = frontendUrl + "/magic-login?token=" + token;
-            mailService.sendGuestEnrollmentSuccess(user, course, magicLink, isNew);
-        } else {
-            // Existing user with a real password — send standard enrollment email
-            mailService.sendEnrollmentSuccess(user, course);
-        }
+        // Always send magic link in guest/anonymous flow — user is not logged in and needs
+        // the link to access their course regardless of whether they have a password set.
+        boolean isNew = isFreshGuestAccount(user);
+        String token = userService.generateMagicLinkToken(user);
+        String magicLink = frontendUrl + "/magic-login?token=" + token;
+        mailService.sendGuestEnrollmentSuccess(user, course, magicLink, isNew);
     }
 
     /**
@@ -530,25 +526,14 @@ public class GuestEnrollmentService {
      */
     private void enrollInFlagshipCoursesForGuest(User user, FlagshipProgram program) {
         List<String> courseTitles = enrollmentService.enrollInFlagshipLinkedCourses(user, program);
-        if (user.getPassword() == null) {
-            // Passwordless guest/anonymous account — always send magic link regardless of account age
-            boolean isNew = isFreshGuestAccount(user);
-            String token = userService.generateMagicLinkToken(user);
-            String magicLink = frontendUrl + "/magic-login?token=" + token;
-            if (courseTitles.isEmpty()) {
-                mailService.sendGuestEnrollmentSuccess(user, program, magicLink, isNew);
-            } else {
-                mailService.sendGuestBundleEnrollmentSuccess(user, program.getTitle(), courseTitles, magicLink, isNew);
-            }
+        // Always send magic link in guest/anonymous flow — user is not logged in
+        boolean isNew = isFreshGuestAccount(user);
+        String token = userService.generateMagicLinkToken(user);
+        String magicLink = frontendUrl + "/magic-login?token=" + token;
+        if (courseTitles.isEmpty()) {
+            mailService.sendGuestEnrollmentSuccess(user, program, magicLink, isNew);
         } else {
-            // Existing user with a real password — send standard email
-            if (courseTitles.isEmpty()) {
-                mailService.sendEnrollmentSuccess(user, program);
-            } else {
-                mailService.sendBundleEnrollmentSuccess(user.getEmail(),
-                        user.getName() != null ? user.getName() : user.getEmail(),
-                        program.getTitle(), courseTitles);
-            }
+            mailService.sendGuestBundleEnrollmentSuccess(user, program.getTitle(), courseTitles, magicLink, isNew);
         }
     }
 
