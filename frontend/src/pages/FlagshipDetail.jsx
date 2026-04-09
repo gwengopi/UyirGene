@@ -458,7 +458,7 @@ function FlagshipDetail() {
                   value={selectedOption || null}
                   onChange={(_, newValue) => { if (newValue) setSelectedCountry(newValue.code); }}
                   renderInput={(params) => (
-                    <TextField {...params} label="Select your country" size="small" />
+                    <TextField {...params} label="Select your country" size="small" InputLabelProps={{ ...params.InputLabelProps, sx: { fontWeight: 800, color: 'primary.main', '&.MuiInputLabel-shrink': { fontWeight: 800, color: 'primary.main', fontSize: '1rem' } } }} />
                   )}
                   isOptionEqualToValue={(option, value) => option.code === value?.code}
                   disableClearable
@@ -631,7 +631,7 @@ function FlagshipDetail() {
                     value={selectedOption || null}
                     onChange={(_, newValue) => { if (newValue) setSelectedCountry(newValue.code); }}
                     renderInput={(params) => (
-                      <TextField {...params} label="Select your country" size="small" />
+                      <TextField {...params} label="Select your country" size="small" InputLabelProps={{ ...params.InputLabelProps, sx: { fontWeight: 800, color: 'primary.main', '&.MuiInputLabel-shrink': { fontWeight: 800, color: 'primary.main', fontSize: '1rem' } } }} />
                     )}
                     isOptionEqualToValue={(option, value) => option.code === value?.code}
                     disableClearable

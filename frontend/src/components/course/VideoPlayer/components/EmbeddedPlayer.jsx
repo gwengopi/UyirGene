@@ -182,7 +182,7 @@ function EmbeddedPlayer({ src, title, onProgress, onComplete, onPlay, initialPos
             position: 'absolute', top: 0, left: 0,
             width: '100%', height: '100%', border: 'none',
           }}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+          allow="accelerometer; autoplay; encrypted-media; gyroscope; fullscreen"
           allowFullScreen
           sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"
         />

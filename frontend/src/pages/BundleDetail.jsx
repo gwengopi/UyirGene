@@ -453,7 +453,7 @@ function BundleDetail() {
                 getOptionLabel={(option) => `${option.name} (${option.currency})`}
                 value={SUPPORTED_COUNTRIES.find((c) => c.code === selectedCountry) || null}
                 onChange={(_, newVal) => setSelectedCountry(newVal?.code || 'IN')}
-                renderInput={(params) => <TextField {...params} label="Select your country" />}
+                renderInput={(params) => <TextField {...params} label="Select your country" InputLabelProps={{ ...params.InputLabelProps, sx: { fontWeight: 800, color: 'primary.main', '&.MuiInputLabel-shrink': { fontWeight: 800, color: 'primary.main', fontSize: '1rem' } } }} />}
                 sx={{ mb: 2 }}
               />
             )}
