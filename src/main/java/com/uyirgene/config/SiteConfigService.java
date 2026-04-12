@@ -188,9 +188,9 @@ public class SiteConfigService {
      * Atomically increment the certificate sequence counter and return the
      * formatted certificate number using the configured format pattern.
      *
-     * Uses a PostgreSQL sequence (cert_number_seq) via NEXTVAL — sequences are
-     * atomic, never repeat, and are completely independent of any JPA session,
-     * Spring transaction, or OSIV EntityManager on the calling thread.
+     * Uses a transactional UPDATE on site_config.certNumberSeq so that if the
+     * surrounding transaction rolls back (e.g. PDF generation failure), the counter
+     * is also rolled back — preventing gaps in the certificate number sequence.
      *
      * Supported tokens in the format string:
      *   {YEAR}   – 4-digit year        e.g. 2026
@@ -200,6 +200,7 @@ public class SiteConfigService {
      *   {SEQ}    – sequence (no pad)   e.g. 42
      *   {SEQ:N}  – sequence zero-padded to N digits  e.g. 00042
      */
+    @Transactional
     public String getNextFormattedCertNumber() {
         // Use direct JDBC — bypasses any Hibernate L1/L2 cache so we always see
         // the format the admin saved, not a cached copy from an earlier request.
@@ -216,15 +217,21 @@ public class SiteConfigService {
             log.warn("[CertSeq] certNumberFormat not found in DB — using default '{}'", format);
         }
 
-        // Safety net: create the sequence inline in case @PostConstruct failed silently.
-        // CREATE SEQUENCE IF NOT EXISTS is idempotent, so this adds no overhead on the happy path.
-        try {
-            jdbcTemplate.execute("CREATE SEQUENCE IF NOT EXISTS cert_number_seq");
-        } catch (Exception ignored) {}
+        // Transactional increment: this UPDATE participates in the caller's transaction.
+        // If certificate generation fails and the transaction rolls back, this UPDATE
+        // also rolls back — the counter is restored and no sequence number is skipped.
+        Long nextSeq = jdbcTemplate.queryForObject(
+                "UPDATE site_config SET config_value = (CAST(config_value AS bigint) + 1)::text " +
+                "WHERE config_key = 'certNumberSeq' AND is_active = true " +
+                "RETURNING CAST(config_value AS bigint)",
+                Long.class);
 
-        Long nextSeq = jdbcTemplate.queryForObject("SELECT NEXTVAL('cert_number_seq')", Long.class);
+        if (nextSeq == null) {
+            throw new RuntimeException("[CertSeq] certNumberSeq row not found in site_config — sequence not initialized");
+        }
+
         String result = applyCertFormat(format, nextSeq);
-        log.info("[CertSeq] format='{}' NEXTVAL={} → certificateId='{}'", format, nextSeq, result);
+        log.info("[CertSeq] format='{}' seq={} → certificateId='{}'", format, nextSeq, result);
         return result;
     }
 
@@ -234,29 +241,27 @@ public class SiteConfigService {
      * generated yet since the sequence was created/reset.
      */
     public long getCurrentCertSeq() {
-        return jdbcTemplate.query(
-                "SELECT last_value, is_called FROM cert_number_seq",
-                rs -> {
-                    if (rs.next()) {
-                        long lastValue = rs.getLong("last_value");
-                        boolean isCalled = rs.getBoolean("is_called");
-                        // is_called=true  → last_value IS the last number handed out
-                        // is_called=false → sequence hasn't been used; last_value is the
-                        //                   next value that NEXTVAL would return, so "current" = last_value - 1
-                        return isCalled ? lastValue : lastValue - 1;
-                    }
-                    return 0L;
-                }
-        );
+        try {
+            String val = jdbcTemplate.queryForObject(
+                    "SELECT config_value FROM site_config WHERE config_key = 'certNumberSeq' AND is_active = true",
+                    String.class);
+            return val != null ? Long.parseLong(val.trim()) : 0L;
+        } catch (Exception e) {
+            log.warn("[CertSeq] Could not read certNumberSeq: {}", e.getMessage());
+            return 0L;
+        }
     }
 
     /**
      * Reset the certificate sequence so the NEXT certificate gets number (value + 1).
      * Equivalent to the old behaviour where the admin stored N and the first cert was N+1.
      */
+    @Transactional
     public void resetCertSeq(long value) {
-        // SETVAL(seq, N, true) → next NEXTVAL returns N+1
-        jdbcTemplate.queryForObject("SELECT SETVAL('cert_number_seq', ?, true)", Long.class, value);
+        jdbcTemplate.update(
+                "UPDATE site_config SET config_value = ? WHERE config_key = 'certNumberSeq'",
+                String.valueOf(value));
+        log.info("[CertSeq] Sequence reset to {}", value);
     }
 
     /**
@@ -291,44 +296,44 @@ public class SiteConfigService {
     }
 
     /**
-     * Ensure cert_number_seq exists every time the application starts.
-     * This is a safety net in case the V44 Flyway migration did not run
-     * (e.g., was marked failed in flyway_schema_history).
-     * CREATE SEQUENCE IF NOT EXISTS is idempotent — safe to call repeatedly.
+     * One-time migration on startup: if the old PostgreSQL sequence (cert_number_seq) exists
+     * and has been used, sync site_config.certNumberSeq to match so that certificate
+     * numbering continues from where it left off without gaps or duplicates.
+     * Safe to run on every startup — the "never go backwards" guard prevents corruption.
      */
     @PostConstruct
-    public void ensureCertSequenceExists() {
+    public void syncCertSeqFromLegacySequence() {
         try {
-            jdbcTemplate.execute("CREATE SEQUENCE IF NOT EXISTS cert_number_seq");
-
-            // If the sequence has never been called, seed from certNumberSeq site_config row
-            // so the first certificate number continues from wherever the admin left off.
-            Boolean isCalled = jdbcTemplate.query(
-                    "SELECT is_called FROM cert_number_seq",
-                    rs -> rs.next() ? rs.getBoolean("is_called") : false
+            Boolean seqExists = jdbcTemplate.query(
+                    "SELECT EXISTS(SELECT 1 FROM pg_sequences WHERE schemaname = 'public' AND sequencename = 'cert_number_seq')",
+                    rs -> rs.next() ? rs.getBoolean(1) : false
             );
-            if (Boolean.FALSE.equals(isCalled)) {
-                repository.findByKey("certNumberSeq").ifPresent(cfg -> {
-                    try {
-                        long seed = Long.parseLong(cfg.getValue().trim());
-                        if (seed > 0) {
-                            jdbcTemplate.queryForObject(
-                                    "SELECT SETVAL('cert_number_seq', ?, true)", Long.class, seed);
-                            log.info("[CertSeq] Sequence seeded from certNumberSeq config: {}", seed);
+            if (Boolean.TRUE.equals(seqExists)) {
+                Long pgLastValue = jdbcTemplate.query(
+                        "SELECT last_value, is_called FROM cert_number_seq",
+                        rs -> {
+                            if (rs.next()) {
+                                long lv = rs.getLong("last_value");
+                                return rs.getBoolean("is_called") ? lv : 0L;
+                            }
+                            return 0L;
                         }
-                    } catch (NumberFormatException ignored) { }
-                });
-            }
-
-            // Log current sequence state for diagnostic visibility
-            jdbcTemplate.query("SELECT last_value, is_called FROM cert_number_seq", rs -> {
-                if (rs.next()) {
-                    log.info("[CertSeq] cert_number_seq ready: last_value={}, is_called={}",
-                            rs.getLong("last_value"), rs.getBoolean("is_called"));
+                );
+                if (pgLastValue != null && pgLastValue > 0) {
+                    int updated = jdbcTemplate.update(
+                            "UPDATE site_config SET config_value = ? " +
+                            "WHERE config_key = 'certNumberSeq' AND CAST(config_value AS bigint) < ?",
+                            String.valueOf(pgLastValue), pgLastValue);
+                    if (updated > 0) {
+                        log.info("[CertSeq] Synced certNumberSeq from legacy pg sequence: {}", pgLastValue);
+                    }
                 }
-            });
+            }
+            String current = jdbcTemplate.queryForObject(
+                    "SELECT config_value FROM site_config WHERE config_key = 'certNumberSeq'", String.class);
+            log.info("[CertSeq] certNumberSeq ready: {}", current);
         } catch (Exception ex) {
-            log.error("[CertSeq] Failed to ensure cert_number_seq exists: {}", ex.getMessage(), ex);
+            log.error("[CertSeq] Failed to sync certNumberSeq from legacy sequence: {}", ex.getMessage(), ex);
         }
     }
 
@@ -409,9 +414,8 @@ public class SiteConfigService {
         createIfNotExists("marketingFooterAddress", "", "TEXT", "MARKETING", "Physical address shown in marketing email footer (leave blank to use CONTACT_ADDRESS)");
 
         // Certificate Number Settings
-        // certNumberSeq is intentionally NOT seeded here — the counter is now maintained
-        // by the PostgreSQL sequence cert_number_seq (see migration V44).
         createIfNotExists("certNumberFormat", "UG-{YEAR}-{SEQ:5}", "TEXT", "CERTIFICATE", "Format for auto-generated certificate numbers. Tokens: {YEAR},{YY},{MONTH},{DD},{SEQ},{SEQ:N}");
+        createIfNotExists("certNumberSeq", "0", "TEXT", "CERTIFICATE", "Auto-incrementing counter for certificate numbers (transactional — rolls back on failure)");
     }
 
     private void createIfNotExists(String key, String value, String type, String category, String description) {

@@ -16,6 +16,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
@@ -56,6 +57,7 @@ public class CertificateController {
 
     @PostMapping("/courses/{id}/certificate")
     @PreAuthorize("isAuthenticated()")
+    @Transactional
     @Operation(summary = "Generate certificate for a completed course")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Certificate generated successfully"),
