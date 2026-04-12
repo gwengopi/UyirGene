@@ -85,9 +85,23 @@ const TestingDetail = lazy(() => import('./pages/services/TestingDetail'));
 const ClinicalResearch = lazy(() => import('./pages/services/ClinicalDiagnostics'));
 
 
-// Loading fallback component
+// Loading fallback component — must use document flow (not position:fixed) so the
+// Footer stays below the fold. A fixed-position loader gives the main area 0 layout
+// height, which puts the Footer in the viewport; when the real page renders the
+// Footer jumps down causing a catastrophic CLS (~0.8+).
 function PageLoader() {
-  return <LoadingSpinner fullScreen text="Loading..." />;
+  return (
+    <Box
+      sx={{
+        minHeight: 'calc(100vh - 64px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <LoadingSpinner text="Loading..." />
+    </Box>
+  );
 }
 
 // Theme wrapper that uses UI context for theme mode

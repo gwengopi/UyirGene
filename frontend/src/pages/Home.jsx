@@ -243,18 +243,33 @@ function Home() {
           },
         }}
       >
-        {/* Full background image with slow zoom animation */}
+        {/* Full background image — using <img> instead of background-image so the
+            browser can treat it as the LCP candidate and fetchpriority works. */}
         <Box
           sx={{
             position: 'absolute',
             top: 0, left: 0, right: 0, bottom: 0,
-            backgroundImage: `url(${getImage('HERO_MAIN', IMAGES.HERO_MAIN)})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center 40%',
-            animation: 'heroBgZoom 20s ease-out forwards',
+            overflow: 'hidden',
             zIndex: 0,
           }}
-        />
+        >
+          <Box
+            component="img"
+            src={getImage('HERO_MAIN', IMAGES.HERO_MAIN)}
+            alt=""
+            aria-hidden="true"
+            fetchPriority="high"
+            loading="eager"
+            sx={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: 'center 40%',
+              animation: 'heroBgZoom 20s ease-out forwards',
+              display: 'block',
+            }}
+          />
+        </Box>
 
         {/* Gradient overlay for text readability */}
         <Box

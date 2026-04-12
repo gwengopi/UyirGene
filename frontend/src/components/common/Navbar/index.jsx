@@ -283,8 +283,11 @@ function Navbar() {
               component="img"
               src={getImage('LOGO_SMALL', IMAGES.LOGO_SMALL)}
               alt="Uyirgene International"
+              width={136}
+              height={34}
               sx={{
                 height: { xs: 28, md: 34 },
+                width: 'auto',
                 filter: 'brightness(1.2)',
               }}
             />
