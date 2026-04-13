@@ -258,6 +258,12 @@ function Home() {
           <Box
             component="img"
             src={getImage('HERO_MAIN', IMAGES.HERO_MAIN)}
+            srcSet={[
+              `${getImage('HERO_MAIN', IMAGES.HERO_MAIN).replace('rs=w:1920,h:1080,cg:true,m/qt=q:95', 'rs=w:750,h:1334,cg:true,m/qt=q:75')} 750w`,
+              `${getImage('HERO_MAIN', IMAGES.HERO_MAIN).replace('rs=w:1920,h:1080,cg:true,m/qt=q:95', 'rs=w:1280,h:720,cg:true,m/qt=q:85')} 1280w`,
+              `${getImage('HERO_MAIN', IMAGES.HERO_MAIN)} 1920w`,
+            ].join(', ')}
+            sizes="100vw"
             alt=""
             aria-hidden="true"
             fetchPriority="high"

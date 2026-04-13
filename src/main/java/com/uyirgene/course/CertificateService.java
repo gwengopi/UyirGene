@@ -300,10 +300,20 @@ public class CertificateService {
 
     private String generateUniqueCertificateId() {
         try {
-            return siteConfigService.getNextFormattedCertNumber();
+            // If the admin reset the sequence to a value already in use, keep incrementing
+            // until we find a number that hasn't been issued yet.
+            String certId = siteConfigService.getNextFormattedCertNumber();
+            int attempts = 0;
+            while (certRepo.findByCertificateId(certId).isPresent()) {
+                log.warn("[CertSeq] Certificate ID '{}' already exists — skipping to next number", certId);
+                certId = siteConfigService.getNextFormattedCertNumber();
+                if (++attempts > 1000) {
+                    throw new RuntimeException("[CertSeq] Could not find a unique certificate ID after 1000 attempts — check sequence configuration");
+                }
+            }
+            return certId;
         } catch (Exception ex) {
-            // Log the full stack trace so we know exactly why the sequence call failed
-            log.error("[CertSeq] NEXTVAL failed — falling back to UUID. Root cause:", ex);
+            log.error("[CertSeq] Certificate ID generation failed — falling back to UUID. Root cause:", ex);
             return "CERT-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase();
         }
     }
