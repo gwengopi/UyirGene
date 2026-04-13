@@ -213,6 +213,8 @@ function Home() {
           display: 'flex',
           alignItems: 'center',
           overflow: 'hidden',
+          /* Dark fallback shown while the hero image is loading — prevents white flash */
+          backgroundColor: '#1a2a35',
           /* Keyframes used only inside this hero section */
           '@keyframes heroFadeUp': {
             from: { opacity: 0, transform: 'translateY(40px)' },
