@@ -17,7 +17,6 @@ public class VideoProgressService {
     private final FlagshipVideoRepository flagshipVideoRepo;
     private final EnrollmentRepository enrollmentRepo;
     private final EnrollmentService enrollmentService;
-    private final CertificateService certificateService;
     private final CurrentUserService currentUserService;
 
     @Transactional
@@ -45,7 +44,8 @@ public class VideoProgressService {
         });
         if (allCompleted) {
             enrollmentService.markCompleted(e);
-            certificateService.generateCertificate(user, v.getCourse());
+            // Certificate is NOT auto-generated here — admin generates it manually
+            // after reviewing and entering marks via the User Management dialog.
         }
         return p;
     }

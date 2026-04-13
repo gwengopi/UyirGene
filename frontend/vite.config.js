@@ -39,8 +39,24 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Exclude html from precache — index.html must always be fetched fresh
+        // from the network after a deployment so users get the latest JS/CSS refs.
+        // JS/CSS/fonts are safe to precache because Vite gives them content-hash filenames.
+        globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
+        // Do not use a navigation fallback from cache — let the network serve HTML.
+        navigateFallback: null,
         runtimeCaching: [
+          // Navigation requests (HTML pages): always try network first.
+          // Falls back to cache only when offline (timeout 3s).
+          {
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'navigation-cache',
+              networkTimeoutSeconds: 3,
+              cacheableResponse: { statuses: [200] },
+            },
+          },
           {
             urlPattern: /^https:\/\/api\./i,
             handler: 'NetworkFirst',
