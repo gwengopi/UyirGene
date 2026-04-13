@@ -361,6 +361,7 @@ public class SiteConfigService {
         createIfNotExists("COURSE_REGULATORY", "https://img1.wsimg.com/isteam/getty/2165387046/:/rs=w:600,h:400,cg:true,m/qt=q:90", "IMAGE", "COURSE", "Regulatory courses image");
 
         // Service images
+        createIfNotExists("SERVICE_LEARNING", "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600&h=400&fit=crop&q=80", "IMAGE", "SERVICE", "Training / Learning service image");
         createIfNotExists("SERVICE_MICROBIOLOGY", "https://images.unsplash.com/photo-1576086213369-97a306d36557?w=600&h=400&fit=crop&q=80", "IMAGE", "SERVICE", "Microbiology Research service image");
         createIfNotExists("SERVICE_CERTIFICATION", "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&h=400&fit=crop&q=80", "IMAGE", "SERVICE", "Certification service image");
         createIfNotExists("SERVICE_GMO_TESTING", "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=600&h=400&fit=crop&q=80", "IMAGE", "SERVICE", "GMO Testing service image");

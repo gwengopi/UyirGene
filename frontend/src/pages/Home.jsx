@@ -685,6 +685,7 @@ function Home() {
                         component="img"
                         image={feature.image}
                         alt={feature.title}
+                        loading="lazy"
                         sx={{ height: 160, objectFit: 'cover' }}
                       />
                       <Box
@@ -815,6 +816,7 @@ function Home() {
                         component="img"
                         image={service.image}
                         alt={service.title}
+                        loading="lazy"
                         sx={{ height: 160, objectFit: 'cover' }}
                       />
                       <Box
