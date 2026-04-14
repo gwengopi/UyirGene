@@ -1154,11 +1154,33 @@ function CourseDetail() {
 
                 {/* CTA buttons — hidden on mobile (top bar + sidebar card cover it) */}
                 <Box sx={{ textAlign: 'center', mt: 3, mb: 2, display: { xs: 'none', md: 'block' } }}>
-                  {!isEnrolled && (
-                    <Button variant="contained" size="large" onClick={handleEnroll} loading={enrolling} disabled={loading}>
-                      {displayPrice.amount ? `Enroll for ${formatCurrency(displayPrice.amount, displayPrice.currency)}` : 'Enroll Free'}
-                    </Button>
-                  )}
+                  {!isEnrolled && (() => {
+                    const countryOptions = hasCountryPrices
+                      ? SUPPORTED_COUNTRIES.filter(c => c.code === 'IN' || course.countryPrices?.some(cp => cp.countryCode === c.code))
+                      : SUPPORTED_COUNTRIES;
+                    const selectedOption = countryOptions.find(c => c.code === selectedCountry) || countryOptions[0];
+                    return (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
+                        <Autocomplete
+                          options={countryOptions}
+                          getOptionLabel={(option) => `${option.name} (${option.symbol})`}
+                          value={selectedOption}
+                          onChange={(_, newValue) => { if (newValue) setSelectedCountry(newValue.code); }}
+                          renderInput={(params) => <TextField {...params} label="Select your country" size="small" InputLabelProps={{ ...params.InputLabelProps, sx: { fontWeight: 800, color: 'primary.main', '&.MuiInputLabel-shrink': { fontWeight: 800, color: 'primary.main', fontSize: '1rem' } } }} />}
+                          isOptionEqualToValue={(option, value) => option.code === value?.code}
+                          disableClearable
+                          size="small"
+                          sx={{ width: 260 }}
+                        />
+                        <Typography variant="h5" color="primary" fontWeight={800}>
+                          {displayPrice.amount ? formatCurrency(displayPrice.amount, displayPrice.currency) : 'Free'}
+                        </Typography>
+                        <Button variant="contained" size="large" onClick={handleEnroll} loading={enrolling} disabled={loading} sx={{ fontWeight: 700 }}>
+                          Enroll &amp; Get Certified
+                        </Button>
+                      </Box>
+                    );
+                  })()}
                   {isEnrolled && !learnMode && (
                     <Button
                       variant="contained"

@@ -582,7 +582,23 @@ function FlagshipDetail() {
 
               {/* CTA at bottom of content — hidden on mobile (top bar + sidebar card cover it) */}
               {!isEnrolled && (
-                <Box sx={{ textAlign: 'center', mt: 2, mb: 2, display: { xs: 'none', md: 'block' } }}>
+                <Box sx={{ display: { xs: 'none', md: 'flex' }, flexDirection: 'column', alignItems: 'center', gap: 1.5, mt: 2, mb: 2 }}>
+                  {hasCountryPrices && (
+                    <Autocomplete
+                      options={countryOptions}
+                      getOptionLabel={(option) => `${option.name} (${option.symbol})`}
+                      value={selectedOption}
+                      onChange={(_, newValue) => { if (newValue) setSelectedCountry(newValue.code); }}
+                      renderInput={(params) => <TextField {...params} label="Select your country" size="small" InputLabelProps={{ ...params.InputLabelProps, sx: { fontWeight: 800, color: 'primary.main', '&.MuiInputLabel-shrink': { fontWeight: 800, color: 'primary.main', fontSize: '1rem' } } }} />}
+                      isOptionEqualToValue={(option, value) => option.code === value?.code}
+                      disableClearable
+                      size="small"
+                      sx={{ width: 260 }}
+                    />
+                  )}
+                  <Typography variant="h5" color="primary" fontWeight={800}>
+                    {displayPrice.amount ? formatCurrency(displayPrice.amount, displayPrice.currency) : 'Free'}
+                  </Typography>
                   <Button
                     variant="contained"
                     size="large"
@@ -590,9 +606,7 @@ function FlagshipDetail() {
                     disabled={enrolling}
                     sx={{ bgcolor: '#7B2D8B', '&:hover': { bgcolor: '#6A1B7A' }, fontWeight: 700, px: 4 }}
                   >
-                    {enrolling
-                      ? <CircularProgress size={22} color="inherit" />
-                      : (displayPrice.amount ? `Enroll for ${formatCurrency(displayPrice.amount, displayPrice.currency)}` : 'Enroll Free')}
+                    {enrolling ? <CircularProgress size={22} color="inherit" /> : 'Enroll & Get Certified'}
                   </Button>
                 </Box>
               )}
