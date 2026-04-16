@@ -91,18 +91,22 @@ public class GuestEnrollmentService {
         boolean isFree = (resolvedPrice == null || resolvedPrice == 0);
 
         if (isFree) {
-            Enrollment e = Enrollment.builder()
-                    .user(user)
-                    .course(course)
+            // Reuse existing UNENROLLED row to avoid violating the partial unique index
+            Enrollment e = existing.map(ex -> {
+                ex.setStatus(Enrollment.Status.ENROLLED);
+                ex.setEnrolledAt(LocalDateTime.now());
+                ex.setUnenrolledAt(null);
+                return enrollmentRepo.save(ex);
+            }).orElseGet(() -> enrollmentRepo.save(Enrollment.builder()
+                    .user(user).course(course)
                     .enrolledAt(LocalDateTime.now())
                     .status(Enrollment.Status.ENROLLED)
-                    .build();
-            enrollmentRepo.save(e);
+                    .build()));
             sendEnrollmentEmailWithMagicLink(user, course);
             return new EnrollmentResult(e, null, false, null);
         }
 
-        // Reuse existing PENDING enrollment or create new one
+        // Reuse existing PENDING/UNENROLLED enrollment or create new one
         Enrollment enrollment = existing.orElseGet(() -> Enrollment.builder()
                 .user(user)
                 .course(course)
@@ -118,6 +122,7 @@ public class GuestEnrollmentService {
         enrollment.setPaymentCurrency(resolvedCurrency);
         enrollment.setPaymentAmount(resolvedPrice);
         enrollment.setStatus(Enrollment.Status.PENDING);
+        enrollment.setUnenrolledAt(null);
         enrollmentRepo.save(enrollment);
 
         EnrollmentResult.RazorpayOrder order = new EnrollmentResult.RazorpayOrder(
@@ -201,17 +206,22 @@ public class GuestEnrollmentService {
         boolean isFree = (resolvedPrice == null || resolvedPrice == 0);
 
         if (isFree) {
-            Enrollment e = Enrollment.builder()
-                    .user(user)
-                    .flagshipProgram(program)
+            // Reuse existing UNENROLLED row to avoid violating the partial unique index
+            Enrollment e = existing.map(ex -> {
+                ex.setStatus(Enrollment.Status.ENROLLED);
+                ex.setEnrolledAt(LocalDateTime.now());
+                ex.setUnenrolledAt(null);
+                return enrollmentRepo.save(ex);
+            }).orElseGet(() -> enrollmentRepo.save(Enrollment.builder()
+                    .user(user).flagshipProgram(program)
                     .enrolledAt(LocalDateTime.now())
                     .status(Enrollment.Status.ENROLLED)
-                    .build();
-            enrollmentRepo.save(e);
+                    .build()));
             enrollInFlagshipCoursesForGuest(user, program);
             return new EnrollmentResult(e, null, false, null);
         }
 
+        // Reuse existing PENDING/UNENROLLED enrollment or create new one
         Enrollment enrollment = existing.orElseGet(() -> Enrollment.builder()
                 .user(user)
                 .flagshipProgram(program)
@@ -227,6 +237,7 @@ public class GuestEnrollmentService {
         enrollment.setPaymentCurrency(resolvedCurrency);
         enrollment.setPaymentAmount(resolvedPrice);
         enrollment.setStatus(Enrollment.Status.PENDING);
+        enrollment.setUnenrolledAt(null);
         enrollmentRepo.save(enrollment);
 
         EnrollmentResult.RazorpayOrder order = new EnrollmentResult.RazorpayOrder(

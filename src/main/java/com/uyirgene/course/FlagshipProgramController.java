@@ -115,7 +115,9 @@ public class FlagshipProgramController {
     public ResponseEntity<List<FlagshipProgramDto>> getEnrolled() {
         User user = currentUserService.getCurrentUser();
         List<Enrollment> enrollments = enrollmentRepo.findByUser(user).stream()
-                .filter(e -> e.getFlagshipProgram() != null && e.getStatus() != Enrollment.Status.PENDING)
+                .filter(e -> e.getFlagshipProgram() != null
+                        && e.getStatus() != Enrollment.Status.PENDING
+                        && e.getStatus() != Enrollment.Status.UNENROLLED)
                 .collect(Collectors.toList());
 
         List<FlagshipProgramDto> dtos = enrollments.stream().map(enrollment -> {

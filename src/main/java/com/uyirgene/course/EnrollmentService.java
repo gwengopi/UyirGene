@@ -272,15 +272,20 @@ public class EnrollmentService {
 
         // Free program
         if (resolvedPrice == null || resolvedPrice == 0) {
-            Enrollment e = Enrollment.builder()
+            // Reuse existing UNENROLLED row to avoid violating the partial unique index
+            Enrollment e = existingOpt.map(existing -> {
+                existing.setStatus(Enrollment.Status.ENROLLED);
+                existing.setEnrolledAt(LocalDateTime.now());
+                existing.setUnenrolledAt(null);
+                return enrollmentRepo.save(existing);
+            }).orElseGet(() -> enrollmentRepo.save(Enrollment.builder()
                     .user(u)
                     .flagshipProgram(program)
                     .enrolledAt(LocalDateTime.now())
                     .status(Enrollment.Status.ENROLLED)
-                    .build();
-            Enrollment saved = enrollmentRepo.save(e);
+                    .build()));
             enrollInFlagshipCourses(u, program);
-            return new EnrollmentResult(saved, null, false, null);
+            return new EnrollmentResult(e, null, false, null);
         }
 
         // Paid program
