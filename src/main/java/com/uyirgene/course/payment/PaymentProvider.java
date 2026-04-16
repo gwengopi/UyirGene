@@ -40,4 +40,14 @@ public interface PaymentProvider {
      * @return Contact details of the payer
      */
     PaymentContactDetails fetchPaymentDetails(String paymentId);
+
+    /**
+     * Fetches the receipt string for a given order ID.
+     * Used by the webhook to identify anonymous orders (e.g. "anon-course-3")
+     * when no enrollment row exists yet at the time of payment.
+     *
+     * @param orderId The Razorpay order ID
+     * @return The receipt string set when the order was created, or null if unavailable
+     */
+    String fetchOrderReceipt(String orderId);
 }

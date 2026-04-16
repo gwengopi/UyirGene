@@ -66,4 +66,10 @@ public class MockPaymentService implements PaymentProvider {
         log.info("Fetching mock payment details for paymentId: {}", paymentId);
         return new PaymentContactDetails("mock.guest@example.com", "+919999999999", "Mock Guest", 0L, "INR");
     }
+
+    @Override
+    public String fetchOrderReceipt(String orderId) {
+        log.info("Fetching mock order receipt for orderId: {}", orderId);
+        return "anon-course-1";
+    }
 }

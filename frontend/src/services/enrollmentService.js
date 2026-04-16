@@ -126,6 +126,12 @@ export async function processRazorpayPayment(options) {
     throw new Error('Failed to load Razorpay SDK');
   }
 
+  // Store payment context in sessionStorage so the callback page can confirm the payment
+  // if the browser is redirected away (e.g. 3DS authentication for international cards).
+  if (options.paymentContext) {
+    sessionStorage.setItem('ug_payment_ctx', JSON.stringify(options.paymentContext));
+  }
+
   return new Promise((resolve, reject) => {
     const rzp = new window.Razorpay({
       key: options.keyId,
@@ -137,8 +143,13 @@ export async function processRazorpayPayment(options) {
       prefill: {
         email: options.prefillEmail || '',
       },
+      // callback_url is used when payment requires a browser redirect (e.g. international 3DS/PSD2).
+      // For in-modal payments (Indian UPI/cards) the handler below fires normally instead.
+      callback_url: `${window.location.origin}/payment/callback`,
       handler: function (response) {
         cleanupRazorpay();
+        // Clear stored context — no longer needed since handler fired successfully
+        sessionStorage.removeItem('ug_payment_ctx');
         resolve({
           razorpayPaymentId: response.razorpay_payment_id,
           razorpayOrderId: response.razorpay_order_id,

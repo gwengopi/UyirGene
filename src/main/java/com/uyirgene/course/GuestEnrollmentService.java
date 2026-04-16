@@ -592,6 +592,76 @@ public class GuestEnrollmentService {
                 && user.getMagicLinkToken() == null;
     }
 
+    // ==================== Webhook-triggered confirms (no signature check) ====================
+    // These are called from RazorpayWebhookController after the webhook signature has already
+    // been verified. The Razorpay payment signature check is intentionally skipped here.
+
+    @Transactional
+    public void confirmAnonymousCourseOrderFromWebhook(Long courseId, String razorpayPaymentId,
+                                                        String razorpayOrderId) {
+        PaymentContactDetails contact = paymentProvider.fetchPaymentDetails(razorpayPaymentId);
+        if (contact.email() == null || contact.email().isBlank()) {
+            throw new PaymentException("Email not available from Razorpay payment — cannot enroll");
+        }
+
+        User user = userService.findOrCreateGuestUser(
+                deriveNameFromEmail(contact.email()), contact.email(), contact.contact());
+        Course course = courseRepo.findById(courseId)
+                .orElseThrow(() -> new EntityNotFoundException("Course not found: " + courseId));
+
+        Optional<Enrollment> existing = enrollmentRepo.findByUserAndCourse(user, course);
+        if (existing.isPresent()) {
+            Enrollment e = existing.get();
+            if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) {
+                return; // already enrolled — idempotent
+            }
+            e.setStatus(Enrollment.Status.ENROLLED);
+            e.setPaymentOrderId(razorpayOrderId);
+            enrollmentRepo.save(e);
+        } else {
+            enrollmentRepo.save(Enrollment.builder()
+                    .user(user).course(course)
+                    .enrolledAt(LocalDateTime.now())
+                    .status(Enrollment.Status.ENROLLED)
+                    .paymentOrderId(razorpayOrderId)
+                    .build());
+        }
+        sendEnrollmentEmailWithMagicLink(user, course);
+    }
+
+    @Transactional
+    public void confirmAnonymousFlagshipOrderFromWebhook(Long programId, String razorpayPaymentId,
+                                                          String razorpayOrderId) {
+        PaymentContactDetails contact = paymentProvider.fetchPaymentDetails(razorpayPaymentId);
+        if (contact.email() == null || contact.email().isBlank()) {
+            throw new PaymentException("Email not available from Razorpay payment — cannot enroll");
+        }
+
+        User user = userService.findOrCreateGuestUser(
+                deriveNameFromEmail(contact.email()), contact.email(), contact.contact());
+        FlagshipProgram program = flagshipProgramRepo.findById(programId)
+                .orElseThrow(() -> new EntityNotFoundException("Flagship program not found: " + programId));
+
+        Optional<Enrollment> existing = enrollmentRepo.findByUserAndFlagshipProgram(user, program);
+        if (existing.isPresent()) {
+            Enrollment e = existing.get();
+            if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) {
+                return; // already enrolled — idempotent
+            }
+            e.setStatus(Enrollment.Status.ENROLLED);
+            e.setPaymentOrderId(razorpayOrderId);
+            enrollmentRepo.save(e);
+        } else {
+            enrollmentRepo.save(Enrollment.builder()
+                    .user(user).flagshipProgram(program)
+                    .enrolledAt(LocalDateTime.now())
+                    .status(Enrollment.Status.ENROLLED)
+                    .paymentOrderId(razorpayOrderId)
+                    .build());
+        }
+        enrollInFlagshipCoursesForGuest(user, program);
+    }
+
     // ==================== Free Enrollment (no payment) ====================
 
     @Transactional

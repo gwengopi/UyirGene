@@ -17,6 +17,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Handles Razorpay webhook events.
@@ -37,8 +39,14 @@ public class RazorpayWebhookController {
     private String webhookSecret;
 
     private final EnrollmentRepository enrollmentRepository;
+    private final GuestEnrollmentService guestEnrollmentService;
+    private final PaymentProvider paymentProvider;
     private final MailService mailService;
     private final ObjectMapper objectMapper;
+
+    // Matches receipt strings like "anon-course-3" or "anon-flagship-5"
+    private static final Pattern ANON_COURSE_RECEIPT    = Pattern.compile("^anon-course-(\\d+)$");
+    private static final Pattern ANON_FLAGSHIP_RECEIPT  = Pattern.compile("^anon-flagship-(\\d+)$");
 
     @PostMapping
     @Transactional
@@ -115,7 +123,8 @@ public class RazorpayWebhookController {
         Optional<Enrollment> enrollmentOpt = enrollmentRepository.findByPaymentOrderId(orderId);
 
         if (enrollmentOpt.isEmpty()) {
-            log.warn("No enrollment found for orderId={} — may be a bundle or already confirmed", orderId);
+            log.warn("No enrollment found for orderId={} — checking if anonymous order", orderId);
+            handleAnonymousOrder(orderId, paymentId);
             return;
         }
 
@@ -143,6 +152,47 @@ public class RazorpayWebhookController {
         } catch (Exception e) {
             // Non-critical — enrollment is already confirmed, don't fail the webhook
             log.error("Failed to send enrollment email after webhook confirmation", e);
+        }
+    }
+
+    /**
+     * Handles payment.captured for anonymous orders where no enrollment row exists yet.
+     * Fetches the order receipt from Razorpay to determine the type (course/flagship),
+     * then calls the appropriate guest enrollment confirmation method.
+     * Webhook authenticity is already verified before this method is called.
+     */
+    private void handleAnonymousOrder(String orderId, String paymentId) {
+        try {
+            String receipt = paymentProvider.fetchOrderReceipt(orderId);
+            if (receipt == null || receipt.isBlank()) {
+                log.warn("Could not fetch receipt for orderId={} — cannot recover anonymous enrollment", orderId);
+                return;
+            }
+
+            Matcher courseMatcher = ANON_COURSE_RECEIPT.matcher(receipt);
+            if (courseMatcher.matches()) {
+                Long courseId = Long.parseLong(courseMatcher.group(1));
+                log.info("Anonymous course order detected: orderId={}, courseId={}", orderId, courseId);
+                guestEnrollmentService.confirmAnonymousCourseOrderFromWebhook(courseId, paymentId, orderId);
+                log.info("Anonymous course enrollment confirmed via webhook: orderId={}, courseId={}", orderId, courseId);
+                return;
+            }
+
+            Matcher flagshipMatcher = ANON_FLAGSHIP_RECEIPT.matcher(receipt);
+            if (flagshipMatcher.matches()) {
+                Long programId = Long.parseLong(flagshipMatcher.group(1));
+                log.info("Anonymous flagship order detected: orderId={}, programId={}", orderId, programId);
+                guestEnrollmentService.confirmAnonymousFlagshipOrderFromWebhook(programId, paymentId, orderId);
+                log.info("Anonymous flagship enrollment confirmed via webhook: orderId={}, programId={}", orderId, programId);
+                return;
+            }
+
+            // anon-bundles-{timestamp} — bundle IDs not derivable from receipt; log for manual follow-up
+            log.warn("Unrecognised anonymous receipt='{}' for orderId={} — bundle orders require manual follow-up",
+                    receipt, orderId);
+
+        } catch (Exception e) {
+            log.error("Failed to recover anonymous enrollment for orderId={}: {}", orderId, e.getMessage(), e);
         }
     }
 

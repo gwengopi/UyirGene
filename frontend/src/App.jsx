@@ -36,6 +36,7 @@ const CertificateVerify = lazy(() => import('./pages/CertificateVerify'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const MyCourses = lazy(() => import('./pages/MyCourses'));
 const Payment = lazy(() => import('./pages/Payment'));
+const PaymentCallback = lazy(() => import('./pages/PaymentCallback'));
 const Profile = lazy(() => import('./pages/Profile'));
 const AdminDashboard = lazy(() => import('./pages/Admin/index'));
 const AdminCourses = lazy(() => import('./pages/Admin/Courses'));
@@ -224,6 +225,8 @@ function AppContent() {
               path={ROUTES.PAYMENT}
               element={<Payment />}
             />
+            {/* Razorpay redirect callback — handles 3DS/international payment returns */}
+            <Route path="/payment/callback" element={<PaymentCallback />} />
             <Route
               path={ROUTES.PROFILE}
               element={

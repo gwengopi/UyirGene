@@ -114,6 +114,16 @@ function Payment() {
         keyId: order.keyId,
         courseName,
         prefillEmail: effectiveEmail || '',
+        paymentContext: {
+          courseId: courseId ? Number(courseId) : null,
+          flagshipProgramId: flagshipProgramId ? Number(flagshipProgramId) : null,
+          bundleId: bundleId ? Number(bundleId) : null,
+          bundleIds: isMultiBundle ? bundleIds : null,
+          guestEmail: guestEmail || null,
+          isAnonymous,
+          isGuest: !!guestEmail,
+          courseName,
+        },
       });
 
       await confirmPayment(paymentData);

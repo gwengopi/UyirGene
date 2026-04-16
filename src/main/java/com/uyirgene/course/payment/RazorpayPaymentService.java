@@ -110,6 +110,30 @@ public class RazorpayPaymentService implements PaymentProvider {
     }
 
     @Override
+    public String fetchOrderReceipt(String orderId) {
+        log.info("Fetching Razorpay order receipt for orderId: {}", orderId);
+        String url = "https://api.razorpay.com/v1/orders/" + orderId;
+
+        HttpHeaders headers = new HttpHeaders();
+        String auth = keyId + ":" + keySecret;
+        String encoded = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
+        headers.set("Authorization", "Basic " + encoded);
+        HttpEntity<Void> req = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<Map> resp = restTemplate.exchange(url, org.springframework.http.HttpMethod.GET, req, Map.class);
+            Map data = resp.getBody();
+            if (data == null) return null;
+            String receipt = (String) data.get("receipt");
+            log.info("Razorpay order receipt for {}: {}", orderId, receipt);
+            return receipt;
+        } catch (Exception e) {
+            log.error("Error fetching Razorpay order receipt for {}: {}", orderId, e.getMessage());
+            return null;
+        }
+    }
+
+    @Override
     public PaymentContactDetails fetchPaymentDetails(String paymentId) {
         log.info("Fetching Razorpay payment details for paymentId: {}", paymentId);
         String url = "https://api.razorpay.com/v1/payments/" + paymentId;
