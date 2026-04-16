@@ -80,6 +80,7 @@ function UserEnrollmentsDialog({
   const [grantLoading, setGrantLoading] = useState(false);
   const [grantLists, setGrantLists] = useState({ courses: [], flagship: [], bundles: [] });
   const [grantListsLoading, setGrantListsLoading] = useState(false);
+  const [historyExpanded, setHistoryExpanded] = useState(false);
 
   useEffect(() => {
     if (open && user?.id) {
@@ -352,12 +353,13 @@ function UserEnrollmentsDialog({
       <DialogContent dividers>
         {loading ? (
           <LoadingSpinner text="Loading enrollments..." />
-        ) : enrollments.length === 0 ? (
+        ) : enrollments.filter(e => e.status !== 'UNENROLLED').length === 0 && enrollments.filter(e => e.status === 'UNENROLLED').length === 0 ? (
           <EmptyState
             title="No enrollments"
             description="This user is not enrolled in any courses or flagship programs"
           />
         ) : (
+          <>
           <TableContainer component={Paper} variant="outlined">
             <Table size="small">
               <TableHead>
@@ -371,7 +373,14 @@ function UserEnrollmentsDialog({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {enrollments.map((enrollment) => (
+                {enrollments.filter(e => e.status !== 'UNENROLLED').length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                      No active enrollments
+                    </TableCell>
+                  </TableRow>
+                )}
+                {enrollments.filter(e => e.status !== 'UNENROLLED').map((enrollment) => (
                   <React.Fragment key={enrollment.id}>
                     <TableRow hover>
                       <TableCell>
@@ -721,6 +730,61 @@ function UserEnrollmentsDialog({
               </TableBody>
             </Table>
           </TableContainer>
+
+          {/* Unenrollment History */}
+          {enrollments.filter(e => e.status === 'UNENROLLED').length > 0 && (
+            <Box sx={{ mt: 2 }}>
+              <Box
+                sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', px: 1, py: 0.5, borderRadius: 1, '&:hover': { bgcolor: 'action.hover' } }}
+                onClick={() => setHistoryExpanded(v => !v)}
+              >
+                {historyExpanded ? <ExpandLessIcon fontSize="small" sx={{ mr: 1 }} /> : <ExpandMoreIcon fontSize="small" sx={{ mr: 1 }} />}
+                <Typography variant="body2" color="text.secondary">
+                  Unenrollment History ({enrollments.filter(e => e.status === 'UNENROLLED').length})
+                </Typography>
+              </Box>
+              <Collapse in={historyExpanded}>
+                <TableContainer component={Paper} variant="outlined" sx={{ mt: 1, opacity: 0.75 }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: 'action.hover' }}>
+                        <TableCell>Course / Program</TableCell>
+                        <TableCell align="center">Enrolled On</TableCell>
+                        <TableCell align="center">Unenrolled On</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {enrollments.filter(e => e.status === 'UNENROLLED').map((enrollment) => (
+                        <TableRow key={enrollment.id} sx={{ textDecoration: 'line-through', color: 'text.disabled' }}>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <Typography variant="body2" color="text.disabled">
+                                {enrollment.courseName}
+                              </Typography>
+                              {enrollment.isFlagship && (
+                                <Chip label="Flagship" size="small" color="default" sx={{ height: 16, fontSize: '0.6rem' }} />
+                              )}
+                            </Box>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Typography variant="caption" color="text.disabled">
+                              {enrollment.enrolledAt ? formatDate(enrollment.enrolledAt) : '—'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Typography variant="caption" color="error.light">
+                              {enrollment.unenrolledAt ? formatDate(enrollment.unenrolledAt) : '—'}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Collapse>
+            </Box>
+          )}
+          </>
         )}
       </DialogContent>
       <DialogActions>
@@ -738,15 +802,12 @@ function UserEnrollmentsDialog({
       <Dialog open={unenrollDialogOpen} onClose={(e, reason) => { if (reason !== 'backdropClick') handleUnenrollCancel(); }} disableEscapeKeyDown maxWidth="xs" fullWidth>
         <DialogTitle sx={{ color: 'error.main' }}>Unenroll User?</DialogTitle>
         <DialogContent>
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            This action cannot be undone.
-          </Alert>
           <Typography variant="body2">
             Are you sure you want to unenroll <strong>{user?.name}</strong> from{' '}
             <strong>{unenrollTarget?.courseName}</strong>?
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            The user will lose access to all course content, videos, and materials immediately.
+            The user will lose access immediately. You can restore access at any time using <strong>Grant Access</strong>. The unenrollment will be recorded in their history.
           </Typography>
         </DialogContent>
         <DialogActions>

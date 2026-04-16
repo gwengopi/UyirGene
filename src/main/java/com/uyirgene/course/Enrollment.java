@@ -61,8 +61,11 @@ public class Enrollment {
     // Set when a completion reminder email has been sent — prevents duplicate sends
     private LocalDateTime reminderSentAt;
 
+    // Set when the user unenrolls — null for active enrollments
+    private LocalDateTime unenrolledAt;
+
     public enum Status {
-        PENDING, ENROLLED, COMPLETED
+        PENDING, ENROLLED, COMPLETED, UNENROLLED
     }
 
     public enum CertificateType {

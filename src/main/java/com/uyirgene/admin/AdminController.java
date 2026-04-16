@@ -132,6 +132,8 @@ public class AdminController {
     public ResponseEntity<List<EnrollmentResponse>> getUserEnrollments(@PathVariable("id") Long userId) {
         List<Enrollment> enrollments = enrollmentRepository.findByUserId(userId).stream()
                 .filter(e -> e.getStatus() != Enrollment.Status.PENDING)
+                .sorted(java.util.Comparator.comparing(
+                        e -> e.getStatus() == Enrollment.Status.UNENROLLED ? 1 : 0))
                 .collect(Collectors.toList());
         List<EnrollmentResponse> response = enrollments.stream()
                 .map(this::mapToEnrollmentResponse)
@@ -141,14 +143,19 @@ public class AdminController {
 
     @DeleteMapping("/enrollments/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Admin unenroll - delete an enrollment")
-    @ApiResponse(responseCode = "204", description = "Enrollment deleted")
+    @Operation(summary = "Admin unenroll - soft-delete an enrollment (sets status to UNENROLLED)")
+    @ApiResponse(responseCode = "204", description = "Enrollment unenrolled")
+    @Transactional
     public ResponseEntity<?> adminUnenroll(@PathVariable("id") Long enrollmentId) {
-        if (enrollmentRepository.existsById(enrollmentId)) {
-            enrollmentRepository.deleteById(enrollmentId);
-            return ResponseEntity.noContent().build();
-        }
-        return ResponseEntity.notFound().build();
+        return enrollmentRepository.findById(enrollmentId).map(e -> {
+            if (e.getStatus() == Enrollment.Status.UNENROLLED) {
+                return ResponseEntity.noContent().build(); // idempotent
+            }
+            e.setStatus(Enrollment.Status.UNENROLLED);
+            e.setUnenrolledAt(java.time.LocalDateTime.now());
+            enrollmentRepository.save(e);
+            return ResponseEntity.noContent().<Void>build();
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping("/enrollments/{id}/complete")
@@ -639,6 +646,7 @@ public class AdminController {
                 .isFlagship(isFlagship)
                 .flagshipProgramId(isFlagship ? e.getFlagshipProgram().getId() : null)
                 .flagshipProgramName(isFlagship ? e.getFlagshipProgram().getTitle() : null)
+                .unenrolledAt(e.getUnenrolledAt() != null ? e.getUnenrolledAt().toString() : null)
                 .build();
     }
 
@@ -920,6 +928,8 @@ public class AdminController {
         private Boolean isFlagship;
         private Long flagshipProgramId;
         private String flagshipProgramName;
+        // Unenrollment audit
+        private String unenrolledAt;
     }
 
     @PostMapping("/trigger-reminders")

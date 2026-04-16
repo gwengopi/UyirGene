@@ -158,6 +158,7 @@ public class GuestEnrollmentService {
 
         e.setPaymentOrderId(razorpayOrderId);
         e.setStatus(Enrollment.Status.ENROLLED);
+        e.setUnenrolledAt(null); // clear if re-enrolling after unenroll
         Enrollment saved = enrollmentRepo.save(e);
         sendEnrollmentEmailWithMagicLink(user, course);
         return saved;
@@ -266,6 +267,7 @@ public class GuestEnrollmentService {
 
         e.setPaymentOrderId(razorpayOrderId);
         e.setStatus(Enrollment.Status.ENROLLED);
+        e.setUnenrolledAt(null); // clear if re-enrolling after unenroll
         Enrollment saved = enrollmentRepo.save(e);
         enrollInFlagshipCoursesForGuest(user, program);
         return saved;
@@ -372,6 +374,7 @@ public class GuestEnrollmentService {
             }
             e.setStatus(Enrollment.Status.ENROLLED);
             e.setPaymentOrderId(razorpayOrderId);
+            e.setUnenrolledAt(null);
             Enrollment saved = enrollmentRepo.save(e);
             sendEnrollmentEmailWithMagicLink(user, course);
             return saved;
@@ -441,6 +444,7 @@ public class GuestEnrollmentService {
             }
             e.setStatus(Enrollment.Status.ENROLLED);
             e.setPaymentOrderId(razorpayOrderId);
+            e.setUnenrolledAt(null);
             enrollmentRepo.save(e);
         } else {
             enrollmentRepo.save(Enrollment.builder()
@@ -617,6 +621,7 @@ public class GuestEnrollmentService {
             }
             e.setStatus(Enrollment.Status.ENROLLED);
             e.setPaymentOrderId(razorpayOrderId);
+            e.setUnenrolledAt(null);
             enrollmentRepo.save(e);
         } else {
             enrollmentRepo.save(Enrollment.builder()
@@ -650,6 +655,7 @@ public class GuestEnrollmentService {
             }
             e.setStatus(Enrollment.Status.ENROLLED);
             e.setPaymentOrderId(razorpayOrderId);
+            e.setUnenrolledAt(null);
             enrollmentRepo.save(e);
         } else {
             enrollmentRepo.save(Enrollment.builder()
@@ -677,6 +683,7 @@ public class GuestEnrollmentService {
                 return; // idempotent — already enrolled
             }
             e.setStatus(Enrollment.Status.ENROLLED);
+            e.setUnenrolledAt(null);
             enrollmentRepo.save(e);
         } else {
             Enrollment e = Enrollment.builder()
@@ -702,6 +709,7 @@ public class GuestEnrollmentService {
                 return; // idempotent
             }
             e.setStatus(Enrollment.Status.ENROLLED);
+            e.setUnenrolledAt(null);
             enrollmentRepo.save(e);
         } else {
             Enrollment e = Enrollment.builder()

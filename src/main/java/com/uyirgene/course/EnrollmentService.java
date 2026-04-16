@@ -47,6 +47,16 @@ public class EnrollmentService {
             if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) {
                 throw new IllegalStateException("You are already enrolled in this course");
             }
+            // Re-enrollment after unenroll (or stale PENDING) — reuse the existing row.
+            // Cannot INSERT a new row because partial unique index enforces one row per user+course.
+            e.setStatus(Enrollment.Status.ENROLLED);
+            e.setEnrolledAt(LocalDateTime.now());
+            e.setUnenrolledAt(null);
+            Enrollment saved = enrollmentRepo.save(e);
+            if (c.getPrice() == null || c.getPrice() == 0) {
+                mailService.sendEnrollmentSuccess(u, c);
+            }
+            return saved;
         }
 
         Enrollment e = Enrollment.builder()
@@ -137,6 +147,7 @@ public class EnrollmentService {
         enrollment.setPaymentCurrency(resolvedCurrency);
         enrollment.setPaymentAmount(resolvedPrice);
         enrollment.setStatus(Enrollment.Status.PENDING);
+        enrollment.setUnenrolledAt(null); // clear if re-enrolling after unenroll
         enrollmentRepo.save(enrollment);
 
         EnrollmentResult.RazorpayOrder order = new EnrollmentResult.RazorpayOrder(
@@ -163,6 +174,7 @@ public class EnrollmentService {
         if (!ok) throw new com.uyirgene.exception.PaymentException("Invalid payment signature");
 
         e.setStatus(Enrollment.Status.ENROLLED);
+        e.setUnenrolledAt(null);
         Enrollment saved = enrollmentRepo.save(e);
         mailService.sendEnrollmentSuccess(u, c);
         return saved;
@@ -186,7 +198,10 @@ public class EnrollmentService {
                 .orElseThrow(() -> new com.uyirgene.exception.EntityNotFoundException("Course not found"));
         Enrollment e = enrollmentRepo.findByUserAndCourse(u, c)
                 .orElseThrow(() -> new com.uyirgene.exception.EntityNotFoundException("Enrollment not found"));
-        enrollmentRepo.delete(e);
+        if (e.getStatus() == Enrollment.Status.UNENROLLED) return; // idempotent
+        e.setStatus(Enrollment.Status.UNENROLLED);
+        e.setUnenrolledAt(LocalDateTime.now());
+        enrollmentRepo.save(e);
     }
 
     public List<Course> listEnrolledCourses() {
@@ -284,6 +299,7 @@ public class EnrollmentService {
         enrollment.setPaymentCurrency(resolvedCurrency);
         enrollment.setPaymentAmount(resolvedPrice);
         enrollment.setStatus(Enrollment.Status.PENDING);
+        enrollment.setUnenrolledAt(null); // clear if re-enrolling after unenroll
         enrollmentRepo.save(enrollment);
 
         EnrollmentResult.RazorpayOrder order = new EnrollmentResult.RazorpayOrder(
@@ -310,6 +326,7 @@ public class EnrollmentService {
         if (!ok) throw new com.uyirgene.exception.PaymentException("Invalid payment signature");
 
         e.setStatus(Enrollment.Status.ENROLLED);
+        e.setUnenrolledAt(null);
         Enrollment saved = enrollmentRepo.save(e);
         enrollInFlagshipCourses(u, program);
         return saved;
@@ -347,6 +364,7 @@ public class EnrollmentService {
                 }
                 e.setStatus(Enrollment.Status.ENROLLED);
                 e.setEnrolledAt(LocalDateTime.now());
+                e.setUnenrolledAt(null); // clear if re-enrolling after unenroll
                 enrollmentRepo.save(e);
             } else {
                 enrollmentRepo.save(Enrollment.builder()
@@ -374,7 +392,10 @@ public class EnrollmentService {
                 .orElseThrow(() -> new com.uyirgene.exception.EntityNotFoundException("Flagship program not found"));
         Enrollment e = enrollmentRepo.findByUserAndFlagshipProgram(u, program)
                 .orElseThrow(() -> new com.uyirgene.exception.EntityNotFoundException("Enrollment not found"));
-        enrollmentRepo.delete(e);
+        if (e.getStatus() == Enrollment.Status.UNENROLLED) return; // idempotent
+        e.setStatus(Enrollment.Status.UNENROLLED);
+        e.setUnenrolledAt(LocalDateTime.now());
+        enrollmentRepo.save(e);
     }
 
     public List<FlagshipProgram> listEnrolledFlagshipPrograms() {
@@ -396,9 +417,10 @@ public class EnrollmentService {
             if (existing.getStatus() == Enrollment.Status.ENROLLED || existing.getStatus() == Enrollment.Status.COMPLETED) {
                 return existing; // already enrolled — idempotent, no email
             }
-            // Upgrade PENDING to ENROLLED
+            // Upgrade PENDING/UNENROLLED to ENROLLED
             existing.setStatus(Enrollment.Status.ENROLLED);
             existing.setEnrolledAt(LocalDateTime.now());
+            existing.setUnenrolledAt(null);
             Enrollment saved = enrollmentRepo.save(existing);
             mailService.sendEnrollmentSuccess(user, course);
             return saved;
@@ -424,6 +446,7 @@ public class EnrollmentService {
             }
             existing.setStatus(Enrollment.Status.ENROLLED);
             existing.setEnrolledAt(LocalDateTime.now());
+            existing.setUnenrolledAt(null);
             Enrollment saved = enrollmentRepo.save(existing);
             enrollInFlagshipCourses(user, program); // also sends email
             return saved;

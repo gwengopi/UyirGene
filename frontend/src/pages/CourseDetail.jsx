@@ -282,7 +282,10 @@ function CourseDetail() {
         const result = await startAnonMultiBundleEnrollment(bundleIds, selectedCountry, standaloneCourseId);
         const order = result?.order;
         if (order) {
-          const bundlePart = `${bundleIds.length} value pack${bundleIds.length > 1 ? 's' : ''}`;
+          const selectedBundles = availableBundles.filter(b => bundleIds.includes(b.id));
+          const bundlePart = selectedBundles.length === 1
+            ? selectedBundles[0].title
+            : selectedBundles.map(b => b.title).join(' + ');
           navigate(ROUTES.PAYMENT, {
             state: {
               bundleIds,
@@ -307,7 +310,10 @@ function CourseDetail() {
       const result = await startMultiBundleEnrollment(bundleIds, selectedCountry, standaloneCourseId);
       const order = result?.order;
       if (order) {
-        const bundlePart = `${bundleIds.length} value pack${bundleIds.length > 1 ? 's' : ''}`;
+        const selectedBundles = availableBundles.filter(b => bundleIds.includes(b.id));
+        const bundlePart = selectedBundles.length === 1
+          ? selectedBundles[0].title
+          : selectedBundles.map(b => b.title).join(' + ');
         navigate(ROUTES.PAYMENT, {
           state: {
             bundleIds,

@@ -349,10 +349,11 @@ public class CourseBundleService {
                 if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) {
                     continue; // Already enrolled, skip
                 }
-                // Update PENDING enrollment
+                // Update PENDING/UNENROLLED enrollment
                 e.setStatus(Enrollment.Status.ENROLLED);
                 e.setBundle(bundle);
                 e.setPaymentOrderId(razorpayOrderId);
+                e.setUnenrolledAt(null); // clear if re-enrolling after unenroll
                 newEnrollments.add(enrollmentRepo.save(e));
             } else {
                 Enrollment enrollment = Enrollment.builder()
@@ -610,6 +611,7 @@ public class CourseBundleService {
                     e.setStatus(Enrollment.Status.ENROLLED);
                     e.setBundle(bundle);
                     e.setPaymentOrderId(razorpayOrderId);
+                    e.setUnenrolledAt(null); // clear if re-enrolling after unenroll
                     newEnrollments.add(enrollmentRepo.save(e));
                 } else {
                     Enrollment enrollment = Enrollment.builder()
@@ -650,6 +652,7 @@ public class CourseBundleService {
                     Enrollment e = existing.get();
                     e.setStatus(Enrollment.Status.ENROLLED);
                     e.setPaymentOrderId(razorpayOrderId);
+                    e.setUnenrolledAt(null); // clear if re-enrolling after unenroll
                     standaloneEnrollment = enrollmentRepo.save(e);
                 } else {
                     standaloneEnrollment = enrollmentRepo.save(Enrollment.builder()
@@ -689,6 +692,7 @@ public class CourseBundleService {
                 e.setStatus(Enrollment.Status.ENROLLED);
                 e.setBundle(bundle);
                 e.setEnrolledAt(LocalDateTime.now());
+                e.setUnenrolledAt(null); // clear if re-enrolling after unenroll
                 newEnrollments.add(enrollmentRepo.save(e));
             } else {
                 Enrollment enrollment = Enrollment.builder()
