@@ -443,7 +443,10 @@ public class CourseBundleService {
         }
 
         long amountSmallestUnit = Math.round(totalAmount * 100);
-        PaymentOrder po = paymentProvider.createOrder(amountSmallestUnit, finalCurrency, "anon-bundles-" + System.currentTimeMillis());
+        // Encode bundle IDs in receipt so webhook can recover enrollment if confirm call never arrives
+        String bundleReceipt = "anon-b-" + bundleIds.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","))
+                + (standaloneCourseId != null ? "-s" + standaloneCourseId : "");
+        PaymentOrder po = paymentProvider.createOrder(amountSmallestUnit, finalCurrency, bundleReceipt);
         return new MultiEnrollmentResult(
                 new EnrollmentResult.RazorpayOrder(po.getId(), po.getAmount(), po.getCurrency(), po.getKeyId()),
                 null);
@@ -588,6 +591,13 @@ public class CourseBundleService {
         boolean ok = paymentProvider.verifySignature(razorpayOrderId, razorpayPaymentId, signature);
         if (!ok) throw new PaymentException("Invalid payment signature");
         return confirmMultiBundlePaymentForUser(user, bundleIds, razorpayPaymentId, razorpayOrderId, standaloneCourseId, true);
+    }
+
+    /** Called from webhook — signature already verified by webhook HMAC check. Email suppressed; caller sends magic-link email. */
+    @Transactional
+    public List<Enrollment> enrollUserInBundlesFromWebhook(User user, List<Long> bundleIds,
+                                                            String razorpayOrderId, Long standaloneCourseId) {
+        return confirmMultiBundlePaymentForUser(user, bundleIds, null, razorpayOrderId, standaloneCourseId, true);
     }
 
     @Transactional

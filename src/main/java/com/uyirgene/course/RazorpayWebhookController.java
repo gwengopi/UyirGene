@@ -17,6 +17,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -45,9 +46,11 @@ public class RazorpayWebhookController {
     private final MailService mailService;
     private final ObjectMapper objectMapper;
 
-    // Matches receipt strings like "anon-course-3" or "anon-flagship-5"
+    // Matches receipt strings like "anon-course-3", "anon-flagship-5", "anon-b-1,2-s3"
     private static final Pattern ANON_COURSE_RECEIPT    = Pattern.compile("^anon-course-(\\d+)$");
     private static final Pattern ANON_FLAGSHIP_RECEIPT  = Pattern.compile("^anon-flagship-(\\d+)$");
+    // anon-b-{bundleId1},{bundleId2},...[-s{standaloneCourseId}]
+    private static final Pattern ANON_BUNDLE_RECEIPT    = Pattern.compile("^anon-b-([\\d,]+?)(?:-s(\\d+))?$");
 
     @PostMapping
     @Transactional
@@ -188,9 +191,18 @@ public class RazorpayWebhookController {
                 return;
             }
 
-            // anon-bundles-{timestamp} — bundle IDs not derivable from receipt; log for manual follow-up
-            log.warn("Unrecognised anonymous receipt='{}' for orderId={} — bundle orders require manual follow-up",
-                    receipt, orderId);
+            Matcher bundleMatcher = ANON_BUNDLE_RECEIPT.matcher(receipt);
+            if (bundleMatcher.matches()) {
+                List<Long> bundleIds = java.util.Arrays.stream(bundleMatcher.group(1).split(","))
+                        .map(Long::parseLong).toList();
+                Long standaloneCourseId = bundleMatcher.group(2) != null ? Long.parseLong(bundleMatcher.group(2)) : null;
+                log.info("Anonymous bundle order detected: orderId={}, bundleIds={}, standalone={}", orderId, bundleIds, standaloneCourseId);
+                guestEnrollmentService.confirmAnonymousBundleOrderFromWebhook(bundleIds, paymentId, orderId, standaloneCourseId);
+                log.info("Anonymous bundle enrollment confirmed via webhook: orderId={}, bundleIds={}", orderId, bundleIds);
+                return;
+            }
+
+            log.warn("Unrecognised anonymous receipt='{}' for orderId={}", receipt, orderId);
 
         } catch (Exception e) {
             log.error("Failed to recover anonymous enrollment for orderId={}: {}", orderId, e.getMessage(), e);

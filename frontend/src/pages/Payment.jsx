@@ -119,9 +119,11 @@ function Payment() {
           flagshipProgramId: flagshipProgramId ? Number(flagshipProgramId) : null,
           bundleId: bundleId ? Number(bundleId) : null,
           bundleIds: isMultiBundle ? bundleIds : null,
-          guestEmail: guestEmail || null,
-          isAnonymous,
-          isGuest: !!guestEmail,
+          // For anonymous flow: persist the typed email so 3DS callback can use it
+          // instead of relying on Razorpay's fetchPaymentDetails (which may not return email)
+          guestEmail: isAnonymous ? (anonEmail.trim() || null) : (guestEmail || null),
+          isAnonymous: isAnonymous && !anonEmail.trim(),
+          isGuest: isAnonymous ? !!anonEmail.trim() : !!guestEmail,
           courseName,
         },
       });

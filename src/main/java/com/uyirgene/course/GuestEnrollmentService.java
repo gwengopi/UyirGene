@@ -679,6 +679,42 @@ public class GuestEnrollmentService {
         enrollInFlagshipCoursesForGuest(user, program);
     }
 
+    @Transactional
+    public void confirmAnonymousBundleOrderFromWebhook(List<Long> bundleIds, String razorpayPaymentId,
+                                                        String razorpayOrderId, Long standaloneCourseId) {
+        PaymentContactDetails contact = paymentProvider.fetchPaymentDetails(razorpayPaymentId);
+        if (contact.email() == null || contact.email().isBlank()) {
+            throw new PaymentException("Email not available from Razorpay payment — cannot enroll");
+        }
+
+        User user = userService.findOrCreateGuestUser(
+                deriveNameFromEmail(contact.email()), contact.email(), contact.contact());
+
+        List<Enrollment> enrollments = bundleService.enrollUserInBundlesFromWebhook(
+                user, bundleIds, razorpayOrderId, standaloneCourseId);
+
+        if (!enrollments.isEmpty()) {
+            boolean isNew = isFreshGuestAccount(user);
+            String token = userService.generateMagicLinkToken(user);
+            String magicLink = frontendUrl + "/magic-login?token=" + token;
+
+            Map<Long, List<Enrollment>> byBundle = enrollments.stream()
+                    .filter(e -> e.getBundle() != null)
+                    .collect(java.util.stream.Collectors.groupingBy(e -> e.getBundle().getId()));
+            for (List<Enrollment> bundleEnrollments : byBundle.values()) {
+                String bundleTitle = bundleEnrollments.get(0).getBundle().getTitle();
+                List<String> courseTitles = bundleEnrollments.stream()
+                        .filter(e -> e.getCourse() != null)
+                        .map(e -> e.getCourse().getTitle())
+                        .toList();
+                mailService.sendGuestBundleEnrollmentSuccess(user, bundleTitle, courseTitles, magicLink, isNew);
+            }
+            enrollments.stream()
+                    .filter(e -> e.getBundle() == null && e.getCourse() != null)
+                    .forEach(e -> mailService.sendGuestEnrollmentSuccess(user, e.getCourse(), magicLink, isNew));
+        }
+    }
+
     // ==================== Free Enrollment (no payment) ====================
 
     @Transactional
