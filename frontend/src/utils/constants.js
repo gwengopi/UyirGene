@@ -162,9 +162,9 @@ export const COURSE_CATEGORIES = [
 
 // Currency
 export const CURRENCY = {
-  CODE: 'USD',
-  SYMBOL: '$',
-  LOCALE: 'en-US',
+  CODE: 'INR',
+  SYMBOL: '₹',
+  LOCALE: 'en-IN',
 };
 
 // Supported countries for multi-currency pricing

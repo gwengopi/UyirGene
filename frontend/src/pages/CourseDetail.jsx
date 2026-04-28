@@ -554,6 +554,12 @@ function CourseDetail() {
   const progressPercent = totalVideos > 0 ? Math.round((completedVideos / totalVideos) * 100) : 0;
   const isCompleted = progressPercent >= 100 || enrollmentStatus === 'COMPLETED';
 
+  useEffect(() => {
+    if (!loading && window.location.hash === '#enroll') {
+      setTimeout(() => document.getElementById('enroll')?.scrollIntoView({ behavior: 'smooth' }), 100);
+    }
+  }, [loading]);
+
   if (loading) {
     return <LoadingSpinner fullScreen text="Loading course..." />;
   }
@@ -1203,7 +1209,7 @@ function CourseDetail() {
 
               {/* Non-learn mode sidebar */}
               <Grid item xs={12} md={4}>
-                <Paper sx={{ p: 3, mb: 3, borderRadius: 2, position: { md: 'sticky' }, top: { md: 80 } }}>
+                <Paper id="enroll" sx={{ p: 3, mb: 3, borderRadius: 2, position: { md: 'sticky' }, top: { md: 80 } }}>
               <Typography variant="h6" gutterBottom fontWeight={700}>
                 {isEnrolled ? 'Course Access' : 'Enroll in This Course'}
               </Typography>

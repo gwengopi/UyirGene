@@ -345,6 +345,12 @@ function FlagshipDetail() {
     }
   }, [program, showSuccess, showError]);
 
+  useEffect(() => {
+    if (!loading && window.location.hash === '#enroll') {
+      setTimeout(() => document.getElementById('enroll')?.scrollIntoView({ behavior: 'smooth' }), 100);
+    }
+  }, [loading]);
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 12 }}>
@@ -631,7 +637,7 @@ function FlagshipDetail() {
             {isEnrolled && <CertificateNameCard />}
 
             {/* Enrollment sidebar */}
-            <Paper sx={{ p: 3, borderRadius: 2, position: { md: 'sticky' }, top: { md: 80 } }}>
+            <Paper id="enroll" sx={{ p: 3, borderRadius: 2, position: { md: 'sticky' }, top: { md: 80 } }}>
               <Typography variant="h6" gutterBottom fontWeight={700}>
                 {isEnrolled ? 'Program Access' : 'Enroll in This Program'}
               </Typography>

@@ -64,6 +64,12 @@ function BundleDetail() {
     loadBundle();
   }, [slug, showError, navigate]);
 
+  useEffect(() => {
+    if (!loading && window.location.hash === '#enroll') {
+      setTimeout(() => document.getElementById('enroll')?.scrollIntoView({ behavior: 'smooth' }), 100);
+    }
+  }, [loading]);
+
   const handleEnroll = async () => {
     if (!isAuthenticated()) {
       setEnrolling(true);
@@ -402,7 +408,7 @@ function BundleDetail() {
 
         {/* Right: Sticky Price Card */}
         <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 3, position: 'sticky', top: 80, borderRadius: 2 }}>
+          <Paper id="enroll" sx={{ p: 3, position: 'sticky', top: 80, borderRadius: 2 }}>
             {/* Mini course avatars */}
             <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
               <AvatarGroup max={4} sx={{ '& .MuiAvatar-root': { width: 48, height: 48, border: '2px solid', borderColor: 'background.paper' } }}>

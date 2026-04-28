@@ -55,15 +55,15 @@ public class PaymentController {
             if (req.getCourseId() != null) {
                 Course course = courseRepository.findById(req.getCourseId()).orElse(null);
                 courseTitle = course != null ? course.getTitle() : "your course";
-                retryUrl = baseUrl + "/courses/" + req.getCourseId();
+                retryUrl = baseUrl + "/courses/" + (course != null && course.getSlug() != null ? course.getSlug() : req.getCourseId()) + "#enroll";
             } else if (req.getBundleId() != null) {
                 CourseBundle bundle = bundleRepository.findById(req.getBundleId()).orElse(null);
                 courseTitle = bundle != null ? bundle.getTitle() : "your bundle";
-                retryUrl = baseUrl + "/bundles/" + req.getBundleId();
+                retryUrl = baseUrl + "/bundles/" + (bundle != null && bundle.getSlug() != null ? bundle.getSlug() : req.getBundleId()) + "#enroll";
             } else if (req.getFlagshipId() != null) {
                 FlagshipProgram program = flagshipProgramRepository.findById(req.getFlagshipId()).orElse(null);
                 courseTitle = program != null ? program.getTitle() : "your program";
-                retryUrl = baseUrl + "/flagship/" + req.getFlagshipId();
+                retryUrl = baseUrl + "/flagship/" + (program != null && program.getSlug() != null ? program.getSlug() : req.getFlagshipId()) + "#enroll";
             } else {
                 courseTitle = "your course";
                 retryUrl = baseUrl + "/courses";
@@ -94,15 +94,15 @@ public class PaymentController {
             if (req.getCourseId() != null) {
                 Course course = courseRepository.findById(req.getCourseId()).orElse(null);
                 courseTitle = course != null ? course.getTitle() : "your course";
-                retryUrl = baseUrl + "/courses/" + req.getCourseId();
+                retryUrl = baseUrl + "/courses/" + (course != null && course.getSlug() != null ? course.getSlug() : req.getCourseId()) + "#enroll";
             } else if (req.getBundleId() != null) {
                 CourseBundle bundle = bundleRepository.findById(req.getBundleId()).orElse(null);
                 courseTitle = bundle != null ? bundle.getTitle() : "your bundle";
-                retryUrl = baseUrl + "/bundles/" + req.getBundleId();
+                retryUrl = baseUrl + "/bundles/" + (bundle != null && bundle.getSlug() != null ? bundle.getSlug() : req.getBundleId()) + "#enroll";
             } else if (req.getFlagshipId() != null) {
                 FlagshipProgram program = flagshipProgramRepository.findById(req.getFlagshipId()).orElse(null);
                 courseTitle = program != null ? program.getTitle() : "your program";
-                retryUrl = baseUrl + "/flagship/" + req.getFlagshipId();
+                retryUrl = baseUrl + "/flagship/" + (program != null && program.getSlug() != null ? program.getSlug() : req.getFlagshipId()) + "#enroll";
             } else {
                 courseTitle = "your course";
                 retryUrl = baseUrl + "/courses";
