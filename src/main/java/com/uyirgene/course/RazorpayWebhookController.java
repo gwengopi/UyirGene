@@ -2,7 +2,9 @@ package com.uyirgene.course;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.uyirgene.config.SiteConfigService;
 import com.uyirgene.course.payment.PaymentProvider;
+import com.uyirgene.course.payment.dto.PaymentContactDetails;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,8 +18,11 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -41,9 +46,11 @@ public class RazorpayWebhookController {
     private String webhookSecret;
 
     private final EnrollmentRepository enrollmentRepository;
+    private final CourseBundleRepository bundleRepository;
     private final GuestEnrollmentService guestEnrollmentService;
     private final PaymentProvider paymentProvider;
     private final MailService mailService;
+    private final SiteConfigService siteConfigService;
     private final ObjectMapper objectMapper;
 
     // Matches receipt strings like "anon-course-3", "anon-flagship-5", "anon-b-1,2-s3"
@@ -51,6 +58,8 @@ public class RazorpayWebhookController {
     private static final Pattern ANON_FLAGSHIP_RECEIPT  = Pattern.compile("^anon-flagship-(\\d+)$");
     // anon-b-{bundleId1},{bundleId2},...[-s{standaloneCourseId}]
     private static final Pattern ANON_BUNDLE_RECEIPT    = Pattern.compile("^anon-b-([\\d,]+?)(?:-s(\\d+))?$");
+    // bundle-{bundleId}-{timestamp} — logged-in user single bundle (pre-fix orders)
+    private static final Pattern LOGGED_IN_BUNDLE_RECEIPT = Pattern.compile("^bundle-(\\d+)-\\d+$");
 
     @PostMapping
     @Transactional
@@ -123,39 +132,72 @@ public class RazorpayWebhookController {
             return;
         }
 
-        // Find the enrollment linked to this Razorpay order
-        Optional<Enrollment> enrollmentOpt = enrollmentRepository.findByPaymentOrderId(orderId);
+        // Bundle orders create multiple PENDING rows per order; course/flagship create one.
+        List<Enrollment> enrollments = enrollmentRepository.findAllByPaymentOrderId(orderId);
 
-        if (enrollmentOpt.isEmpty()) {
+        if (enrollments.isEmpty()) {
             log.warn("No enrollment found for orderId={} — checking if anonymous order", orderId);
             handleAnonymousOrder(orderId, paymentId);
             return;
         }
 
-        Enrollment enrollment = enrollmentOpt.get();
-
-        // Idempotency: skip if already confirmed (frontend /confirm may have arrived first)
-        if (enrollment.getStatus() == Enrollment.Status.ENROLLED ||
-                enrollment.getStatus() == Enrollment.Status.COMPLETED) {
-            log.info("Enrollment already confirmed for orderId={} — webhook is a no-op", orderId);
+        // Idempotency: skip if all rows already confirmed (frontend /confirm arrived first)
+        boolean anyPending = enrollments.stream()
+                .anyMatch(e -> e.getStatus() != Enrollment.Status.ENROLLED
+                        && e.getStatus() != Enrollment.Status.COMPLETED);
+        if (!anyPending) {
+            log.info("Enrollment(s) already confirmed for orderId={} — webhook is a no-op", orderId);
             return;
         }
 
-        // Confirm enrollment
-        enrollment.setStatus(Enrollment.Status.ENROLLED);
-        enrollmentRepository.save(enrollment);
-        log.info("Enrollment confirmed via webhook for orderId={}, userId={}", orderId, enrollment.getUser().getId());
+        // Confirm all PENDING rows for this order
+        List<Enrollment> confirmed = new ArrayList<>();
+        for (Enrollment e : enrollments) {
+            if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) continue;
+            e.setStatus(Enrollment.Status.ENROLLED);
+            enrollmentRepository.save(e);
+            confirmed.add(e);
+            log.info("Enrollment confirmed via webhook for orderId={}, userId={}", orderId, e.getUser().getId());
+        }
 
-        // Send enrollment success email
-        try {
-            if (enrollment.getCourse() != null) {
-                mailService.sendEnrollmentSuccess(enrollment.getUser(), enrollment.getCourse());
-            } else if (enrollment.getFlagshipProgram() != null) {
-                mailService.sendEnrollmentSuccess(enrollment.getUser(), enrollment.getFlagshipProgram());
+        // Send emails — one bundle email per bundle, individual email for non-bundle rows
+        sendWebhookEmails(confirmed);
+    }
+
+    private void sendWebhookEmails(List<Enrollment> confirmed) {
+        if (confirmed.isEmpty()) return;
+
+        // Group by bundle and send one consolidated email per bundle
+        Map<Long, List<Enrollment>> byBundle = new LinkedHashMap<>();
+        for (Enrollment e : confirmed) {
+            if (e.getBundle() != null) {
+                byBundle.computeIfAbsent(e.getBundle().getId(), k -> new ArrayList<>()).add(e);
             }
-        } catch (Exception e) {
-            // Non-critical — enrollment is already confirmed, don't fail the webhook
-            log.error("Failed to send enrollment email after webhook confirmation", e);
+        }
+        for (List<Enrollment> group : byBundle.values()) {
+            try {
+                Enrollment first = group.get(0);
+                List<String> titles = group.stream().map(e -> e.getCourse().getTitle()).toList();
+                mailService.sendBundleEnrollmentSuccess(
+                        first.getUser().getEmail(), first.getUser().getName(),
+                        first.getBundle().getTitle(), titles);
+            } catch (Exception ex) {
+                log.error("Failed to send bundle enrollment email after webhook confirmation", ex);
+            }
+        }
+
+        // Individual emails for course/flagship rows not part of a bundle
+        for (Enrollment e : confirmed) {
+            if (e.getBundle() != null) continue;
+            try {
+                if (e.getCourse() != null) {
+                    mailService.sendEnrollmentSuccess(e.getUser(), e.getCourse());
+                } else if (e.getFlagshipProgram() != null) {
+                    mailService.sendEnrollmentSuccess(e.getUser(), e.getFlagshipProgram());
+                }
+            } catch (Exception ex) {
+                log.error("Failed to send enrollment email after webhook confirmation", ex);
+            }
         }
     }
 
@@ -204,9 +246,36 @@ public class RazorpayWebhookController {
 
             log.warn("Unrecognised anonymous receipt='{}' for orderId={}", receipt, orderId);
 
+            // Send admin alert — payment captured but we couldn't enroll the user
+            try {
+                String itemName = resolveItemNameFromReceipt(receipt);
+                PaymentContactDetails buyer = paymentProvider.fetchPaymentDetails(paymentId);
+                String adminEmail = siteConfigService.getConfigValue("CONTACT_EMAIL", "info@uyirgene.com");
+                mailService.sendPaymentAlertToAdmin(adminEmail, orderId, paymentId, receipt,
+                        itemName, buyer.email(), buyer.name(), buyer.contact(),
+                        buyer.amount(), buyer.currency());
+                log.info("Admin payment alert sent for unrecognised orderId={}", orderId);
+            } catch (Exception alertEx) {
+                log.error("Failed to send admin payment alert for orderId={}: {}", orderId, alertEx.getMessage());
+            }
+
         } catch (Exception e) {
             log.error("Failed to recover anonymous enrollment for orderId={}: {}", orderId, e.getMessage(), e);
         }
+    }
+
+    private String resolveItemNameFromReceipt(String receipt) {
+        Matcher m = LOGGED_IN_BUNDLE_RECEIPT.matcher(receipt);
+        if (m.matches()) {
+            Long bundleId = Long.parseLong(m.group(1));
+            return bundleRepository.findById(bundleId)
+                    .map(b -> b.getTitle() + " (Bundle #" + bundleId + ")")
+                    .orElse("Bundle #" + bundleId + " (not found in DB)");
+        }
+        if (receipt.startsWith("multi-bundle-")) return "Multi-bundle purchase";
+        if (receipt.startsWith("flagship-"))    return "Flagship program";
+        if (receipt.startsWith("enroll-"))      return "Single course enrollment";
+        return "Unknown — receipt: " + receipt;
     }
 
     /**

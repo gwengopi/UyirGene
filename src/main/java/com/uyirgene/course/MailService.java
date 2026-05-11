@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import jakarta.mail.internet.MimeMessage;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -604,6 +605,69 @@ public class MailService {
                     + "<a href=\"" + baseUrl + "/forgot-password\" style=\"color:#2980B9\">Forgot Password</a> "
                     + "link on the login page if you ever need to reset access.</small>";
         }
+    }
+
+    @Async
+    public void sendPaymentAlertToAdmin(String adminEmail, String orderId, String paymentId,
+                                         String receipt, String itemName,
+                                         String buyerEmail, String buyerName, String buyerPhone,
+                                         Long amountSmallestUnit, String currency) {
+        try {
+            log.info("Sending payment alert to admin for orderId={}", orderId);
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setTo(adminEmail);
+            setFrom(helper);
+            helper.setSubject("Payment Alert – Manual Enrollment Needed: " + safe(itemName));
+            helper.setText(buildPaymentAlertHtml(orderId, paymentId, receipt, itemName,
+                    buyerEmail, buyerName, buyerPhone, amountSmallestUnit, currency), true);
+            mailSender.send(msg);
+            log.info("Payment alert sent to admin for orderId={}", orderId);
+        } catch (Exception e) {
+            log.error("Failed to send admin payment alert for orderId={}: {}", orderId, e.getMessage(), e);
+        }
+    }
+
+    private String buildPaymentAlertHtml(String orderId, String paymentId, String receipt,
+                                          String itemName, String buyerEmail, String buyerName,
+                                          String buyerPhone, Long amountSmallestUnit, String currency) {
+        String amountFormatted = amountSmallestUnit != null
+                ? String.format("%.2f %s", amountSmallestUnit / 100.0, safe(currency))
+                : "N/A";
+        String buyerDisplay = safe(buyerName != null ? buyerName : "Unknown");
+        if (buyerEmail != null) buyerDisplay += " (" + safe(buyerEmail) + ")";
+        if (buyerPhone != null && !buyerPhone.isBlank()) buyerDisplay += " / " + safe(buyerPhone);
+        String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+
+        return "<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px\">"
+                + "<h2 style=\"color:#c0392b;border-bottom:2px solid #c0392b;padding-bottom:8px\">"
+                + "Payment Alert – Manual Action Required</h2>"
+                + "<p>A payment was captured but enrollment could not be completed automatically. "
+                + "Please grant access manually via <strong>Admin → Users</strong>.</p>"
+                + "<table style=\"width:100%;border-collapse:collapse;margin:16px 0\">"
+                + alertRow("Item", itemName)
+                + alertRow("Amount", amountFormatted)
+                + alertRow("Buyer", buyerDisplay)
+                + "</table>"
+                + "<h3 style=\"margin-top:24px\">Razorpay References</h3>"
+                + "<table style=\"width:100%;border-collapse:collapse;margin:8px 0\">"
+                + alertRow("Order ID", orderId)
+                + alertRow("Payment ID", paymentId)
+                + alertRow("Receipt", receipt)
+                + alertRow("Time (server)", time)
+                + "</table>"
+                + "<div style=\"background:#fff3cd;border:1px solid #ffc107;padding:12px;"
+                + "border-radius:4px;margin-top:16px\">"
+                + "<strong>Steps to fix:</strong><br/>"
+                + "1. Go to Admin → Users<br/>"
+                + "2. Search for <strong>" + safe(buyerEmail) + "</strong><br/>"
+                + "3. Grant bundle / course access manually"
+                + "</div></div>";
+    }
+
+    private String alertRow(String label, String value) {
+        return "<tr><td style=\"padding:6px 12px 6px 0;font-weight:bold;width:120px;vertical-align:top\">"
+                + safe(label) + ":</td><td style=\"padding:6px 0\">" + safe(value) + "</td></tr>";
     }
 
     private String safe(String val) {

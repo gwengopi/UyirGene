@@ -19,6 +19,9 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     /** Find enrollment by Razorpay order ID — used by webhook to confirm payment. */
     Optional<Enrollment> findByPaymentOrderId(String paymentOrderId);
 
+    /** Find ALL enrollments for a Razorpay order ID — bundle orders create multiple rows per order. */
+    List<Enrollment> findAllByPaymentOrderId(String paymentOrderId);
+
     /** Check if user is enrolled in a specific course with a given status. */
     boolean existsByUserAndCourseAndStatusIn(User user, Course course, List<Enrollment.Status> statuses);
 

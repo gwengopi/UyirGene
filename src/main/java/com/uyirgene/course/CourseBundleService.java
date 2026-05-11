@@ -313,6 +313,29 @@ public class CourseBundleService {
         EnrollmentResult.RazorpayOrder order = new EnrollmentResult.RazorpayOrder(
                 po.getId(), po.getAmount(), po.getCurrency(), po.getKeyId());
 
+        // Create PENDING rows now so the webhook can confirm enrollment if the
+        // frontend /confirm call never arrives (browser closed, network drop, etc.)
+        for (Course course : newCourses) {
+            Optional<Enrollment> existing = enrollmentRepo.findByUserAndCourse(user, course);
+            if (existing.isPresent()) {
+                Enrollment e = existing.get();
+                if (e.getStatus() != Enrollment.Status.ENROLLED && e.getStatus() != Enrollment.Status.COMPLETED) {
+                    e.setPaymentOrderId(po.getId());
+                    e.setBundle(bundle);
+                    enrollmentRepo.save(e);
+                }
+            } else {
+                enrollmentRepo.save(Enrollment.builder()
+                        .user(user)
+                        .course(course)
+                        .bundle(bundle)
+                        .enrolledAt(LocalDateTime.now())
+                        .status(Enrollment.Status.PENDING)
+                        .paymentOrderId(po.getId())
+                        .build());
+            }
+        }
+
         // Build warning message if user already owns some courses
         String message = null;
         if (!alreadyOwned.isEmpty()) {
@@ -570,6 +593,49 @@ public class CourseBundleService {
 
         EnrollmentResult.RazorpayOrder order = new EnrollmentResult.RazorpayOrder(
                 po.getId(), po.getAmount(), po.getCurrency(), po.getKeyId());
+
+        // Create PENDING rows now so the webhook can confirm enrollment if the
+        // frontend /confirm call never arrives (browser closed, network drop, etc.)
+        for (CourseBundle b : loadedBundles) {
+            for (Course course : b.getCourses()) {
+                Optional<Enrollment> existing = enrollmentRepo.findByUserAndCourse(user, course);
+                if (existing.isPresent()) {
+                    Enrollment e = existing.get();
+                    if (e.getStatus() != Enrollment.Status.ENROLLED && e.getStatus() != Enrollment.Status.COMPLETED) {
+                        e.setPaymentOrderId(po.getId());
+                        e.setBundle(b);
+                        enrollmentRepo.save(e);
+                    }
+                } else {
+                    enrollmentRepo.save(Enrollment.builder()
+                            .user(user)
+                            .course(course)
+                            .bundle(b)
+                            .enrolledAt(LocalDateTime.now())
+                            .status(Enrollment.Status.PENDING)
+                            .paymentOrderId(po.getId())
+                            .build());
+                }
+            }
+        }
+        if (standalone != null && !standaloneAlreadyOwned) {
+            Optional<Enrollment> existing = enrollmentRepo.findByUserAndCourse(user, standalone);
+            if (existing.isPresent()) {
+                Enrollment e = existing.get();
+                if (e.getStatus() != Enrollment.Status.ENROLLED && e.getStatus() != Enrollment.Status.COMPLETED) {
+                    e.setPaymentOrderId(po.getId());
+                    enrollmentRepo.save(e);
+                }
+            } else {
+                enrollmentRepo.save(Enrollment.builder()
+                        .user(user)
+                        .course(standalone)
+                        .enrolledAt(LocalDateTime.now())
+                        .status(Enrollment.Status.PENDING)
+                        .paymentOrderId(po.getId())
+                        .build());
+            }
+        }
 
         String warningMessage = warnings.isEmpty() ? null : "Note: " + String.join("; ", warnings);
         return new MultiEnrollmentResult(order, warningMessage);
