@@ -176,11 +176,19 @@ function FlagshipProgramForm({ open, program, onClose, onSaved, courses = [] }) 
   };
 
   const roundForCurrency = (amount, currency) => {
-    if (['JPY', 'KRW', 'IDR', 'VND', 'CLP', 'ISK', 'HUF', 'TWD', 'COP', 'IQD', 'IRR'].includes(currency))
-      return Math.round(amount).toString();
-    if (['BHD', 'KWD', 'JOD', 'OMR'].includes(currency))
-      return (Math.round(amount * 1000) / 1000).toString();
-    return (Math.round(amount * 100) / 100).toString();
+
+    // Zero-decimal currencies
+    if (['JPY', 'KRW', 'IDR', 'VND', 'CLP', 'ISK', 'HUF', 'TWD', 'COP', 'IQD', 'IRR'].includes(currency)) {
+      return Math.round(amount);
+    }
+
+    // 3-decimal currencies
+    if (['BHD', 'KWD', 'JOD', 'OMR'].includes(currency)) {
+      return Number(amount.toFixed(3));
+    }
+
+    // Standard currencies
+    return Number(amount.toFixed(2));
   };
 
   const handleConvertAll = async () => {

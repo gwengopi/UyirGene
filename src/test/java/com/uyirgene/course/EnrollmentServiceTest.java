@@ -17,6 +17,8 @@ public class EnrollmentServiceTest {
         EnrollmentRepository enrollmentRepo = Mockito.mock(EnrollmentRepository.class);
         CourseRepository courseRepo = Mockito.mock(CourseRepository.class);
         CoursePriceRepository coursePriceRepo = Mockito.mock(CoursePriceRepository.class);
+        FlagshipProgramRepository flagshipProgramRepo = Mockito.mock(FlagshipProgramRepository.class); // added
+        FlagshipProgramPriceRepository flagshipPriceRepo = Mockito.mock(FlagshipProgramPriceRepository.class); // added
         CurrentUserService currentUserService = Mockito.mock(CurrentUserService.class);
         com.uyirgene.course.payment.PaymentProvider paymentProvider = Mockito.mock(com.uyirgene.course.payment.PaymentProvider.class);
         com.uyirgene.course.MailService mailService = Mockito.mock(com.uyirgene.course.MailService.class);
@@ -30,7 +32,12 @@ public class EnrollmentServiceTest {
         Mockito.when(enrollmentRepo.findByUserAndCourse(u, c)).thenReturn(Optional.empty());
         Mockito.when(enrollmentRepo.save(Mockito.any())).thenAnswer(i -> i.getArgument(0));
 
-        EnrollmentService s = new EnrollmentService(enrollmentRepo, courseRepo, coursePriceRepo, currentUserService, paymentProvider, mailService, siteConfigService);
+        // correct constructor order matches EnrollmentService field declaration order
+        EnrollmentService s = new EnrollmentService(
+                enrollmentRepo, courseRepo, coursePriceRepo,
+                flagshipProgramRepo, flagshipPriceRepo,   // inserted at positions 4 and 5
+                currentUserService, paymentProvider, mailService, siteConfigService);
+
         Enrollment e = s.enroll(2L);
 
         assertThat(e.getUser()).isEqualTo(u);

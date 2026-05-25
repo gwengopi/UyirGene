@@ -306,7 +306,8 @@ public class CourseBundleService {
         }
 
         // Create Razorpay order
-        long amountSmallestUnit = Math.round(resolvedPrice * 100);
+        long amountSmallestUnit =
+                toSmallestUnit(resolvedPrice, resolvedCurrency);
         PaymentOrder po = paymentProvider.createOrder(
                 amountSmallestUnit, resolvedCurrency, "bundle-" + bundleId + "-" + System.currentTimeMillis());
 
@@ -465,7 +466,8 @@ public class CourseBundleService {
             }
         }
 
-        long amountSmallestUnit = Math.round(totalAmount * 100);
+        long amountSmallestUnit =
+                toSmallestUnit(totalAmount, finalCurrency);
         // Encode bundle IDs in receipt so webhook can recover enrollment if confirm call never arrives
         String bundleReceipt = "anon-b-" + bundleIds.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","))
                 + (standaloneCourseId != null ? "-s" + standaloneCourseId : "");
@@ -587,7 +589,8 @@ public class CourseBundleService {
             }
         }
 
-        long amountSmallestUnit = Math.round(totalAmount * 100);
+        long amountSmallestUnit =
+                toSmallestUnit(totalAmount, effectiveCurrency);
         PaymentOrder po = paymentProvider.createOrder(
                 amountSmallestUnit, effectiveCurrency, "multi-bundle-" + System.currentTimeMillis());
 
@@ -790,6 +793,23 @@ public class CourseBundleService {
         }
 
         return newEnrollments;
+    }
+
+    private long toSmallestUnit(double amount, String currency) {
+        return switch (currency.toUpperCase()) {
+
+            // 3 decimal currencies
+            case "KWD", "BHD", "OMR", "JOD" ->
+                    Math.round(amount * 1000);
+
+            // 0 decimal currencies
+            case "JPY", "KRW", "VND", "IDR" ->
+                    Math.round(amount);
+
+            // Standard currencies
+            default ->
+                    Math.round(amount * 100);
+        };
     }
 
     // ==================== Result DTOs ====================

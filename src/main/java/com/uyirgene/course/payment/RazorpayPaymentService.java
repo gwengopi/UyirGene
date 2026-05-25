@@ -43,6 +43,12 @@ public class RazorpayPaymentService implements PaymentProvider {
         body.put("receipt", receipt);
         body.put("payment_capture", 1);
 
+        System.out.println("=================================");
+        System.out.println("AMOUNT SENT TO RAZORPAY = " + amountSmallestUnit);
+        System.out.println("CURRENCY = " + currency);
+        System.out.println("RECEIPT = " + receipt);
+        System.out.println("=================================");
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         String auth = keyId + ":" + keySecret;

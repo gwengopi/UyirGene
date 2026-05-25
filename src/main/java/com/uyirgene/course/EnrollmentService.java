@@ -86,6 +86,10 @@ public class EnrollmentService {
             if (countryPrice.isPresent()) {
                 resolvedPrice = countryPrice.get().getAmount();
                 resolvedCurrency = countryPrice.get().getCurrencyCode();
+                System.out.println("=================================");
+                System.out.println("RESOLVED PRICE = " + resolvedPrice);
+                System.out.println("RESOLVED CURRENCY = " + resolvedCurrency);
+                System.out.println("=================================");
             } else {
                 resolvedPrice = c.getPrice();
                 resolvedCurrency = "INR";
@@ -113,8 +117,13 @@ public class EnrollmentService {
                     enrollmentRepo.save(existing);
                     return new EnrollmentResult(existing, null, false, null);
                 }
+                System.out.println("=================================");
+                System.out.println("RAW RESOLVED PRICE = " + resolvedPrice);
+                System.out.println("RAW RESOLVED CURRENCY = " + resolvedCurrency);
+                System.out.println("=================================");
                 // Always create a fresh order so currency/amount changes (e.g. switching country) are reflected
-                long amountSmallestUnit = Math.round(resolvedPrice * 100);
+                long amountSmallestUnit =
+                        toSmallestUnit(resolvedPrice, resolvedCurrency);
                 PaymentOrder po = paymentProvider.createOrder(amountSmallestUnit, resolvedCurrency,
                         "enroll-" + existing.getId());
                 existing.setPaymentOrderId(po.getId());
@@ -139,7 +148,13 @@ public class EnrollmentService {
                 .status(Enrollment.Status.PENDING)
                 .build());
 
-        long amountSmallestUnit = Math.round(resolvedPrice * 100);
+        System.out.println("=================================");
+        System.out.println("RAW RESOLVED PRICE = " + resolvedPrice);
+        System.out.println("RAW RESOLVED CURRENCY = " + resolvedCurrency);
+        System.out.println("=================================");
+
+        long amountSmallestUnit =
+                toSmallestUnit(resolvedPrice, resolvedCurrency);
         PaymentOrder po = paymentProvider.createOrder(amountSmallestUnit, resolvedCurrency,
                 "enroll-" + (enrollment.getId() != null ? enrollment.getId() : System.currentTimeMillis()));
 
@@ -239,6 +254,10 @@ public class EnrollmentService {
             if (countryPrice.isPresent()) {
                 resolvedPrice = countryPrice.get().getAmount();
                 resolvedCurrency = countryPrice.get().getCurrencyCode();
+                System.out.println("=================================");
+                System.out.println("RESOLVED PRICE = " + resolvedPrice);
+                System.out.println("RESOLVED CURRENCY = " + resolvedCurrency);
+                System.out.println("=================================");
             } else {
                 resolvedPrice = program.getPrice();
                 resolvedCurrency = "INR";
@@ -257,7 +276,11 @@ public class EnrollmentService {
             }
             if (existing.getStatus() == Enrollment.Status.PENDING && existing.getPaymentOrderId() != null) {
                 // Always create a fresh order so currency/amount changes (e.g. switching country) are reflected
-                long amountSmallestUnit = Math.round((resolvedPrice == null ? 0.0 : resolvedPrice) * 100);
+                long amountSmallestUnit =
+                        toSmallestUnit(
+                                resolvedPrice == null ? 0.0 : resolvedPrice,
+                                resolvedCurrency
+                        );
                 PaymentOrder po = paymentProvider.createOrder(amountSmallestUnit, resolvedCurrency,
                         "flagship-" + existing.getId());
                 existing.setPaymentOrderId(po.getId());
@@ -296,7 +319,13 @@ public class EnrollmentService {
                 .status(Enrollment.Status.PENDING)
                 .build());
 
-        long amountSmallestUnit = Math.round(resolvedPrice * 100);
+        System.out.println("=================================");
+        System.out.println("RAW RESOLVED PRICE = " + resolvedPrice);
+        System.out.println("RAW RESOLVED CURRENCY = " + resolvedCurrency);
+        System.out.println("=================================");
+
+        long amountSmallestUnit =
+                toSmallestUnit(resolvedPrice, resolvedCurrency);
         PaymentOrder po = paymentProvider.createOrder(amountSmallestUnit, resolvedCurrency,
                 "flagship-" + (enrollment.getId() != null ? enrollment.getId() : System.currentTimeMillis()));
 
@@ -468,6 +497,23 @@ public class EnrollmentService {
     }
 
     // ==================== Shared ====================
+
+    private long toSmallestUnit(double amount, String currency) {
+        return switch (currency.toUpperCase()) {
+
+            // 3 decimal currencies
+            case "KWD", "BHD", "OMR", "JOD" ->
+                    Math.round(amount * 1000);
+
+            // 0 decimal currencies
+            case "JPY", "KRW", "VND", "IDR" ->
+                    Math.round(amount);
+
+            // Default = 2 decimal currencies
+            default ->
+                    Math.round(amount * 100);
+        };
+    }
 
     public double getPassMarkPercentage() {
         String passMarkStr = siteConfigService.getConfigValue("PASS_MARK_PERCENTAGE", "60");

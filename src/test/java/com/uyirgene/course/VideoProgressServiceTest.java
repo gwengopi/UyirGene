@@ -16,10 +16,11 @@ public class VideoProgressServiceTest {
     void completing_all_videos_marks_enrollment_and_generates_certificate() {
         VideoProgressRepository progressRepo = Mockito.mock(VideoProgressRepository.class);
         VideoRepository videoRepo = Mockito.mock(VideoRepository.class);
+        FlagshipVideoRepository flagshipVideoRepo = Mockito.mock(FlagshipVideoRepository.class); // added
         EnrollmentRepository enrollmentRepo = Mockito.mock(EnrollmentRepository.class);
         EnrollmentService enrollmentService = Mockito.mock(EnrollmentService.class);
-        CertificateService certificateService = Mockito.mock(CertificateService.class);
         CurrentUserService currentUserService = Mockito.mock(CurrentUserService.class);
+        // removed CertificateService — not in constructor and not called by updateProgress
 
         User u = User.builder().id(1L).email("a@b").name("A").build();
         Course course = Course.builder().id(10L).title("Course").build();
@@ -36,13 +37,17 @@ public class VideoProgressServiceTest {
         Mockito.when(progressRepo.findByUserAndVideo(u, v1)).thenReturn(Optional.of(VideoProgress.builder().completed(true).build()));
         Mockito.when(progressRepo.save(Mockito.any())).thenAnswer(i -> i.getArgument(0));
 
-        VideoProgressService s = new VideoProgressService(progressRepo, videoRepo, enrollmentRepo, enrollmentService, certificateService, currentUserService);
+        // correct constructor order: progressRepo, videoRepo, flagshipVideoRepo, enrollmentRepo, enrollmentService, currentUserService
+        VideoProgressService s = new VideoProgressService(
+                progressRepo, videoRepo, flagshipVideoRepo,
+                enrollmentRepo, enrollmentService, currentUserService);
 
         VideoProgress p = s.updateProgress(101L, 20L, false);
 
         assertThat(p.getLastPositionSeconds()).isEqualTo(20L);
         assertThat(p.getCompleted()).isTrue();
         Mockito.verify(enrollmentService).markCompleted(e);
-        Mockito.verify(certificateService).generateCertificate(u, course);
+        // removed: certificateService.generateCertificate — updateProgress does not call it
+        // (per the comment in source: "admin generates it manually")
     }
 }
