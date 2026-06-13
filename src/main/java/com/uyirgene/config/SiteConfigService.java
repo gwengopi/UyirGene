@@ -376,12 +376,14 @@ public class SiteConfigService {
 
         // Contact and Communication
         createIfNotExists("TALK_TO_EXPERT_URL", "https://api.whatsapp.com/send/?phone=919943712383&text&type=phone_number&app_absent=0", "URL", "CONTACT", "Talk to Expert WhatsApp URL");
-        createIfNotExists("CONTACT_PHONE", "+91 99437 12383", "TEXT", "CONTACT", "Contact phone number for display");
+        createIfNotExists("CONTACT_PHONE_MANAGER", "+91 99437 12383", "TEXT", "CONTACT", "Manager phone number");
+        createIfNotExists("CONTACT_PHONE_OFFICE", "04562 359 331", "TEXT", "CONTACT", "Office phone number");
         createIfNotExists("CONTACT_WHATSAPP", "919943712383", "TEXT", "CONTACT", "WhatsApp number (country code, no +)");
-        createIfNotExists("CONTACT_EMAIL", "info@uyirgene.com", "TEXT", "CONTACT", "Primary contact email");
-        createIfNotExists("CONTACT_EMAIL_ALT", "uyirgene@gmail.com", "TEXT", "CONTACT", "Alternate contact email");
+        createIfNotExists("CONTACT_EMAIL", "info@uyirgene.com", "TEXT", "CONTACT", "Primary contact email (also receives contact form submissions)");
+        createIfNotExists("CONTACT_EMAIL_OUTLOOK", "uyirgene@outlook.com", "TEXT", "CONTACT", "Alternate contact email");
         createIfNotExists("CONTACT_WEBSITE", "www.uyirgene.com", "TEXT", "CONTACT", "Website URL");
-        createIfNotExists("CONTACT_ADDRESS", "Uyir-Tech International Testing Laboratory, Research and Training Institute, Bharathi Nagar, NGO Colony, Sattur, Tamil Nadu, India", "TEXT", "CONTACT", "Office address");
+        createIfNotExists("CONTACT_ADDRESS", "Uyir-Tech International Testing Laboratory, Research and Training Institute, Bharathi Nagar, NGO Colony, Sattur, Tamil Nadu, India", "TEXT", "CONTACT", "Head office address");
+        createIfNotExists("CONTACT_LOCATIONS", "Chennai, Bengaluru, Coimbatore & Sattur", "TEXT", "CONTACT", "Office locations (displayed on contact page)");
 
         // Certification Settings
         createIfNotExists("PASS_MARK_PERCENTAGE", "60", "TEXT", "SETTINGS", "Pass mark percentage for course completion certificate");
@@ -409,10 +411,15 @@ public class SiteConfigService {
         createIfNotExists("GOOGLE_PLACE_ID", "", "TEXT", "REVIEW", "Google Place ID for fetching reviews via Places API");
         createIfNotExists("GOOGLE_API_KEY", "", "TEXT", "REVIEW", "Google Places API key for fetching reviews");
 
+        // Transactional Email Configuration
+        createIfNotExists("transactionalFromEmail", "", "TEXT", "EMAIL", "From email for transactional emails (enrollment, completion, reminders, password reset). Leave blank to use MAIL_FROM env var.");
+        createIfNotExists("transactionalFromName", "UyirGene", "TEXT", "EMAIL", "Sender display name for transactional emails");
+        createIfNotExists("emailBccAddress", "", "TEXT", "EMAIL", "BCC address added to all outgoing emails (e.g. contact@uyirgene.com). Leave blank to disable.");
+
         // Marketing Email Configuration
-        createIfNotExists("marketingFromEmail", "", "TEXT", "MARKETING", "From email address for marketing campaigns (leave blank to use default mail.from)");
-        createIfNotExists("marketingFromName", "UyirGene", "TEXT", "MARKETING", "Sender display name for marketing campaigns");
-        createIfNotExists("marketingFooterAddress", "", "TEXT", "MARKETING", "Physical address shown in marketing email footer (leave blank to use CONTACT_ADDRESS)");
+        createIfNotExists("marketingFromEmail", "", "TEXT", "EMAIL", "From email address for marketing campaigns (leave blank to use default mail.from)");
+        createIfNotExists("marketingFromName", "UyirGene", "TEXT", "EMAIL", "Sender display name for marketing campaigns");
+        createIfNotExists("marketingFooterAddress", "", "TEXT", "EMAIL", "Physical address shown in marketing email footer (leave blank to use CONTACT_ADDRESS)");
 
         // Certificate Number Settings
         createIfNotExists("certNumberFormat", "UG-{YEAR}-{SEQ:5}", "TEXT", "CERTIFICATE", "Format for auto-generated certificate numbers. Tokens: {YEAR},{YY},{MONTH},{DD},{SEQ},{SEQ:N}");

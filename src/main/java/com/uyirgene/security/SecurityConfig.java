@@ -58,6 +58,7 @@ public class SecurityConfig {
                             "/api/payment/webhook",
                             "/api/payment/guest/failed",
                             "/api/analytics/pageview",
+                            "/api/contact/submit",
                             "/actuator/health"
                     ).permitAll()
                     // Course & bundle public endpoints (read-only)

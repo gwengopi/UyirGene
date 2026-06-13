@@ -92,6 +92,7 @@ app:
   frontend-url: ${APP_FRONTEND_URL:http://localhost:5173}
   mail:
     from: ${MAIL_FROM:${MAIL_USERNAME:UyirGene}}
+    ses-config-set: ${SES_CONFIG_SET:}
   certificate:
     folder: uploads/certificates
     logo-path: static/images/logo.png

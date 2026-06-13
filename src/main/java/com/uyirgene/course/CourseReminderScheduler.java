@@ -23,6 +23,9 @@ public class CourseReminderScheduler {
      * Sends completion reminder emails for both course and flagship program enrollments
      * where the SLA (reminderDays) has elapsed and no reminder has been sent yet.
      */
+    // 200 ms between reminder emails — prevents SMTP rate-limit bursts at 09:00 AM
+    private static final long REMINDER_SEND_DELAY_MS = 200;
+
     @Scheduled(cron = "0 0 9 * * *")
     public void sendCourseReminders() {
         LocalDate today = LocalDate.now();
@@ -47,7 +50,12 @@ public class CourseReminderScheduler {
                     enrollment.setReminderSentAt(LocalDateTime.now());
                     enrollmentRepository.save(enrollment);
                     sent++;
+                    Thread.sleep(REMINDER_SEND_DELAY_MS);
                 }
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                log.warn("Course reminder scheduler interrupted after {} sends.", sent);
+                return;
             } catch (Exception ex) {
                 log.error("Course reminder scheduler: error processing course enrollment id={}: {}",
                         enrollment.getId(), ex.getMessage(), ex);
@@ -73,13 +81,18 @@ public class CourseReminderScheduler {
                     enrollment.setReminderSentAt(LocalDateTime.now());
                     enrollmentRepository.save(enrollment);
                     sent++;
+                    Thread.sleep(REMINDER_SEND_DELAY_MS);
                 }
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                log.warn("Course reminder scheduler interrupted after {} sends.", sent);
+                return;
             } catch (Exception ex) {
                 log.error("Course reminder scheduler: error processing flagship enrollment id={}: {}",
                         enrollment.getId(), ex.getMessage(), ex);
             }
         }
 
-        log.info("Course reminder scheduler: completed. {} reminder email(s) queued.", sent);
+        log.info("Course reminder scheduler: completed. {} reminder email(s) sent.", sent);
     }
 }

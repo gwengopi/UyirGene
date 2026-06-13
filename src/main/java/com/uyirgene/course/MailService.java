@@ -2,7 +2,9 @@ package com.uyirgene.course;
 
 import com.uyirgene.blog.Blog;
 import com.uyirgene.blog.BlogSubscription;
+import com.uyirgene.config.SiteConfigService;
 import com.uyirgene.user.User;
+import com.uyirgene.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,6 +28,8 @@ import java.util.Map;
 public class MailService {
     private final JavaMailSender mailSender;
     private final MailTemplateService mailTemplateService;
+    private final UserRepository userRepository;
+    private final SiteConfigService siteConfigService;
 
     @Value("${spring.mail.username:}")
     private String mailUsername;
@@ -39,6 +43,9 @@ public class MailService {
     @Value("${app.name:UyirGene}")
     private String appName;
 
+    @Value("${app.mail.ses-config-set:}")
+    private String sesConfigSet;
+
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMMM dd, yyyy");
 
     /**
@@ -46,6 +53,7 @@ public class MailService {
      */
     @Async
     public void sendEnrollmentSuccess(User user, Course course) {
+        if (isBounced(user)) return;
         try {
             log.info("Sending enrollment success email for course: {}", course.getTitle());
             MailTemplate tpl = mailTemplateService.findByKey("enrollment-success").orElse(null);
@@ -79,6 +87,7 @@ public class MailService {
      */
     @Async
     public void sendGuestEnrollmentSuccess(User user, Course course, String magicLink, boolean isNewAccount) {
+        if (isBounced(user)) return;
         try {
             log.info("Sending guest enrollment email for course: {} (newAccount={})", course.getTitle(), isNewAccount);
             MailTemplate tpl = mailTemplateService.findByKey("enrollment-success").orElse(null);
@@ -113,6 +122,7 @@ public class MailService {
      */
     @Async
     public void sendGuestEnrollmentSuccess(User user, FlagshipProgram program, String magicLink, boolean isNewAccount) {
+        if (isBounced(user)) return;
         try {
             log.info("Sending guest enrollment email for flagship: {} (newAccount={})", program.getTitle(), isNewAccount);
             MailTemplate tpl = mailTemplateService.findByKey("enrollment-success").orElse(null);
@@ -142,6 +152,7 @@ public class MailService {
      */
     @Async
     public void sendMagicLinkResend(User user, String magicLink) {
+        if (isBounced(user)) return;
         try {
             String html = "<div style='font-family:sans-serif;max-width:600px;margin:40px auto;padding:32px;border:1px solid #e0e0e0;border-radius:8px'>"
                     + "<h2 style='color:#2980B9;margin-top:0'>Your " + safe(appName) + " Access Link</h2>"
@@ -173,6 +184,7 @@ public class MailService {
      */
     @Async
     public void sendCourseCompletion(User user, Course course, Double marks, String certificateType) {
+        if (isBounced(user)) return;
         try {
             log.info("Sending course completion email for course: {}", course.getTitle());
             MailTemplate tpl = mailTemplateService.findByKey("course-completion").orElse(null);
@@ -205,6 +217,7 @@ public class MailService {
      */
     @Async
     public void sendResultPublished(User user, Course course, Enrollment enrollment, Certificate certificate) {
+        if (isBounced(user)) return;
         try {
             log.info("Sending results & certificate email for course: {}", course.getTitle());
             MailTemplate tpl = mailTemplateService.findByKey("result-published").orElse(null);
@@ -238,6 +251,7 @@ public class MailService {
      */
     @Async
     public void sendEnrollmentSuccess(User user, FlagshipProgram program) {
+        if (isBounced(user)) return;
         try {
             log.info("Sending enrollment success email for flagship: {}", program.getTitle());
             MailTemplate tpl = mailTemplateService.findByKey("enrollment-success").orElse(null);
@@ -269,6 +283,7 @@ public class MailService {
      */
     @Async
     public void sendCourseCompletion(User user, FlagshipProgram program, Double marks, String certificateType) {
+        if (isBounced(user)) return;
         try {
             log.info("Sending course completion email for flagship: {}", program.getTitle());
             MailTemplate tpl = mailTemplateService.findByKey("course-completion").orElse(null);
@@ -300,6 +315,7 @@ public class MailService {
      */
     @Async
     public void sendResultPublished(User user, FlagshipProgram program, Enrollment enrollment, Certificate certificate) {
+        if (isBounced(user)) return;
         try {
             log.info("Sending results & certificate email for flagship: {}", program.getTitle());
             MailTemplate tpl = mailTemplateService.findByKey("result-published").orElse(null);
@@ -332,6 +348,7 @@ public class MailService {
      */
     @Async
     public void sendCourseReminder(User user, Course course, Enrollment enrollment) {
+        if (isBounced(user)) return;
         try {
             log.info("Sending course reminder email to {} for course: {}", user.getEmail(), course.getTitle());
             MailTemplate tpl = mailTemplateService.findByKey("course-reminder").orElse(null);
@@ -363,6 +380,7 @@ public class MailService {
      */
     @Async
     public void sendFlagshipReminder(User user, FlagshipProgram program, Enrollment enrollment) {
+        if (isBounced(user)) return;
         try {
             log.info("Sending flagship reminder email to {} for program: {}", user.getEmail(), program.getTitle());
             MailTemplate tpl = mailTemplateService.findByKey("course-reminder").orElse(null);
@@ -394,6 +412,10 @@ public class MailService {
      */
     @Async
     public void sendPaymentFailed(String userEmail, String userName, String courseTitle, String reason, String retryUrl) {
+        if (userRepository.findByEmailIgnoreCase(userEmail).map(User::isEmailBounced).orElse(false)) {
+            log.warn("Skipping payment-failed email to {} — address marked as bounced", userEmail);
+            return;
+        }
         try {
             log.info("Sending payment failed email to {} for: {}", userEmail, courseTitle);
             MailTemplate tpl = mailTemplateService.findByKey("payment-failed").orElse(null);
@@ -426,26 +448,58 @@ public class MailService {
     @Async
     public void sendNewBlogNotification(List<BlogSubscription> subscribers, Blog blog) {
         log.info("Sending new blog notification to {} subscribers for blog: {}", subscribers.size(), blog.getTitle());
-
+        int sent = 0;
         for (BlogSubscription subscriber : subscribers) {
             try {
+                // Skip if the subscriber's email has hard-bounced via SES
+                boolean bounced = userRepository.findByEmailIgnoreCase(subscriber.getEmail())
+                        .map(User::isEmailBounced).orElse(false);
+                if (bounced) {
+                    log.debug("Skipping bounced email {} for blog notification", subscriber.getEmail());
+                    continue;
+                }
                 MimeMessage msg = mailSender.createMimeMessage();
                 MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
                 helper.setTo(subscriber.getEmail());
-                setFrom(helper);
+                setFrom(helper, false);
                 helper.setSubject("New Post: " + blog.getTitle());
 
                 String html = buildNewBlogHtml(subscriber, blog);
                 helper.setText(html, true);
 
                 mailSender.send(msg);
-                log.debug("Blog notification sent for blog: {}", blog.getTitle());
+                sent++;
+                // Throttle to avoid SMTP rate limits — 200 ms between sends
+                if (sent % 10 == 0) {
+                    log.info("Blog notification progress: {}/{} sent for blog: {}", sent, subscribers.size(), blog.getTitle());
+                }
+                Thread.sleep(200);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                log.warn("Blog notification sending interrupted at {}/{}", sent, subscribers.size());
+                break;
             } catch (Exception e) {
-                log.error("Failed to send blog notification for blog {}: {}", blog.getTitle(), e.getMessage());
+                log.error("Failed to send blog notification to {} for blog {}: {}", subscriber.getEmail(), blog.getTitle(), e.getMessage());
             }
         }
 
-        log.info("Finished sending blog notifications for: {}", blog.getTitle());
+        log.info("Finished sending blog notifications for: {} — {}/{} sent", blog.getTitle(), sent, subscribers.size());
+
+        // Send one BCC copy to admin after all subscriber emails are done
+        String bcc = siteConfigService.getConfigValueFresh("emailBccAddress");
+        if (bcc != null && !bcc.isBlank() && sent > 0) {
+            try {
+                MimeMessage bccMsg = mailSender.createMimeMessage();
+                MimeMessageHelper bccHelper = new MimeMessageHelper(bccMsg, true, "UTF-8");
+                bccHelper.setTo(bcc);
+                setFrom(bccHelper, false);
+                bccHelper.setSubject("[Blog Copy] New Post: " + blog.getTitle() + " (" + sent + " recipients)");
+                bccHelper.setText(buildNewBlogHtml(subscribers.get(0), blog), true);
+                mailSender.send(bccMsg);
+            } catch (Exception e) {
+                log.warn("Failed to send BCC copy for blog notification: {}", e.getMessage());
+            }
+        }
     }
 
     /**
@@ -453,6 +507,10 @@ public class MailService {
      */
     @Async
     public void sendNewBlogNotification(BlogSubscription subscriber, Blog blog) {
+        if (userRepository.findByEmailIgnoreCase(subscriber.getEmail()).map(User::isEmailBounced).orElse(false)) {
+            log.debug("Skipping blog notification to bounced email {}", subscriber.getEmail());
+            return;
+        }
         try {
             log.info("Sending new blog notification for blog: {}", blog.getTitle());
             MimeMessage msg = mailSender.createMimeMessage();
@@ -476,6 +534,10 @@ public class MailService {
      */
     @Async
     public void sendBundleEnrollmentSuccess(String userEmail, String userName, String bundleTitle, List<String> courseTitles) {
+        if (userRepository.findByEmailIgnoreCase(userEmail).map(User::isEmailBounced).orElse(false)) {
+            log.warn("Skipping bundle enrollment email to {} — address marked as bounced", userEmail);
+            return;
+        }
         try {
             log.info("Sending bundle enrollment success email to {} for bundle: {}", userEmail, bundleTitle);
             MailTemplate tpl = mailTemplateService.findByKey("bundle-enrollment-success").orElse(null);
@@ -509,6 +571,7 @@ public class MailService {
     @Async
     public void sendGuestBundleEnrollmentSuccess(User user, String bundleTitle,
                                                   List<String> courseTitles, String magicLink, boolean isNewAccount) {
+        if (isBounced(user)) return;
         try {
             log.info("Sending guest bundle enrollment success email to {} for value pack: {} (newAccount={})", user.getEmail(), bundleTitle, isNewAccount);
             MailTemplate tpl = mailTemplateService.findByKey("bundle-enrollment-success").orElse(null);
@@ -535,6 +598,7 @@ public class MailService {
 
     @Async
     public void sendPasswordReset(User user, String resetLink) {
+        if (isBounced(user)) return;
         try {
             MimeMessage msg = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(msg, false, "UTF-8");
@@ -560,13 +624,48 @@ public class MailService {
     }
 
     private String getFromEmail() {
+        // Admin config (site_config.transactionalFromEmail) takes priority over env vars
+        String adminConfigured = siteConfigService.getConfigValueFresh("transactionalFromEmail");
+        if (adminConfigured != null && !adminConfigured.isBlank()) return adminConfigured;
         if (mailFrom != null && !mailFrom.isBlank()) return mailFrom;
         if (mailUsername != null && !mailUsername.isBlank()) return mailUsername;
         return "noreply@uyirgene.com";
     }
 
+    private String getFromName() {
+        String adminConfigured = siteConfigService.getConfigValueFresh("transactionalFromName");
+        return (adminConfigured != null && !adminConfigured.isBlank()) ? adminConfigured : appName;
+    }
+
     private void setFrom(MimeMessageHelper helper) throws Exception {
-        helper.setFrom(getFromEmail(), appName);
+        setFrom(helper, true);
+    }
+
+    private void setFrom(MimeMessageHelper helper, boolean includeBcc) throws Exception {
+        helper.setFrom(getFromEmail(), getFromName());
+        if (sesConfigSet != null && !sesConfigSet.isBlank()) {
+            helper.getMimeMessage().setHeader("X-SES-CONFIGURATION-SET", sesConfigSet);
+        }
+        if (includeBcc) {
+            String bcc = siteConfigService.getConfigValueFresh("emailBccAddress");
+            if (bcc != null && !bcc.isBlank()) {
+                helper.setBcc(bcc);
+            }
+        }
+    }
+
+    /**
+     * Returns true if this user's email address has previously hard-bounced or
+     * generated a spam complaint via SES. Sending to bounced addresses degrades
+     * SES sender reputation and can trigger account suspension.
+     */
+    private boolean isBounced(User user) {
+        if (user.isEmailBounced()) {
+            log.warn("Skipping email to {} — address marked as bounced (type={})",
+                    user.getEmail(), user.getEmailBounceType());
+            return true;
+        }
+        return false;
     }
 
     private String buildGuestEnrollmentContent(User user, boolean isNewAccount, String itemType) {
@@ -605,6 +704,41 @@ public class MailService {
                     + "<a href=\"" + baseUrl + "/forgot-password\" style=\"color:#2980B9\">Forgot Password</a> "
                     + "link on the login page if you ever need to reset access.</small>";
         }
+    }
+
+    @Async
+    public void sendContactFormToAdmin(String adminEmail, String senderName, String senderEmail,
+                                        String subject, String message) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setTo(adminEmail);
+            setFrom(helper, false);
+            helper.setReplyTo(senderEmail);
+            helper.setSubject("[Contact Form] " + safe(subject));
+            String html = "<div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px'>"
+                    + "<h2 style='color:#1a237e;border-bottom:2px solid #1a237e;padding-bottom:8px'>New Contact Form Submission</h2>"
+                    + "<table style='width:100%;border-collapse:collapse;margin:16px 0'>"
+                    + contactRow("Name", senderName)
+                    + contactRow("Email", senderEmail)
+                    + contactRow("Subject", subject)
+                    + "</table>"
+                    + "<h3 style='margin-top:24px'>Message</h3>"
+                    + "<div style='background:#f5f5f5;padding:16px;border-radius:4px;white-space:pre-wrap'>"
+                    + safe(message) + "</div>"
+                    + "<p style='color:#888;font-size:12px;margin-top:24px'>Reply directly to this email to respond to " + safe(senderName) + ".</p>"
+                    + "</div>";
+            helper.setText(html, true);
+            mailSender.send(msg);
+            log.info("Contact form email sent to admin from {}", senderEmail);
+        } catch (Exception e) {
+            log.error("Failed to send contact form email: {}", e.getMessage(), e);
+        }
+    }
+
+    private String contactRow(String label, String value) {
+        return "<tr><td style='padding:6px 12px 6px 0;font-weight:bold;width:80px'>"
+                + safe(label) + ":</td><td style='padding:6px 0;color:#333'>" + safe(value) + "</td></tr>";
     }
 
     @Async

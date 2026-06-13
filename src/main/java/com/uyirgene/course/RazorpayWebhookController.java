@@ -62,7 +62,6 @@ public class RazorpayWebhookController {
     private static final Pattern LOGGED_IN_BUNDLE_RECEIPT = Pattern.compile("^bundle-(\\d+)-\\d+$");
 
     @PostMapping
-    @Transactional
     public ResponseEntity<Void> handleWebhook(
             HttpServletRequest request,
             @RequestHeader(value = "X-Razorpay-Signature", required = false) String signature) {
@@ -141,16 +140,25 @@ public class RazorpayWebhookController {
             return;
         }
 
+        // Confirm DB rows in their own transaction — emails are sent after commit so a mail
+        // failure never rolls back a paid enrollment.
+        List<Enrollment> confirmed = confirmEnrollments(enrollments, orderId);
+
+        // Send emails outside the transaction — @Async so this never blocks the webhook response
+        sendWebhookEmails(confirmed);
+    }
+
+    @Transactional
+    protected List<Enrollment> confirmEnrollments(List<Enrollment> enrollments, String orderId) {
         // Idempotency: skip if all rows already confirmed (frontend /confirm arrived first)
         boolean anyPending = enrollments.stream()
                 .anyMatch(e -> e.getStatus() != Enrollment.Status.ENROLLED
                         && e.getStatus() != Enrollment.Status.COMPLETED);
         if (!anyPending) {
             log.info("Enrollment(s) already confirmed for orderId={} — webhook is a no-op", orderId);
-            return;
+            return List.of();
         }
 
-        // Confirm all PENDING rows for this order
         List<Enrollment> confirmed = new ArrayList<>();
         for (Enrollment e : enrollments) {
             if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) continue;
@@ -159,9 +167,7 @@ public class RazorpayWebhookController {
             confirmed.add(e);
             log.info("Enrollment confirmed via webhook for orderId={}, userId={}", orderId, e.getUser().getId());
         }
-
-        // Send emails — one bundle email per bundle, individual email for non-bundle rows
-        sendWebhookEmails(confirmed);
+        return confirmed;
     }
 
     private void sendWebhookEmails(List<Enrollment> confirmed) {

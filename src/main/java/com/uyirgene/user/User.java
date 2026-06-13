@@ -54,6 +54,16 @@ public class User {
     @Column(name = "magic_link_token_created_at")
     private LocalDateTime magicLinkTokenCreatedAt;
 
+    @Column(name = "email_bounced")
+    @Builder.Default
+    private boolean emailBounced = false;
+
+    @Column(name = "email_bounced_at")
+    private LocalDateTime emailBouncedAt;
+
+    @Column(name = "email_bounce_type", length = 50)
+    private String emailBounceType;
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {

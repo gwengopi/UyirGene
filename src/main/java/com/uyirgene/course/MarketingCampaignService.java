@@ -176,8 +176,10 @@ public class MarketingCampaignService {
         String physicalAddress = siteConfigService.getConfigValueFresh(
                 "marketingFooterAddress",
                 siteConfigService.getConfigValueFresh("CONTACT_ADDRESS", "Uyirgene International, Tamil Nadu, India"));
+        String bccAddress = siteConfigService.getConfigValueFresh("emailBccAddress");
         JavaMailSender sender = resolveMailSender();
 
+        boolean bccSent = false;
         for (MarketingMailLog entry : batch) {
             if (entry.getStatus() != MarketingMailLog.Status.PENDING) continue;
             try {
@@ -198,6 +200,22 @@ public class MarketingCampaignService {
                 helper.setSubject(fresh.getSubject());
                 helper.setText(html, true);
                 sender.send(msg);
+
+                // Send one BCC copy on the first successful send of batch 1
+                if (!bccSent && batchNumber == 1 && bccAddress != null && !bccAddress.isBlank()) {
+                    try {
+                        MimeMessage bccMsg = sender.createMimeMessage();
+                        MimeMessageHelper bccHelper = new MimeMessageHelper(bccMsg, true, "UTF-8");
+                        bccHelper.setTo(bccAddress);
+                        bccHelper.setFrom(new InternetAddress(fromEmail, fromName));
+                        bccHelper.setSubject("[Campaign Copy] " + fresh.getSubject());
+                        bccHelper.setText(html, true);
+                        sender.send(bccMsg);
+                        bccSent = true;
+                    } catch (Exception e) {
+                        log.warn("Failed to send BCC copy for marketing campaign: {}", e.getMessage());
+                    }
+                }
 
                 entry.setStatus(MarketingMailLog.Status.SENT);
                 entry.setSentAt(LocalDateTime.now());

@@ -21,12 +21,10 @@ function About() {
 
   useEffect(() => {
     configService.getByCategory('CONTACT').then((configs) => {
-      const m = {};
-      configs.forEach((c) => { m[c.key] = c.value; });
       setContactConfig((prev) => ({
-        email: m.CONTACT_EMAIL || prev.email,
-        website: m.CONTACT_WEBSITE || prev.website,
-        address: m.CONTACT_ADDRESS || prev.address,
+        email: configs.CONTACT_EMAIL || prev.email,
+        website: configs.CONTACT_WEBSITE || prev.website,
+        address: configs.CONTACT_ADDRESS || prev.address,
       }));
     }).catch(() => {});
   }, []);

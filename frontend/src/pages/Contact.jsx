@@ -11,6 +11,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { Breadcrumb, Button, SEO } from '../components/common';
 import { useToast } from '../store';
 import { configService } from '../services';
+import api from '../services/api';
 
 // Default contact info (fallback if config not loaded)
 const DEFAULT_CONTACT = {
@@ -45,20 +46,16 @@ function Contact() {
     const loadContactConfig = async () => {
       try {
         const configs = await configService.getByCategory('CONTACT');
-        const configMap = {};
-        configs.forEach((config) => {
-          configMap[config.key] = config.value;
-        });
-
+        // Backend returns a plain object { KEY: "value" }
         setContactConfig({
-          phoneManager: configMap.CONTACT_PHONE_MANAGER || DEFAULT_CONTACT.phoneManager,
-          phoneOffice: configMap.CONTACT_PHONE_OFFICE || DEFAULT_CONTACT.phoneOffice,
-          whatsapp: configMap.CONTACT_WHATSAPP || DEFAULT_CONTACT.whatsapp,
-          email: configMap.CONTACT_EMAIL || DEFAULT_CONTACT.email,
-          emailOutlook: configMap.CONTACT_EMAIL_OUTLOOK || DEFAULT_CONTACT.emailOutlook,
-          website: configMap.CONTACT_WEBSITE || DEFAULT_CONTACT.website,
-          address: configMap.CONTACT_ADDRESS || DEFAULT_CONTACT.address,
-          locations: configMap.CONTACT_LOCATIONS || DEFAULT_CONTACT.locations,
+          phoneManager: configs.CONTACT_PHONE_MANAGER || DEFAULT_CONTACT.phoneManager,
+          phoneOffice: configs.CONTACT_PHONE_OFFICE || DEFAULT_CONTACT.phoneOffice,
+          whatsapp: configs.CONTACT_WHATSAPP || DEFAULT_CONTACT.whatsapp,
+          email: configs.CONTACT_EMAIL || DEFAULT_CONTACT.email,
+          emailOutlook: configs.CONTACT_EMAIL_OUTLOOK || DEFAULT_CONTACT.emailOutlook,
+          website: configs.CONTACT_WEBSITE || DEFAULT_CONTACT.website,
+          address: configs.CONTACT_ADDRESS || DEFAULT_CONTACT.address,
+          locations: configs.CONTACT_LOCATIONS || DEFAULT_CONTACT.locations,
         });
       } catch (error) {
         console.error('Failed to load contact config:', error);
@@ -97,14 +94,17 @@ function Contact() {
     }
     setSubmitting(true);
 
-    // Simulate form submission (replace with real API call when backend is ready)
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    setSubmitting(false);
-    setSubmitted(true);
-    showSuccess('Message sent successfully!');
-    setFormData({ name: '', email: '', subject: '', message: '' });
-    setFormErrors({});
+    try {
+      await api.post('/api/contact/submit', formData);
+      setSubmitted(true);
+      showSuccess('Message sent successfully! We\'ll get back to you soon.');
+      setFormData({ name: '', email: '', subject: '', message: '' });
+      setFormErrors({});
+    } catch (error) {
+      showError('Failed to send message. Please try again or contact us directly.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleWhatsAppClick = () => {

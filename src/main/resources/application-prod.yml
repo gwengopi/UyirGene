@@ -28,14 +28,18 @@ spring:
     port: ${MAIL_PORT}
     username: ${MAIL_USERNAME}
     password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls.enable: true
+          starttls.required: true
 
 cors:
-  allowed-origins: ${CORS_ALLOWED_ORIGINS:https://yourdomain.com}
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:https://learn.uyirgene.com}
 
 payment:
-  provider: ${PAYMENT_PROVIDER:mock}
-  mock:
-    delay-ms: 2000
+  provider: ${PAYMENT_PROVIDER:razorpay}
   razorpay:
     key-id: ${RAZORPAY_KEY_ID:}
     key-secret: ${RAZORPAY_KEY_SECRET:}
@@ -44,6 +48,17 @@ payment:
 jwt:
   secret: ${JWT_SECRET}
   expiration: 86400000
+
+app:
+  mail:
+    from: ${MAIL_FROM:noreply@uyirgene.com}
+    ses-config-set: ${SES_CONFIG_SET:uyirgene-transactional}
+  marketing:
+    mail:
+      host: ${MARKETING_MAIL_HOST:}
+      port: ${MARKETING_MAIL_PORT:587}
+      username: ${MARKETING_MAIL_USERNAME:}
+      password: ${MARKETING_MAIL_PASSWORD:}
 
 google:
   client-id: ${GOOGLE_CLIENT_ID}
