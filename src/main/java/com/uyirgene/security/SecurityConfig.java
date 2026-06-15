@@ -59,6 +59,7 @@ public class SecurityConfig {
                             "/api/payment/guest/failed",
                             "/api/analytics/pageview",
                             "/api/contact/submit",
+                            "/api/ses/notification",
                             "/actuator/health"
                     ).permitAll()
                     // Course & bundle public endpoints (read-only)
