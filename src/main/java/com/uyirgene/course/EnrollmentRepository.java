@@ -1,6 +1,7 @@
 package com.uyirgene.course;
 
 import com.uyirgene.user.User;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,7 +20,12 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     /** Find enrollment by Razorpay order ID — used by webhook to confirm payment. */
     Optional<Enrollment> findByPaymentOrderId(String paymentOrderId);
 
-    /** Find ALL enrollments for a Razorpay order ID — bundle orders create multiple rows per order. */
+    /**
+     * Find ALL enrollments for a Razorpay order ID — bundle orders create multiple rows per order.
+     * Fetches associations eagerly: the webhook reads them (e.g. bundle title for the email) after
+     * the query returns, outside any transaction, where the lazy {@code bundle} proxy would throw.
+     */
+    @EntityGraph(attributePaths = {"user", "course", "bundle", "flagshipProgram"})
     List<Enrollment> findAllByPaymentOrderId(String paymentOrderId);
 
     /** Check if user is enrolled in a specific course with a given status. */

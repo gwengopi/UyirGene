@@ -181,14 +181,15 @@ public class RazorpayWebhookController {
             }
         }
         for (List<Enrollment> group : byBundle.values()) {
+            Enrollment first = group.get(0);
             try {
-                Enrollment first = group.get(0);
                 List<String> titles = group.stream().map(e -> e.getCourse().getTitle()).toList();
                 mailService.sendBundleEnrollmentSuccess(
                         first.getUser().getEmail(), first.getUser().getName(),
                         first.getBundle().getTitle(), titles);
             } catch (Exception ex) {
-                log.error("Failed to send bundle enrollment email after webhook confirmation", ex);
+                log.error("Failed to send bundle enrollment email after webhook confirmation: orderId={}, email={}",
+                        first.getPaymentOrderId(), first.getUser().getEmail(), ex);
             }
         }
 
@@ -202,7 +203,8 @@ public class RazorpayWebhookController {
                     mailService.sendEnrollmentSuccess(e.getUser(), e.getFlagshipProgram());
                 }
             } catch (Exception ex) {
-                log.error("Failed to send enrollment email after webhook confirmation", ex);
+                log.error("Failed to send enrollment email after webhook confirmation: orderId={}, email={}",
+                        e.getPaymentOrderId(), e.getUser().getEmail(), ex);
             }
         }
     }
