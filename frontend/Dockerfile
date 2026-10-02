@@ -34,6 +34,12 @@ COPY --from=build /app/dist .
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+# Reload nginx automatically after certbot renews the SSL certificate
+# (sed strips CRLF in case the script was checked out on Windows)
+COPY docker-entrypoint.d/90-cert-reload.sh /docker-entrypoint.d/90-cert-reload.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.d/90-cert-reload.sh \
+    && chmod +x /docker-entrypoint.d/90-cert-reload.sh
+
 # Expose port
 EXPOSE 80
 

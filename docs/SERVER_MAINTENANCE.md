@@ -74,6 +74,71 @@ docker compose -f docker-compose.prod.yml up -d
 
 ---
 
+## Incident 3 — August 4-5, 2026 (SSL Certificate Expired — Site Outage)
+
+### What Happened
+Reported as "backend stopped" — login broken, enrolled courses not showing.
+`docker compose ps` showed all 4 containers (`db`, `backend`, `frontend`, `certbot`) `Up`/`healthy` — backend was never down.
+Browser showed `NET::ERR_CERT_DATE_INVALID` on `https://learn.uyirgene.com`. Login and course-list API calls were failing
+because the browser blocks **all** requests (not just page loads) to a site with an invalid cert — not a backend or DB issue.
+
+### Root Cause
+The `certbot` container's auto-renewal loop (`docker-compose.prod.yml` entrypoint) **did successfully renew** the
+certificate on **July 5, 2026** — 30 days before the running cert's Aug 4 expiry, exactly as designed. Confirmed via
+`docker exec uyirgene-certbot cat /var/log/letsencrypt/letsencrypt.log.61`: `Congratulations, all renewals succeeded`.
+A new cert (`cert3.pem` / `fullchain3.pem`) was written to `/etc/letsencrypt/archive/` and the `live/` symlinks updated.
+
+**But nginx (`frontend` container) was never reloaded to pick it up.** nginx reads cert files into memory once at
+startup and does not watch the filesystem. `frontend` had been running continuously since before July 5, so it kept
+serving the stale May 6 cert — which finally expired for real on Aug 4 — even though a valid renewed cert had been
+sitting unused on disk for a month.
+
+There is **no mechanism in the compose setup that reloads nginx after a certbot renewal.** The weekly `check-ssl.sh`
+cron (see Preventive Measures below) only *logs* expiry status, it doesn't alert or trigger a reload — so nothing
+caught this before it caused an outage.
+
+### Diagnosis Steps (for future reference)
+1. `docker compose -f docker-compose.prod.yml ps` — confirmed all containers healthy (ruled out backend/DB down)
+2. `openssl s_client -connect learn.uyirgene.com:443 2>/dev/null | openssl x509 -noout -dates` — confirmed `notAfter=Aug 4 2026` (expired)
+3. `docker exec uyirgene-certbot ls -la /var/log/letsencrypt/` — ~300 rotated log files, confirming the renew loop ran every 12h as expected since March
+4. `letsencrypt.log.61` (Jul 5, 36 KB — vs. routine ~4.8 KB skip-check files) — the one real renewal attempt, and it **succeeded**
+5. Concluded: successful renewal + stale-serving nginx (no reload) = actual bug
+
+### Fix Applied (Immediate Recovery)
+```bash
+docker compose -f docker-compose.prod.yml run --rm --entrypoint certbot certbot renew --webroot -w /var/www/certbot --force-renewal
+docker compose -f docker-compose.prod.yml restart frontend
+```
+
+### Result
+New cert issued, `notAfter` now `Nov 2, 2026`. `frontend` restarted and picked it up. Site confirmed working again.
+
+### Permanent Fix — Implemented (Oct 2, 2026)
+nginx now reloads itself after every certbot renewal.
+
+Rejected: mounting `/var/run/docker.sock` into the `certbot` container so its `--deploy-hook` could exec into
+`frontend` and reload it — this grants certbot-container-level access effectively equal to full host root
+(any compromise of the certbot image = full host compromise), disproportionate for an app handling payments/PII.
+
+**Implemented:** `frontend/docker-entrypoint.d/90-cert-reload.sh`, copied into the image by `frontend/Dockerfile`.
+The official nginx image auto-runs scripts in `/docker-entrypoint.d/` at container start. The script backgrounds a
+loop that every 6h hashes `/etc/letsencrypt/live/learn.uyirgene.com/fullchain.pem` and, only when it changed, runs
+`nginx -t` then a graceful `nginx -s reload` (zero downtime). No new packages, no cross-container access.
+Max 6h lag between renewal and reload — fine, since certs renew ~30 days before expiry.
+
+Deploy: `docker compose -f docker-compose.prod.yml up -d --build frontend`
+
+Verify it is running:
+```bash
+docker logs uyirgene-frontend 2>&1 | grep cert-reload
+# [cert-reload] watching /etc/letsencrypt/live/learn.uyirgene.com/fullchain.pem every 6h
+```
+After the next real renewal (~Oct 3, 2026, 30 days before the Nov 2 expiry) the log should show
+`certificate changed - nginx reloaded` and `openssl s_client ... | openssl x509 -noout -dates` should show the new date
+without any manual restart.
+
+---
+
 ## Permanent Fixes Implemented
 
 ### Fix 1 — Logging Configuration

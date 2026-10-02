@@ -501,6 +501,8 @@ openssl s_client -connect learn.uyirgene.com:443 2>/dev/null | openssl x509 -noo
 
 SSL certificates expire every 90 days but **renew automatically**.
 The `certbot` container runs every 12 hours and renews when less than 30 days remain.
+The `frontend` (nginx) container checks the certificate every 6 hours and reloads itself when it changes
+(`frontend/docker-entrypoint.d/90-cert-reload.sh`).
 You do not need to do anything.
 
 ---
