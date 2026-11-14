@@ -1,4 +1,9 @@
-import { CURRENCY, SUPPORTED_COUNTRIES } from './constants';
+import {
+  CURRENCY,
+  SUPPORTED_COUNTRIES,
+  PAYMENT_UNSUPPORTED_COUNTRY_CODES,
+  OTHER_COUNTRY_OPTION,
+} from './constants';
 
 /**
  * Format currency amount with locale-aware formatting
@@ -18,7 +23,8 @@ export function formatCurrency(amount, currency = CURRENCY.CODE) {
     style: 'currency',
     currency,
     minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
+    // 3-decimal currencies (KWD, BHD, OMR, JOD) must not be rounded to 2 places
+    maximumFractionDigits: ['KWD', 'BHD', 'OMR', 'JOD'].includes(currency) ? 3 : 2,
   }).format(amount);
 }
 
@@ -212,3 +218,30 @@ export default {
   formatRole,
   formatEnrollmentStatus,
 };
+
+/**
+ * Convert a Razorpay smallest-unit amount back to a display amount.
+ * Mirrors PaymentCurrency.toSmallestUnit on the backend (3-decimal: 1000, zero-decimal: 1, else 100).
+ */
+export function fromSmallestUnit(amount, currency) {
+  const code = (currency || '').toUpperCase();
+  if (['KWD', 'BHD', 'OMR', 'JOD'].includes(code)) return amount / 1000;
+  if (['JPY', 'KRW', 'VND', 'IDR'].includes(code)) return amount;
+  return amount / 100;
+}
+
+/**
+ * Country options for the "Select your country" dropdown.
+ * - only countries that have a price (plus India) when countryPrices is given
+ * - never the countries whose currency Razorpay rejects
+ * - always ends with "Other countries" (priced in USD)
+ */
+export function buildCountryOptions(countryPrices) {
+  const hasPrices = Array.isArray(countryPrices) && countryPrices.length > 0;
+  const options = SUPPORTED_COUNTRIES.filter(
+    (c) =>
+      !PAYMENT_UNSUPPORTED_COUNTRY_CODES.includes(c.code) &&
+      (!hasPrices || c.code === 'IN' || countryPrices.some((cp) => cp.countryCode === c.code))
+  );
+  return [...options, OTHER_COUNTRY_OPTION];
+}

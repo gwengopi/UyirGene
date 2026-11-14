@@ -1,3 +1,4 @@
+import { SHOW_PUBLIC_PRICES } from '../utils/constants';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -38,8 +39,8 @@ import { getPublishedBundlesByCategory, startMultiBundleEnrollment, startAnonMul
 import { ProgressTracker } from '../components/user';
 import { courseService, enrollmentService, videoService, certificateService } from '../services';
 import { useAuth, useToast, useConfig } from '../store';
-import { formatCurrency, formatDurationHours } from '../utils/formatters';
-import { ROUTES, IMAGES, SUPPORTED_COUNTRIES } from '../utils/constants';
+import { formatCurrency, formatDurationHours, buildCountryOptions } from '../utils/formatters';
+import { ROUTES, IMAGES } from '../utils/constants';
 import api, { getApiBaseUrl } from '../services/api';
 
 const COURSE_TYPE_LABELS = {
@@ -698,9 +699,7 @@ function CourseDetail() {
               }}
             >
               {hasCountryPrices && (() => {
-                const countryOptions = SUPPORTED_COUNTRIES.filter(
-                  c => c.code === 'IN' || course.countryPrices?.some(cp => cp.countryCode === c.code)
-                );
+                const countryOptions = buildCountryOptions(course.countryPrices);
                 const selectedOption = countryOptions.find(c => c.code === selectedCountry) || countryOptions[0];
                 return (
                   <Autocomplete
@@ -718,9 +717,9 @@ function CourseDetail() {
                 );
               })()}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Typography variant="h5" color="primary" fontWeight={800} sx={{ flexShrink: 0 }}>
+                {(SHOW_PUBLIC_PRICES || !displayPrice.amount) && <Typography variant="h5" color="primary" fontWeight={800} sx={{ flexShrink: 0 }}>
                   {displayPrice.amount ? formatCurrency(displayPrice.amount, displayPrice.currency) : 'Free'}
-                </Typography>
+                </Typography>}
                 <Button
                   variant="contained"
                   size="large"
@@ -1167,9 +1166,7 @@ function CourseDetail() {
                 {/* CTA buttons — hidden on mobile (top bar + sidebar card cover it) */}
                 <Box sx={{ textAlign: 'center', mt: 3, mb: 2, display: { xs: 'none', md: 'block' } }}>
                   {!isEnrolled && (() => {
-                    const countryOptions = hasCountryPrices
-                      ? SUPPORTED_COUNTRIES.filter(c => c.code === 'IN' || course.countryPrices?.some(cp => cp.countryCode === c.code))
-                      : SUPPORTED_COUNTRIES;
+                    const countryOptions = buildCountryOptions(course.countryPrices);
                     const selectedOption = countryOptions.find(c => c.code === selectedCountry) || countryOptions[0];
                     return (
                       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
@@ -1184,9 +1181,9 @@ function CourseDetail() {
                           size="small"
                           sx={{ width: 260 }}
                         />
-                        <Typography variant="h5" color="primary" fontWeight={800}>
+                        {(SHOW_PUBLIC_PRICES || !displayPrice.amount) && <Typography variant="h5" color="primary" fontWeight={800}>
                           {displayPrice.amount ? formatCurrency(displayPrice.amount, displayPrice.currency) : 'Free'}
-                        </Typography>
+                        </Typography>}
                         <Button variant="contained" size="large" onClick={handleEnroll} loading={enrolling} disabled={loading} sx={{ fontWeight: 700 }}>
                           Enroll &amp; Get Certified
                         </Button>
@@ -1241,9 +1238,7 @@ function CourseDetail() {
                 </Box>
                 <Divider />
                 {hasCountryPrices && (() => {
-                  const countryOptions = SUPPORTED_COUNTRIES.filter(
-                    c => c.code === 'IN' || course.countryPrices?.some(cp => cp.countryCode === c.code)
-                  );
+                  const countryOptions = buildCountryOptions(course.countryPrices);
                   const selectedOption = countryOptions.find(c => c.code === selectedCountry) || countryOptions[0];
                   return (
                     <Autocomplete
@@ -1259,9 +1254,9 @@ function CourseDetail() {
                     />
                   );
                 })()}
-                <Typography variant="h5" color="primary" fontWeight={700}>
+                {(SHOW_PUBLIC_PRICES || !displayPrice.amount) && <Typography variant="h5" color="primary" fontWeight={700}>
                   {formatCurrency(displayPrice.amount, displayPrice.currency)}
-                </Typography>
+                </Typography>}
                 {isAdmin ? (
                   <Button
                     variant="contained"

@@ -1,3 +1,4 @@
+import { SHOW_PUBLIC_PRICES } from '../utils/constants';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -20,8 +21,8 @@ import { CertificateNameCard } from '../components/course';
 import { flagshipService } from '../services/flagshipService';
 import api from '../services/api';
 import { useAuth, useToast } from '../store';
-import { formatCurrency } from '../utils/formatters';
-import { ROUTES, SUPPORTED_COUNTRIES } from '../utils/constants';
+import { formatCurrency, buildCountryOptions } from '../utils/formatters';
+import { ROUTES } from '../utils/constants';
 
 // ── Price helpers ────────────────────────────────────────────────────────────
 
@@ -368,11 +369,7 @@ function FlagshipDetail() {
 
   const hasCountryPrices = (program.countryPrices || []).length > 0;
   const displayPrice = getDisplayPrice(program, selectedCountry);
-  const countryOptions = hasCountryPrices
-    ? SUPPORTED_COUNTRIES.filter(
-        (c) => c.code === 'IN' || program.countryPrices.some((cp) => cp.countryCode === c.code)
-      )
-    : [];
+  const countryOptions = hasCountryPrices ? buildCountryOptions(program.countryPrices) : [];
   const selectedOption = countryOptions.find((c) => c.code === selectedCountry) || countryOptions[0];
 
   let sections = [];
@@ -474,9 +471,9 @@ function FlagshipDetail() {
                 />
               )}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Typography variant="h5" fontWeight={800} sx={{ flexShrink: 0, color: '#7B2D8B' }}>
+                {(SHOW_PUBLIC_PRICES || !displayPrice.amount) && <Typography variant="h5" fontWeight={800} sx={{ flexShrink: 0, color: '#7B2D8B' }}>
                   {displayPrice.amount ? formatCurrency(displayPrice.amount, displayPrice.currency) : 'Free'}
-                </Typography>
+                </Typography>}
                 <Button
                   variant="contained"
                   size="large"
@@ -602,9 +599,9 @@ function FlagshipDetail() {
                       sx={{ width: 260 }}
                     />
                   )}
-                  <Typography variant="h5" color="primary" fontWeight={800}>
+                  {(SHOW_PUBLIC_PRICES || !displayPrice.amount) && <Typography variant="h5" color="primary" fontWeight={800}>
                     {displayPrice.amount ? formatCurrency(displayPrice.amount, displayPrice.currency) : 'Free'}
-                  </Typography>
+                  </Typography>}
                   <Button
                     variant="contained"
                     size="large"
@@ -662,9 +659,11 @@ function FlagshipDetail() {
 
                 {!isEnrolled && (
                   displayPrice.amount != null ? (
-                    <Typography variant="h5" color="primary" fontWeight={700}>
-                      {formatCurrency(displayPrice.amount, displayPrice.currency)}
-                    </Typography>
+                    (SHOW_PUBLIC_PRICES || !displayPrice.amount) ? (
+                      <Typography variant="h5" color="primary" fontWeight={700}>
+                        {formatCurrency(displayPrice.amount, displayPrice.currency)}
+                      </Typography>
+                    ) : null
                   ) : (
                     <Typography variant="h5" color="primary" fontWeight={700}>
                       Contact for pricing

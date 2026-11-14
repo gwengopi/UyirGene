@@ -1,3 +1,4 @@
+import { SHOW_PUBLIC_PRICES } from '../../utils/constants';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
@@ -182,14 +183,15 @@ function EnrollmentUpsellDialog({
     confirmLabel = 'Select an option above';
   } else if (selectedIds.size > 0) {
     const bundlePart = `${selectedIds.size} value pack${selectedIds.size > 1 ? 's' : ''}`;
-    const totalStr = formatCurrency(grandTotal.amount, grandTotal.currency);
+    // Bundle amounts stay visible, so the total is shown whenever a value pack is selected.
+    const totalStr = ` — ${formatCurrency(grandTotal.amount, grandTotal.currency)}`;
     confirmLabel = courseIsStandalone
-      ? `Enroll in ${bundlePart} + this course — ${totalStr}`
-      : `Enroll in ${bundlePart} — ${totalStr}`;
+      ? `Enroll in ${bundlePart} + this course${totalStr}`
+      : `Enroll in ${bundlePart}${totalStr}`;
   } else {
     // Only the course is selected
     confirmLabel = courseAmountInEffective
-      ? `Enroll in this course — ${formatCurrency(courseAmountInEffective, effectiveCurrency)}`
+      ? `Enroll in this course${SHOW_PUBLIC_PRICES ? ` — ${formatCurrency(courseAmountInEffective, effectiveCurrency)}` : ''}`
       : 'Enroll in this course (Free)';
   }
 
@@ -269,7 +271,7 @@ function EnrollmentUpsellDialog({
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                 {courseInSelectedBundles ? (
                   <>
-                    <Typography
+                    {(SHOW_PUBLIC_PRICES || !displayPrice?.amount) && <Typography
                       variant="h6"
                       color="text.disabled"
                       fontWeight={700}
@@ -278,18 +280,18 @@ function EnrollmentUpsellDialog({
                       {displayPrice?.amount
                         ? formatCurrency(displayPrice.amount, displayPrice.currency)
                         : 'Free'}
-                    </Typography>
+                    </Typography>}
                     <Typography variant="caption" color="success.main" fontWeight={600}>
                       Free with value pack
                     </Typography>
                   </>
                 ) : (
                   <>
-                    <Typography variant="h6" color="primary" fontWeight={700}>
+                    {(SHOW_PUBLIC_PRICES || !courseAmountInEffective) && <Typography variant="h6" color="primary" fontWeight={700}>
                       {courseAmountInEffective
                         ? formatCurrency(courseAmountInEffective, effectiveCurrency)
                         : 'Free'}
-                    </Typography>
+                    </Typography>}
                     <Typography variant="caption" color="text.secondary">(single course)</Typography>
                   </>
                 )}
@@ -457,9 +459,9 @@ function EnrollmentUpsellDialog({
                   ? `${selectedIds.size} value pack${selectedIds.size > 1 ? 's' : ''} selected`
                   : 'This course'}
             </Typography>
-            <Typography variant="h6" fontWeight={700}>
+            {(SHOW_PUBLIC_PRICES || selectedIds.size > 0) && <Typography variant="h6" fontWeight={700}>
               {formatCurrency(grandTotal.amount, grandTotal.currency)}
-            </Typography>
+            </Typography>}
           </Box>
         )}
 

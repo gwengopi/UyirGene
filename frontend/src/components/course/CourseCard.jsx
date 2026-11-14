@@ -1,3 +1,4 @@
+import { SHOW_PUBLIC_PRICES } from '../../utils/constants';
 import React, { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -185,8 +186,8 @@ const CourseCard = memo(function CourseCard({
       </CardContent>
 
       {/* Actions */}
-      <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
-        <Typography variant="h6" color="primary" fontWeight={600}>
+      <CardActions sx={{ justifyContent: (SHOW_PUBLIC_PRICES || isFree) ? 'space-between' : 'flex-end', px: 2, pb: 2 }}>
+        {(SHOW_PUBLIC_PRICES || isFree) && <Typography variant="h6" color="primary" fontWeight={600}>
           {(() => {
             if (!selectedCountry || selectedCountry === 'IN') {
               return formatCurrency(course.price || 0, 'INR');
@@ -196,7 +197,7 @@ const CourseCard = memo(function CourseCard({
             const usCp = course.countryPrices?.find((p) => p.countryCode === 'US');
             return formatCurrency(usCp ? usCp.amount : course.price || 0, usCp ? usCp.currencyCode : 'INR');
           })()}
-        </Typography>
+        </Typography>}
         <Button
           variant="contained"
           size="small"

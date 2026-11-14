@@ -1,3 +1,4 @@
+import { SHOW_PUBLIC_PRICES } from '../utils/constants';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -347,12 +348,12 @@ function Courses() {
                               </Box>
                             )}
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto' }}>
-                              <Typography variant="caption" fontWeight={700} sx={{ color }}>
+                              {(SHOW_PUBLIC_PRICES || !item.price) && <Typography variant="caption" fontWeight={700} sx={{ color }}>
                                 {item.price ? (() => {
                                 const cp = item.countryPrices?.find((p) => p.countryCode === 'US');
                                 return formatCurrency(cp ? cp.amount : item.price, cp ? cp.currencyCode : 'INR');
                               })() : 'Free'}
-                              </Typography>
+                              </Typography>}
                               <ArrowForwardIcon sx={{ fontSize: 14, color }} />
                             </Box>
                           </Box>

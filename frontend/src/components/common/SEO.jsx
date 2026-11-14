@@ -1,3 +1,4 @@
+import { SHOW_PUBLIC_PRICES } from '../../utils/constants';
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 
@@ -118,7 +119,8 @@ export function courseSchema(course) {
     ...(course.durationHours && {
       timeRequired: `PT${course.durationHours}H`,
     }),
-    ...(course.price != null && {
+    // Prices are not shown on public pages, so keep them out of structured data too.
+    ...(SHOW_PUBLIC_PRICES && course.price != null && {
       offers: {
         '@type': 'Offer',
         price: course.price,

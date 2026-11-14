@@ -167,6 +167,24 @@ export const CURRENCY = {
   LOCALE: 'en-IN',
 };
 
+// When false, course/bundle/program prices are hidden on public pages and shown only on the
+// Payment page (and in admin). Set to true to show prices everywhere again.
+export const SHOW_PUBLIC_PRICES = false;
+
+// Countries whose currency Razorpay rejects on our account (tested 2026-11-14). They are removed
+// from the country selector; customers there choose "Other countries" and pay in USD.
+// Keep in sync with PaymentCurrency.java on the backend.
+export const PAYMENT_UNSUPPORTED_COUNTRY_CODES = ['AF', 'AR', 'BG', 'BY', 'GE', 'IR', 'LB', 'PA', 'ZW'];
+
+// Pseudo-country sent to the backend, which prices it as the US (USD) price.
+export const OTHER_COUNTRY_OPTION = {
+  code: 'OTHER',
+  name: 'Other countries',
+  currency: 'USD',
+  symbol: '$',
+  locale: 'en-US',
+};
+
 // Supported countries for multi-currency pricing
 export const SUPPORTED_COUNTRIES = [
   { code: 'IN', name: 'India', currency: 'INR', symbol: '₹', locale: 'en-IN' },

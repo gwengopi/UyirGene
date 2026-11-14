@@ -12,7 +12,7 @@ import api from '../services/api';
 import * as bundleService from '../services/bundleService';
 import { confirmMultiBundlePayment, confirmGuestMultiBundlePayment } from '../services/bundleService';
 import { flagshipService } from '../services/flagshipService';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, fromSmallestUnit } from '../utils/formatters';
 import { ROUTES } from '../utils/constants';
 
 async function checkGuestEnrollment({ email, courseId, bundleIds, flagshipProgramId }) {
@@ -182,7 +182,7 @@ function Payment() {
           Order ID: <strong>{order.orderId}</strong>
         </Typography>
         <Typography variant="h6" sx={{ mb: 3 }}>
-          Amount: {formatCurrency(order.amount / 100, order.currency)}
+          Amount: {formatCurrency(fromSmallestUnit(order.amount, order.currency), order.currency)}
         </Typography>
 
         {isAnonymous && (

@@ -29,8 +29,8 @@ import CategoryIcon from '@mui/icons-material/Category';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { Button, Breadcrumb, LoadingSpinner, SEO } from '../components/common';
 import { useAuth, useToast, useConfig } from '../store';
-import { formatCurrency } from '../utils/formatters';
-import { ROUTES, SUPPORTED_COUNTRIES, IMAGES } from '../utils/constants';
+import { formatCurrency, buildCountryOptions } from '../utils/formatters';
+import { ROUTES, IMAGES } from '../utils/constants';
 import { getApiBaseUrl } from '../services/api';
 import * as bundleService from '../services/bundleService';
 
@@ -455,9 +455,9 @@ function BundleDetail() {
             {hasCountryPrices && (
               <Autocomplete
                 size="small"
-                options={SUPPORTED_COUNTRIES}
+                options={buildCountryOptions()}
                 getOptionLabel={(option) => `${option.name} (${option.currency})`}
-                value={SUPPORTED_COUNTRIES.find((c) => c.code === selectedCountry) || null}
+                value={buildCountryOptions().find((c) => c.code === selectedCountry) || null}
                 onChange={(_, newVal) => setSelectedCountry(newVal?.code || 'IN')}
                 renderInput={(params) => <TextField {...params} label="Select your country" InputLabelProps={{ ...params.InputLabelProps, sx: { fontWeight: 800, color: 'primary.main', '&.MuiInputLabel-shrink': { fontWeight: 800, color: 'primary.main', fontSize: '1rem' } } }} />}
                 sx={{ mb: 2 }}
