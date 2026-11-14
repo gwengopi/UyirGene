@@ -36,6 +36,14 @@ public class RazorpayPaymentService implements PaymentProvider {
     public PaymentOrder createOrder(Long amountSmallestUnit, String currency, String receipt) {
         log.info("Creating Razorpay order for amount: {} ({}), receipt: {}", amountSmallestUnit, currency, receipt);
 
+        // Fail fast with a clear message instead of Razorpay's raw 400 INVALID_CURRENCY.
+        if (!PaymentCurrency.isSupported(currency)) {
+            log.error("Refusing to create Razorpay order: currency {} is not supported on this account (receipt: {})",
+                    currency, receipt);
+            throw new PaymentException("Payments in " + currency
+                    + " are not supported. Please choose another country or contact support.");
+        }
+
         String url = "https://api.razorpay.com/v1/orders";
         Map<String, Object> body = new HashMap<>();
         body.put("amount", amountSmallestUnit);

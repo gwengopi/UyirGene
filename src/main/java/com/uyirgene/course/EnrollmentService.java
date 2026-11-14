@@ -1,5 +1,6 @@
 package com.uyirgene.course;
 
+import com.uyirgene.course.payment.PaymentCurrency;
 import com.uyirgene.config.SiteConfigService;
 import com.uyirgene.course.dto.CourseDto;
 import com.uyirgene.course.dto.EnrollmentResult;
@@ -75,6 +76,7 @@ public class EnrollmentService {
 
     @Transactional
     public EnrollmentResult startEnrollment(Long courseId, String countryCode) {
+        countryCode = PaymentCurrency.normalizeCountry(countryCode);
         User u = currentUserService.getCurrentUser();
         Course c = courseRepo.findById(courseId)
                 .orElseThrow(() -> new com.uyirgene.exception.EntityNotFoundException("Course not found"));
@@ -123,7 +125,7 @@ public class EnrollmentService {
                 System.out.println("=================================");
                 // Always create a fresh order so currency/amount changes (e.g. switching country) are reflected
                 long amountSmallestUnit =
-                        toSmallestUnit(resolvedPrice, resolvedCurrency);
+                        PaymentCurrency.toSmallestUnit(resolvedPrice, resolvedCurrency);
                 PaymentOrder po = paymentProvider.createOrder(amountSmallestUnit, resolvedCurrency,
                         "enroll-" + existing.getId());
                 existing.setPaymentOrderId(po.getId());
@@ -154,7 +156,7 @@ public class EnrollmentService {
         System.out.println("=================================");
 
         long amountSmallestUnit =
-                toSmallestUnit(resolvedPrice, resolvedCurrency);
+                PaymentCurrency.toSmallestUnit(resolvedPrice, resolvedCurrency);
         PaymentOrder po = paymentProvider.createOrder(amountSmallestUnit, resolvedCurrency,
                 "enroll-" + (enrollment.getId() != null ? enrollment.getId() : System.currentTimeMillis()));
 
@@ -242,6 +244,7 @@ public class EnrollmentService {
 
     @Transactional
     public EnrollmentResult startFlagshipEnrollment(Long programId, String countryCode) {
+        countryCode = PaymentCurrency.normalizeCountry(countryCode);
         User u = currentUserService.getCurrentUser();
         FlagshipProgram program = flagshipProgramRepo.findById(programId)
                 .orElseThrow(() -> new com.uyirgene.exception.EntityNotFoundException("Flagship program not found"));
@@ -277,7 +280,7 @@ public class EnrollmentService {
             if (existing.getStatus() == Enrollment.Status.PENDING && existing.getPaymentOrderId() != null) {
                 // Always create a fresh order so currency/amount changes (e.g. switching country) are reflected
                 long amountSmallestUnit =
-                        toSmallestUnit(
+                        PaymentCurrency.toSmallestUnit(
                                 resolvedPrice == null ? 0.0 : resolvedPrice,
                                 resolvedCurrency
                         );
@@ -325,7 +328,7 @@ public class EnrollmentService {
         System.out.println("=================================");
 
         long amountSmallestUnit =
-                toSmallestUnit(resolvedPrice, resolvedCurrency);
+                PaymentCurrency.toSmallestUnit(resolvedPrice, resolvedCurrency);
         PaymentOrder po = paymentProvider.createOrder(amountSmallestUnit, resolvedCurrency,
                 "flagship-" + (enrollment.getId() != null ? enrollment.getId() : System.currentTimeMillis()));
 
@@ -498,22 +501,6 @@ public class EnrollmentService {
 
     // ==================== Shared ====================
 
-    private long toSmallestUnit(double amount, String currency) {
-        return switch (currency.toUpperCase()) {
-
-            // 3 decimal currencies
-            case "KWD", "BHD", "OMR", "JOD" ->
-                    Math.round(amount * 1000);
-
-            // 0 decimal currencies
-            case "JPY", "KRW", "VND", "IDR" ->
-                    Math.round(amount);
-
-            // Default = 2 decimal currencies
-            default ->
-                    Math.round(amount * 100);
-        };
-    }
 
     public double getPassMarkPercentage() {
         String passMarkStr = siteConfigService.getConfigValue("PASS_MARK_PERCENTAGE", "60");

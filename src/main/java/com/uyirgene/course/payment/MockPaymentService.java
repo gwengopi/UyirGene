@@ -19,6 +19,9 @@ public class MockPaymentService implements PaymentProvider {
 
     private static final Random random = new Random();
 
+    /** orderId -> receipt, so confirm-time receipt checks behave like the real provider. */
+    private final java.util.Map<String, String> receipts = new java.util.concurrent.ConcurrentHashMap<>();
+
     @Override
     public PaymentOrder createOrder(Long amountSmallestUnit, String currency, String receipt) {
         log.info("Creating mock payment order for amount: {} {}, receipt: {}", amountSmallestUnit, currency, receipt);
@@ -36,6 +39,7 @@ public class MockPaymentService implements PaymentProvider {
             System.currentTimeMillis(),
             random.nextInt(100000));
 
+        receipts.put(orderId, receipt);
         log.info("Mock order created successfully: {}", orderId);
 
         return new PaymentOrder(
@@ -70,6 +74,6 @@ public class MockPaymentService implements PaymentProvider {
     @Override
     public String fetchOrderReceipt(String orderId) {
         log.info("Fetching mock order receipt for orderId: {}", orderId);
-        return "anon-course-1";
+        return receipts.getOrDefault(orderId, "anon-course-1");
     }
 }

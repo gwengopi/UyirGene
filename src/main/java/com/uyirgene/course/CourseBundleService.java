@@ -1,5 +1,6 @@
 package com.uyirgene.course;
 
+import com.uyirgene.course.payment.PaymentCurrency;
 import com.uyirgene.course.dto.CourseBundleDto;
 import com.uyirgene.course.dto.EnrollmentResult;
 import com.uyirgene.course.payment.PaymentProvider;
@@ -258,6 +259,7 @@ public class CourseBundleService {
 
     @Transactional
     public BundleEnrollmentResult startBundleEnrollment(Long bundleId, String countryCode) {
+        countryCode = PaymentCurrency.normalizeCountry(countryCode);
         User user = currentUserService.getCurrentUser();
         CourseBundle bundle = bundleRepo.findById(bundleId)
                 .orElseThrow(() -> new EntityNotFoundException("Bundle not found"));
@@ -307,7 +309,7 @@ public class CourseBundleService {
 
         // Create Razorpay order
         long amountSmallestUnit =
-                toSmallestUnit(resolvedPrice, resolvedCurrency);
+                PaymentCurrency.toSmallestUnit(resolvedPrice, resolvedCurrency);
         PaymentOrder po = paymentProvider.createOrder(
                 amountSmallestUnit, resolvedCurrency, "bundle-" + bundleId + "-" + System.currentTimeMillis());
 
@@ -412,11 +414,13 @@ public class CourseBundleService {
 
     @Transactional
     public MultiEnrollmentResult startMultiBundleEnrollment(List<Long> bundleIds, String countryCode, Long standaloneCourseId) {
+        countryCode = PaymentCurrency.normalizeCountry(countryCode);
         return startMultiBundleEnrollmentForUser(currentUserService.getCurrentUser(), bundleIds, countryCode, standaloneCourseId);
     }
 
     @Transactional
     public MultiEnrollmentResult startGuestMultiBundleEnrollment(User user, List<Long> bundleIds, String countryCode, Long standaloneCourseId) {
+        countryCode = PaymentCurrency.normalizeCountry(countryCode);
         return startMultiBundleEnrollmentForUser(user, bundleIds, countryCode, standaloneCourseId);
     }
 
@@ -425,6 +429,7 @@ public class CourseBundleService {
      * No user is associated yet — the user is created on payment confirmation.
      */
     public MultiEnrollmentResult createAnonymousBundleOrder(List<Long> bundleIds, String countryCode, Long standaloneCourseId) {
+        countryCode = PaymentCurrency.normalizeCountry(countryCode);
         boolean useCountryPricing = countryCode != null && !countryCode.isBlank() && !"IN".equalsIgnoreCase(countryCode);
         String upperCC = useCountryPricing ? countryCode.toUpperCase() : null;
 
@@ -467,7 +472,7 @@ public class CourseBundleService {
         }
 
         long amountSmallestUnit =
-                toSmallestUnit(totalAmount, finalCurrency);
+                PaymentCurrency.toSmallestUnit(totalAmount, finalCurrency);
         // Encode bundle IDs in receipt so webhook can recover enrollment if confirm call never arrives
         String bundleReceipt = "anon-b-" + bundleIds.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","))
                 + (standaloneCourseId != null ? "-s" + standaloneCourseId : "");
@@ -479,6 +484,7 @@ public class CourseBundleService {
 
     @Transactional
     private MultiEnrollmentResult startMultiBundleEnrollmentForUser(User user, List<Long> bundleIds, String countryCode, Long standaloneCourseId) {
+        countryCode = PaymentCurrency.normalizeCountry(countryCode);
         List<String> warnings = new ArrayList<>();
 
         boolean useCountryPricing = countryCode != null && !countryCode.isBlank() && !"IN".equalsIgnoreCase(countryCode);
@@ -590,7 +596,7 @@ public class CourseBundleService {
         }
 
         long amountSmallestUnit =
-                toSmallestUnit(totalAmount, effectiveCurrency);
+                PaymentCurrency.toSmallestUnit(totalAmount, effectiveCurrency);
         PaymentOrder po = paymentProvider.createOrder(
                 amountSmallestUnit, effectiveCurrency, "multi-bundle-" + System.currentTimeMillis());
 
@@ -795,22 +801,6 @@ public class CourseBundleService {
         return newEnrollments;
     }
 
-    private long toSmallestUnit(double amount, String currency) {
-        return switch (currency.toUpperCase()) {
-
-            // 3 decimal currencies
-            case "KWD", "BHD", "OMR", "JOD" ->
-                    Math.round(amount * 1000);
-
-            // 0 decimal currencies
-            case "JPY", "KRW", "VND", "IDR" ->
-                    Math.round(amount);
-
-            // Standard currencies
-            default ->
-                    Math.round(amount * 100);
-        };
-    }
 
     // ==================== Result DTOs ====================
 

@@ -1,5 +1,6 @@
 package com.uyirgene.course;
 
+import com.uyirgene.course.payment.PaymentCurrency;
 import com.uyirgene.course.dto.EnrollmentResult;
 import com.uyirgene.course.payment.PaymentProvider;
 import com.uyirgene.course.payment.dto.PaymentContactDetails;
@@ -10,6 +11,7 @@ import com.uyirgene.user.User;
 import com.uyirgene.user.UserRepository;
 import com.uyirgene.user.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +39,7 @@ import java.util.Optional;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GuestEnrollmentService {
 
     private final EnrollmentRepository enrollmentRepo;
@@ -59,6 +62,7 @@ public class GuestEnrollmentService {
     @Transactional
     public EnrollmentResult startGuestCourseEnrollment(String name, String email, String phone,
                                                         Long courseId, String countryCode) {
+        countryCode = PaymentCurrency.normalizeCountry(countryCode);
         User user = userService.findOrCreateGuestUser(name, email, phone);
         Course course = courseRepo.findById(courseId)
                 .orElseThrow(() -> new EntityNotFoundException("Course not found"));
@@ -114,7 +118,7 @@ public class GuestEnrollmentService {
                 .status(Enrollment.Status.PENDING)
                 .build());
 
-        long amountSmallestUnit = Math.round(resolvedPrice * 100);
+        long amountSmallestUnit = PaymentCurrency.toSmallestUnit(resolvedPrice, resolvedCurrency);
         PaymentOrder po = paymentProvider.createOrder(amountSmallestUnit, resolvedCurrency,
                 "guest-enroll-" + (enrollment.getId() != null ? enrollment.getId() : System.currentTimeMillis()));
 
@@ -140,15 +144,15 @@ public class GuestEnrollmentService {
 
         Optional<Enrollment> existing = enrollmentRepo.findByUserAndCourse(user, course);
         Enrollment e;
+        boolean orderBoundToRow = false;
         if (existing.isPresent()) {
             e = existing.get();
             if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) {
                 return e; // idempotent
             }
-            // Pending enrollment exists (guest modal flow) — validate order ID matches
-            if (e.getPaymentOrderId() != null && !e.getPaymentOrderId().equals(razorpayOrderId)) {
-                throw new PaymentException("Payment order does not match this enrollment");
-            }
+            // The guest-modal flow records its order on the pending row. A row with another (or no)
+            // order id is stale, e.g. left by an earlier attempt, and must not block this payment.
+            orderBoundToRow = e.getPaymentOrderId() != null && e.getPaymentOrderId().equals(razorpayOrderId);
         } else {
             // No pending enrollment — anonymous flow where order was created without a user
             e = Enrollment.builder()
@@ -160,6 +164,12 @@ public class GuestEnrollmentService {
 
         boolean ok = paymentProvider.verifySignature(razorpayOrderId, razorpayPaymentId, signature);
         if (!ok) throw new PaymentException("Invalid payment signature");
+
+        // The signature only proves this order was paid, not what it was for. An order that is not
+        // recorded on the enrollment row (anonymous checkout) must be tied to this course by its receipt.
+        if (!orderBoundToRow) {
+            requireOrderReceipt(razorpayOrderId, "anon-course-" + courseId);
+        }
 
         e.setPaymentOrderId(razorpayOrderId);
         e.setStatus(Enrollment.Status.ENROLLED);
@@ -174,6 +184,7 @@ public class GuestEnrollmentService {
     @Transactional
     public EnrollmentResult startGuestFlagshipEnrollment(String name, String email, String phone,
                                                           Long programId, String countryCode) {
+        countryCode = PaymentCurrency.normalizeCountry(countryCode);
         User user = userService.findOrCreateGuestUser(name, email, phone);
         FlagshipProgram program = flagshipProgramRepo.findById(programId)
                 .orElseThrow(() -> new EntityNotFoundException("Flagship program not found"));
@@ -229,7 +240,7 @@ public class GuestEnrollmentService {
                 .status(Enrollment.Status.PENDING)
                 .build());
 
-        long amountSmallestUnit = Math.round(resolvedPrice * 100);
+        long amountSmallestUnit = PaymentCurrency.toSmallestUnit(resolvedPrice, resolvedCurrency);
         PaymentOrder po = paymentProvider.createOrder(amountSmallestUnit, resolvedCurrency,
                 "guest-flagship-" + (enrollment.getId() != null ? enrollment.getId() : System.currentTimeMillis()));
 
@@ -255,15 +266,15 @@ public class GuestEnrollmentService {
 
         Optional<Enrollment> existing = enrollmentRepo.findByUserAndFlagshipProgram(user, program);
         Enrollment e;
+        boolean orderBoundToRow = false;
         if (existing.isPresent()) {
             e = existing.get();
             if (e.getStatus() == Enrollment.Status.ENROLLED || e.getStatus() == Enrollment.Status.COMPLETED) {
                 return e; // idempotent
             }
-            // Pending enrollment exists (guest modal flow) — validate order ID matches
-            if (e.getPaymentOrderId() != null && !e.getPaymentOrderId().equals(razorpayOrderId)) {
-                throw new PaymentException("Payment order does not match this enrollment");
-            }
+            // The guest-modal flow records its order on the pending row. A row with another (or no)
+            // order id is stale, e.g. left by an earlier attempt, and must not block this payment.
+            orderBoundToRow = e.getPaymentOrderId() != null && e.getPaymentOrderId().equals(razorpayOrderId);
         } else {
             // No pending enrollment — anonymous flow where order was created without a user
             e = Enrollment.builder()
@@ -275,6 +286,11 @@ public class GuestEnrollmentService {
 
         boolean ok = paymentProvider.verifySignature(razorpayOrderId, razorpayPaymentId, signature);
         if (!ok) throw new PaymentException("Invalid payment signature");
+
+        // See confirmGuestCoursePayment: tie an unrecorded (anonymous) order to this program by its receipt.
+        if (!orderBoundToRow) {
+            requireOrderReceipt(razorpayOrderId, "anon-flagship-" + programId);
+        }
 
         e.setPaymentOrderId(razorpayOrderId);
         e.setStatus(Enrollment.Status.ENROLLED);
@@ -329,11 +345,35 @@ public class GuestEnrollmentService {
         return enrollments;
     }
 
+    /**
+     * Checks that a paid Razorpay order was created for the item being confirmed.
+     * <p>
+     * The payment signature only proves that the order was paid, not what it was for, so without
+     * this check a cheap order could be confirmed against any course or program. The receipt is
+     * set by our server when the order is created ("anon-course-{id}", "anon-flagship-{id}") and
+     * cannot be changed by the buyer. Fails closed: if the receipt cannot be read, nothing is
+     * enrolled here (the payment webhook can still recover it from the same receipt).
+     */
+    private void requireOrderReceipt(String orderId, String expectedReceipt) {
+        String receipt = paymentProvider.fetchOrderReceipt(orderId);
+        if (receipt == null || receipt.isBlank()) {
+            log.error("Could not read the receipt of paid order {} while confirming {}", orderId, expectedReceipt);
+            throw new PaymentException(
+                    "We could not verify your payment order. Please contact support with order id " + orderId);
+        }
+        if (!expectedReceipt.equals(receipt)) {
+            log.warn("Order {} has receipt '{}' but confirmation was requested for '{}'",
+                    orderId, receipt, expectedReceipt);
+            throw new PaymentException("Payment order does not match this enrollment");
+        }
+    }
+
     // ==================== Anonymous (Razorpay-collect) enrollment ====================
     // No pre-enrollment form — Razorpay collects email/phone during checkout.
     // On confirm, backend fetches the payer's contact from Razorpay and creates/finds the user.
 
     public EnrollmentResult.RazorpayOrder startAnonymousCourseOrder(Long courseId, String countryCode) {
+        countryCode = PaymentCurrency.normalizeCountry(countryCode);
         Course course = courseRepo.findById(courseId)
                 .orElseThrow(() -> new EntityNotFoundException("Course not found"));
 
@@ -356,7 +396,7 @@ public class GuestEnrollmentService {
         if (resolvedPrice == null || resolvedPrice == 0) {
             throw new IllegalArgumentException("This course is free. No payment required.");
         }
-        long amountSmallestUnit = Math.round(resolvedPrice * 100);
+        long amountSmallestUnit = PaymentCurrency.toSmallestUnit(resolvedPrice, resolvedCurrency);
         PaymentOrder po = paymentProvider.createOrder(amountSmallestUnit, resolvedCurrency, "anon-course-" + courseId);
         return new EnrollmentResult.RazorpayOrder(po.getId(), po.getAmount(), po.getCurrency(), po.getKeyId());
     }
@@ -366,6 +406,7 @@ public class GuestEnrollmentService {
                                                    String razorpayOrderId, String signature) {
         boolean ok = paymentProvider.verifySignature(razorpayOrderId, razorpayPaymentId, signature);
         if (!ok) throw new PaymentException("Invalid payment signature");
+        requireOrderReceipt(razorpayOrderId, "anon-course-" + courseId);
 
         PaymentContactDetails contact = paymentProvider.fetchPaymentDetails(razorpayPaymentId);
         if (contact.email() == null || contact.email().isBlank()) {
@@ -403,6 +444,7 @@ public class GuestEnrollmentService {
     }
 
     public EnrollmentResult.RazorpayOrder startAnonymousFlagshipOrder(Long programId, String countryCode) {
+        countryCode = PaymentCurrency.normalizeCountry(countryCode);
         FlagshipProgram program = flagshipProgramRepo.findById(programId)
                 .orElseThrow(() -> new EntityNotFoundException("Flagship program not found"));
 
@@ -426,7 +468,7 @@ public class GuestEnrollmentService {
         if (resolvedPrice == null || resolvedPrice == 0) {
             throw new IllegalArgumentException("This program is free. No payment required.");
         }
-        long amountSmallestUnit = Math.round(resolvedPrice * 100);
+        long amountSmallestUnit = PaymentCurrency.toSmallestUnit(resolvedPrice, resolvedCurrency);
         PaymentOrder po = paymentProvider.createOrder(amountSmallestUnit, resolvedCurrency, "anon-flagship-" + programId);
         return new EnrollmentResult.RazorpayOrder(po.getId(), po.getAmount(), po.getCurrency(), po.getKeyId());
     }
@@ -436,6 +478,7 @@ public class GuestEnrollmentService {
                                                String razorpayOrderId, String signature) {
         boolean ok = paymentProvider.verifySignature(razorpayOrderId, razorpayPaymentId, signature);
         if (!ok) throw new PaymentException("Invalid payment signature");
+        requireOrderReceipt(razorpayOrderId, "anon-flagship-" + programId);
 
         PaymentContactDetails contact = paymentProvider.fetchPaymentDetails(razorpayPaymentId);
         if (contact.email() == null || contact.email().isBlank()) {
