@@ -11,7 +11,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import SchoolIcon from '@mui/icons-material/School';
 import { Button } from '../common';
 // bundles are passed in as a prop — no internal fetch needed
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, toPricingCountry } from '../../utils/formatters';
 
 /**
  * Resolves the display price for a bundle based on country.
@@ -22,6 +22,7 @@ import { formatCurrency } from '../../utils/formatters';
  * currency so that all prices in the dialog are shown in the same currency.
  */
 function resolveBundlePrice(bundle, countryCode, fallbackCurrency = 'INR') {
+  countryCode = toPricingCountry(countryCode);
   if (!countryCode || countryCode === 'IN') {
     return { amount: bundle.price, currency: 'INR' };
   }
@@ -37,6 +38,7 @@ function resolveBundlePrice(bundle, countryCode, fallbackCurrency = 'INR') {
  * Sums individual course country prices, mirroring the bundle card logic.
  */
 function resolveBundleOriginalPrice(bundle, countryCode, bundlePrice) {
+  countryCode = toPricingCountry(countryCode);
   const courses = bundle.courses || [];
   if (!countryCode || countryCode === 'IN') {
     // INR: use stored originalPrice (sum of course base prices)

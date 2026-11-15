@@ -245,3 +245,11 @@ export function buildCountryOptions(countryPrices) {
   );
   return [...options, OTHER_COUNTRY_OPTION];
 }
+
+/**
+ * Country code to use when looking up a price. The "Other countries" option (code OTHER) is priced
+ * as the US (USD) price by the backend, so price lookups on the page must do the same.
+ */
+export function toPricingCountry(countryCode) {
+  return countryCode === OTHER_COUNTRY_OPTION.code ? 'US' : countryCode;
+}

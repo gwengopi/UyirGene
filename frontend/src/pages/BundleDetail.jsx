@@ -29,7 +29,7 @@ import CategoryIcon from '@mui/icons-material/Category';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { Button, Breadcrumb, LoadingSpinner, SEO } from '../components/common';
 import { useAuth, useToast, useConfig } from '../store';
-import { formatCurrency, buildCountryOptions } from '../utils/formatters';
+import { formatCurrency, buildCountryOptions, toPricingCountry } from '../utils/formatters';
 import { ROUTES, IMAGES } from '../utils/constants';
 import { getApiBaseUrl } from '../services/api';
 import * as bundleService from '../services/bundleService';
@@ -130,10 +130,13 @@ function BundleDetail() {
     });
   };
 
+  // "Other countries" is priced as the US (USD) price, like the backend does
+  const pricingCountry = toPricingCountry(selectedCountry);
+
   const getDisplayPrice = () => {
     if (!bundle) return { amount: null, currency: 'USD' };
-    if (selectedCountry === 'IN') return { amount: bundle.price, currency: 'INR' };
-    const cp = bundle.countryPrices?.find((p) => p.countryCode === selectedCountry);
+    if (pricingCountry === 'IN') return { amount: bundle.price, currency: 'INR' };
+    const cp = bundle.countryPrices?.find((p) => p.countryCode === pricingCountry);
     if (cp) return { amount: cp.amount, currency: cp.currencyCode };
     return { amount: bundle.price, currency: 'INR' };
   };
@@ -145,17 +148,17 @@ function BundleDetail() {
 
     const dp = getDisplayPrice();
 
-    if (selectedCountry === 'IN') {
+    if (pricingCountry === 'IN') {
       const total = courses.reduce((sum, c) => sum + (c.price || 0), 0);
       return total > dp.amount ? { amount: Math.round(total), currency: 'INR' } : null;
     }
 
     // Non-INR: sum each course's stored price for the selected country
-    const bundleCp = bundle.countryPrices?.find((p) => p.countryCode === selectedCountry);
+    const bundleCp = bundle.countryPrices?.find((p) => p.countryCode === pricingCountry);
     if (!bundleCp) return null;
 
     const total = courses.reduce((sum, c) => {
-      const cp = c.countryPrices?.find((p) => p.countryCode === selectedCountry);
+      const cp = c.countryPrices?.find((p) => p.countryCode === pricingCountry);
       return sum + (cp ? cp.amount : 0);
     }, 0);
 
@@ -348,9 +351,9 @@ function BundleDetail() {
                       </Box>
                       {course.price > 0 && (() => {
                         // Show course individual price in selected country's currency
-                        const ccp = course.countryPrices?.find((p) => p.countryCode === selectedCountry);
-                        const courseAmt = (selectedCountry !== 'IN' && ccp) ? ccp.amount : course.price;
-                        const courseCur = (selectedCountry !== 'IN' && ccp) ? ccp.currencyCode : 'INR';
+                        const ccp = course.countryPrices?.find((p) => p.countryCode === pricingCountry);
+                        const courseAmt = (pricingCountry !== 'IN' && ccp) ? ccp.amount : course.price;
+                        const courseCur = (pricingCountry !== 'IN' && ccp) ? ccp.currencyCode : 'INR';
                         return (
                           <Typography
                             variant="body2"
